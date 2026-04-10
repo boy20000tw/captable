@@ -1091,59 +1091,42 @@ function ShareholderDrawer({
           </div>
         )}
 
-        {/* ── Tax Benefits (shareholder-level, editable) ── */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" /> Tax Benefits
-            </p>
-            {canEdit && !editingTaxBenefits && (
-              <button onClick={() => { setTaxBenefitsValue(shareholder.taxBenefits || ""); setEditingTaxBenefits(true); }}
-                className="text-muted-foreground hover:text-primary transition-colors" title="Edit tax benefits">
-                <Pencil className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          {editingTaxBenefits ? (
+        {/* ── Tax Benefits & Lock-up (read-only, from transactions) ── */}
+        <div className="space-y-3">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" /> Tax Benefits & Lock-up
+          </p>
+          {transactions && transactions.length > 0 ? (
             <div className="space-y-2">
-              <select
-                value={taxBenefitsValue === "Not Applicable" ? "Not Applicable" : (taxBenefitsValue ? "custom" : "")}
-                onChange={e => {
-                  if (e.target.value === "Not Applicable") setTaxBenefitsValue("Not Applicable");
-                  else if (e.target.value === "") setTaxBenefitsValue("");
-                  else setTaxBenefitsValue(taxBenefitsValue === "Not Applicable" ? "" : taxBenefitsValue);
-                }}
-                className="w-full border border-input rounded-sm px-3 py-2 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">-- Select --</option>
-                <option value="Not Applicable">Not Applicable</option>
-                <option value="custom">Custom (enter below)</option>
-              </select>
-              {taxBenefitsValue !== "Not Applicable" && (
-                <textarea
-                  value={taxBenefitsValue}
-                  onChange={e => setTaxBenefitsValue(e.target.value)}
-                  rows={3}
-                  className="w-full border border-input rounded-sm px-3 py-2 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                  placeholder="e.g. 天使投資人抵稅 NT$3M, Section 1202 QSBS"
-                  autoFocus
-                />
-              )}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => updateShareholderMutation.mutate({ id: shareholderId, data: { taxBenefits: taxBenefitsValue || undefined } })}
-                  disabled={updateShareholderMutation.isPending}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded-sm disabled:opacity-50"
-                >
-                  <Save className="h-3 w-3" /> Save
-                </button>
-                <button onClick={() => setEditingTaxBenefits(false)} className="px-3 py-1.5 border border-border text-xs rounded-sm">Cancel</button>
-              </div>
+              {transactions.map(tx => (
+                <div key={tx.id} className="bg-secondary/30 rounded-sm p-2.5 text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{tx.transactionType.replace(/_/g, " ")} — {tx.sharesAmount?.toLocaleString()} shares</span>
+                    <span className="text-muted-foreground">{tx.transactionDate}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground/70 block">Tax Qualified</span>
+                      <span className={tx.taxQualified ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                        {tx.taxQualified ? "Yes" : "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground/70 block">Lock-up Expiry</span>
+                      <span className="text-muted-foreground">{tx.lockUpEndDate || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground/70 block">Tax Deduction</span>
+                      <span className="text-muted-foreground">
+                        {tx.taxDeductionYear ? `${tx.taxDeductionYear} / NT$ ${parseFloat(tx.taxDeductionAmountNtd || "0").toLocaleString()}` : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
-            <p className="text-xs text-foreground leading-relaxed">
-              {shareholder.taxBenefits || <span className="text-muted-foreground italic">None — click pencil to add</span>}
-            </p>
+            <p className="text-xs text-muted-foreground italic">No transactions recorded</p>
           )}
         </div>
 
