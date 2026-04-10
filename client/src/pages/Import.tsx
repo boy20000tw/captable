@@ -1,0 +1,347 @@
+import DashboardLayout from "@/components/DashboardLayout";
+import { trpc } from "@/lib/trpc";
+import { useState, useRef } from "react";
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Sparkles, X } from "lucide-react";
+import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
+
+export default function ImportPage() {
+  return (
+    <DashboardLayout>
+      <ImportContent />
+    </DashboardLayout>
+  );
+}
+
+type ImportResult = {
+  success: boolean;
+  message: string;
+  stats?: {
+    shareholders: number;
+    rounds: number;
+    holdings: number;
+    transactions: number;
+    esopPools: number;
+  };
+  errors?: string[];
+};
+
+function ImportContent() {
+  const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const { canImport } = usePermissions();
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [analysisText, setAnalysisText] = useState<string>("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const utils = trpc.useUtils();
+
+  const { data: rounds } = trpc.fundingRounds.list.useQuery();
+  const { data: summary } = trpc.capTable.summary.useQuery();
+  const { data: projections } = trpc.projections.list.useQuery();
+
+  const importExcel = trpc.import.excel.useMutation({
+    onSuccess: (data) => {
+      const raw = data as unknown as { success: boolean; recordsImported: number; errors: string[] };
+      const r: ImportResult = {
+        success: raw.success,
+        message: raw.success
+          ? `Successfully imported ${raw.recordsImported} records.`
+          : `Import failed with ${raw.errors?.length ?? 0} errors.`,
+        errors: raw.errors,
+      };
+      setResult(r);
+      if (raw.success) {
+        toast.success(`Cap table imported! ${raw.recordsImported} records processed.`);
+        utils.capTable.summary.invalidate();
+        utils.shareholders.list.invalidate();
+        utils.fundingRounds.list.invalidate();
+        utils.holdings.all.invalidate();
+        utils.transactions.list.invalidate();
+        utils.esop.pools.invalidate();
+        utils.esop.grants.invalidate();
+      } else {
+        toast.error("Import completed with errors.");
+      }
+      setImporting(false);
+    },
+    onError: (e) => {
+      setResult({ success: false, message: e.message });
+      toast.error("Import failed: " + e.message);
+      setImporting(false);
+    },
+  });
+
+  const analyzeRounds = trpc.analysis.analyze.useMutation({
+    onSuccess: (data) => {
+      const text = typeof data.analysis === "string" ? data.analysis : "Analysis unavailable";
+      setAnalysisText(text);
+      setAnalyzing(false);
+    },
+    onError: (e: { message: string }) => {
+      toast.error("Analysis failed: " + e.message);
+      setAnalyzing(false);
+    },
+  });
+
+  async function handleImport() {
+    if (!file) return;
+    setImporting(true);
+    setResult(null);
+
+    try {
+      // Convert file to base64 for tRPC transport (avoids cookie issues with multipart)
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      const fileBase64 = btoa(binary);
+
+      importExcel.mutate({ fileBase64, fileName: file.name });
+    } catch (err) {
+      setResult({ success: false, message: "Failed to read file. Please try again." });
+      toast.error("File read error");
+      setImporting(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped && (dropped.name.endsWith(".xlsx") || dropped.name.endsWith(".xls"))) {
+      setFile(dropped);
+      setResult(null);
+    } else {
+      toast.error("Please upload an Excel file (.xlsx or .xls)");
+    }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0];
+    if (selected) {
+      setFile(selected);
+      setResult(null);
+    }
+  }
+
+  function handleAnalyze() {
+    setAnalyzing(true);
+    setAnalysisText("");
+    analyzeRounds.mutate({
+      rounds: (rounds || []).map(r => ({
+        name: r.name,
+        pricePerShareNtd: r.pricePerShareNtd,
+        moneyRaisedNtd: r.moneyRaisedNtd,
+        postMoneyValuationNtd: r.postMoneyValuationNtd,
+        roundDate: r.roundDate ? new Date(r.roundDate).toISOString() : null,
+      })),
+      totalShares: summary?.totalShares || 0,
+      esopPoolShares: summary?.esopPool?.total || undefined,
+      projections: (projections || []).map(p => ({
+        name: p.name,
+        targetRaiseNtd: p.targetRaiseNtd,
+        postMoneyValuationNtd: p.postMoneyValuationNtd,
+        scenario: p.scenario,
+      })),
+    });
+  }
+
+  return (
+    <div className="p-8 max-w-4xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="space-y-1">
+        <div className="h-px bg-foreground/20 w-16 mb-4" />
+        <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          Import & Analysis
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Import your Excel cap table and get AI-powered insights
+        </p>
+      </div>
+
+      {/* Import Section */}
+      <div className="bg-card border border-border rounded-sm p-6 space-y-5">
+        <div className="space-y-0.5">
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Data Import</p>
+          <h3 className="text-base font-semibold tracking-tight">Import Excel Cap Table</h3>
+          <p className="text-xs text-muted-foreground">
+            Supports the standard cap table format with sheets: Register of shareholders, Cap Table, Cap Table w ESOP, Projection Bridge
+          </p>
+        </div>
+
+        {/* Drop Zone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileRef.current?.click()}
+          className={`border-2 border-dashed rounded-sm p-12 text-center cursor-pointer transition-colors ${
+            isDragging ? "border-primary bg-primary/5" : "border-border hover:border-foreground/30 hover:bg-secondary/30"
+          }`}
+        >
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} className="hidden" />
+          {file ? (
+            <div className="space-y-2">
+              <FileSpreadsheet className="h-10 w-10 mx-auto text-primary" />
+              <p className="font-medium text-sm">{file.name}</p>
+              <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB · Click to change</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
+              <div>
+                <p className="font-medium text-sm">Drop your Excel file here</p>
+                <p className="text-xs text-muted-foreground mt-1">or click to browse · .xlsx, .xls supported</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Import Button */}
+        <div className="flex items-center gap-4">
+          {canImport ? (
+            <button
+              onClick={handleImport}
+              disabled={!file || importing}
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {importing ? "Importing..." : "Import Cap Table"}
+            </button>
+          ) : (
+            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-sm px-4 py-2">You do not have permission to import data. Contact an admin or owner.</p>
+          )}
+          {file && (
+            <button onClick={() => { setFile(null); setResult(null); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+              <X className="h-3.5 w-3.5" /> Clear
+            </button>
+          )}
+        </div>
+
+        {/* Result */}
+        {result && (
+          <div className={`border rounded-sm p-4 space-y-3 ${result.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}`}>
+            <div className="flex items-center gap-2">
+              {result.success
+                ? <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                : <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+              }
+              <p className={`text-sm font-medium ${result.success ? "text-green-800" : "text-red-800"}`}>
+                {result.message}
+              </p>
+            </div>
+            {result.stats && (
+              <div className="grid grid-cols-5 gap-3">
+                {[
+                  { label: "Shareholders", value: result.stats.shareholders },
+                  { label: "Rounds", value: result.stats.rounds },
+                  { label: "Holdings", value: result.stats.holdings },
+                  { label: "Transactions", value: result.stats.transactions },
+                  { label: "ESOP Pools", value: result.stats.esopPools },
+                ].map(s => (
+                  <div key={s.label} className="text-center bg-white/60 rounded p-2">
+                    <p className="text-lg font-bold text-green-800">{s.value}</p>
+                    <p className="text-[10px] text-green-600">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {result.errors && result.errors.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-red-700">Warnings:</p>
+                {result.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-red-600">• {e}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* LLM Analysis Section */}
+      <div className="bg-card border border-border rounded-sm p-6 space-y-5">
+        <div className="space-y-0.5">
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">AI Analysis</p>
+          <h3 className="text-base font-semibold tracking-tight">Funding Round Analysis</h3>
+          <p className="text-xs text-muted-foreground">
+            Get an AI-powered analysis of your cap table, valuation trends, dilution impact, and strategic recommendations.
+          </p>
+        </div>
+
+        <button
+          onClick={handleAnalyze}
+          disabled={analyzing}
+          className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+        >
+          {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {analyzing ? "Analyzing..." : "Generate Analysis Report"}
+        </button>
+
+        {(analyzing || analysisText) && (
+          <div className="border border-border rounded-sm p-6 bg-secondary/20 space-y-3">
+            <div className="flex items-center gap-2 pb-3 border-b border-border">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <p className="text-sm font-semibold">AI Analysis Report</p>
+            </div>
+            {analyzing && !analysisText && (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Analyzing your cap table data...</span>
+              </div>
+            )}
+            {analysisText && (
+              <div className="prose prose-sm max-w-none text-foreground">
+                <p className="whitespace-pre-wrap">{analysisText}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Format Guide */}
+      <div className="bg-card border border-border rounded-sm p-6 space-y-4">
+        <div className="space-y-0.5">
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Format Guide</p>
+          <h3 className="text-base font-semibold tracking-tight">Supported Excel Structure</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            {
+              sheet: "Register of shareholders",
+              desc: "Shareholder names, share counts, tax info, lock-up dates",
+              required: true,
+            },
+            {
+              sheet: "Cap Table",
+              desc: "Equity structure by round (Angel, Seed, Seed+, Pre-A, etc.)",
+              required: true,
+            },
+            {
+              sheet: "Cap Table w ESOP",
+              desc: "Cap table including ESOP pool allocation",
+              required: false,
+            },
+            {
+              sheet: "Projection Bridge",
+              desc: "Bridge and Series A round projections",
+              required: false,
+            },
+          ].map(item => (
+            <div key={item.sheet} className="space-y-1 p-3 border border-border rounded-sm">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <p className="text-xs font-medium">{item.sheet}</p>
+                {item.required && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-medium">Required</span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground pl-5">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
