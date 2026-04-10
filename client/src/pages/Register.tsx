@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatShares, formatDate, getRoundLabel } from "@/lib/utils";
 import { useState, useMemo } from "react";
-import { BookOpen, Download, ArrowRightLeft, Plus, X, Check, AlertCircle } from "lucide-react";
+import { BookOpen, Download, ArrowRightLeft, Plus, X, Check, AlertCircle, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -46,6 +46,11 @@ function RegisterContent() {
     notes: "",
   });
 
+  // Inline editing state for register tab
+  const [expandedShId, setExpandedShId] = useState<number | null>(null);
+  const [editingTxId, setEditingTxId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ lockUpEndDate: "", taxDeductionYear: "", taxDeductionAmountNtd: "" });
+
   const utils = trpc.useUtils();
   const { data: transactions, isLoading } = trpc.transactions.list.useQuery();
   const { data: shareholders } = trpc.shareholders.list.useQuery();
@@ -74,6 +79,17 @@ function RegisterContent() {
         totalAmountNtd: "", fundingRoundId: "", notes: "",
       });
       setActiveTab("history");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateTransaction = trpc.transactions.update.useMutation({
+    onSuccess: () => {
+      utils.transactions.list.invalidate();
+      utils.compliance.upcomingLockups.invalidate();
+      utils.compliance.taxDeductions.invalidate();
+      toast.success("Transaction updated");
+      setEditingTxId(null);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -264,6 +280,27 @@ function RegisterContent() {
     });
   }
 
+  function startEditTx(tx: (typeof enriched)[number]) {
+    setEditingTxId(tx.id);
+    setEditForm({
+      lockUpEndDate: tx.lockUpEndDate || "",
+      taxDeductionYear: tx.taxDeductionYear ? String(tx.taxDeductionYear) : "",
+      taxDeductionAmountNtd: tx.taxDeductionAmountNtd || "",
+    });
+  }
+
+  function saveEditTx() {
+    if (!editingTxId) return;
+    updateTransaction.mutate({
+      id: editingTxId,
+      data: {
+        lockUpEndDate: editForm.lockUpEndDate || undefined,
+        taxDeductionYear: editForm.taxDeductionYear ? parseInt(editForm.taxDeductionYear) : undefined,
+        taxDeductionAmountNtd: editForm.taxDeductionAmountNtd || undefined,
+      },
+    });
+  }
+
   const shareClasses = ["common", "seed", "seed_plus", "pre_a", "bridge", "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop"];
   const tabs: { id: ActiveTab; label: string; count?: number }[] = [
     { id: "register", label: "Shareholder Register", count: registerRows.length },
@@ -325,6 +362,9 @@ function RegisterContent() {
           <div className="px-6 py-4 border-b border-border flex items-center gap-3">
             <BookOpen className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold tracking-tight">Register of Shareholders</h3>
+            {canEdit && (
+              <span className="ml-auto text-[10px] text-muted-foreground tracking-wide uppercase">Click row to expand &amp; edit transactions</span>
+            )}
           </div>
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
@@ -337,6 +377,7 @@ function RegisterContent() {
               <table className="cap-table w-full">
                 <thead>
                   <tr>
+                    <th className="w-8"></th>
                     <th className="cursor-pointer select-none" onClick={() => toggleRegSort("id")}>
                       # {regSortKey === "id" ? (regSortDir === "asc" ? "↑" : "↓") : <span className="text-muted-foreground/40">⇕</span>}
                     </th>
@@ -359,48 +400,165 @@ function RegisterContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {registerRows.map((row, i) => (
-                    <tr key={row.sh!.id}>
-                      <td className="text-center text-[11px] font-mono text-muted-foreground tabular-nums">#{String(idxMap.get(row.sh!.id) || 0).padStart(3, "0")}</td>
-                      <td>
-                        <div>
-                          <p className="font-medium text-sm">{row.sh!.name}</p>
-                          {row.sh!.aka && <p className="text-xs text-muted-foreground">{row.sh!.aka}</p>}
-                          {row.sh!.isEntity && (
-                            <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">Entity</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium badge-${row.sh!.type || "other"}`}>
-                          {getRoundLabel(row.sh!.type || "other")}
-                        </span>
-                      </td>
-                      <td className="text-right tabular-nums font-medium">{formatShares(row.totalShares)}</td>
-                      <td className="text-right tabular-nums">
-                        {row.paidIn > 0 ? `NT$ ${row.paidIn.toLocaleString()}` : "—"}
-                      </td>
-                      <td>
-                        {row.taxQualified ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Yes</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="text-muted-foreground text-sm">
-                        {row.lockUpDate ? formatDate(row.lockUpDate) : "—"}
-                      </td>
-                      <td className="text-muted-foreground text-sm tabular-nums">
-                        {row.taxYear || "—"}
-                      </td>
-                      <td className="text-right tabular-nums text-muted-foreground">
-                        {row.taxAmount > 0 ? `NT$ ${row.taxAmount.toLocaleString()}` : "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {registerRows.map((row, i) => {
+                    const isExpanded = expandedShId === row.sh!.id;
+                    return (
+                      <>
+                        <tr
+                          key={row.sh!.id}
+                          onClick={() => setExpandedShId(isExpanded ? null : row.sh!.id)}
+                          className="cursor-pointer hover:bg-secondary/30 transition-colors"
+                        >
+                          <td className="text-muted-foreground w-8 text-center">
+                            {isExpanded ? <ChevronDown className="h-3.5 w-3.5 inline" /> : <ChevronRight className="h-3.5 w-3.5 inline" />}
+                          </td>
+                          <td className="text-center text-[11px] font-mono text-muted-foreground tabular-nums">#{String(idxMap.get(row.sh!.id) || 0).padStart(3, "0")}</td>
+                          <td>
+                            <div>
+                              <p className="font-medium text-sm">{row.sh!.name}</p>
+                              {row.sh!.aka && <p className="text-xs text-muted-foreground">{row.sh!.aka}</p>}
+                              {row.sh!.isEntity && (
+                                <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">Entity</span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium badge-${row.sh!.type || "other"}`}>
+                              {getRoundLabel(row.sh!.type || "other")}
+                            </span>
+                          </td>
+                          <td className="text-right tabular-nums font-medium">{formatShares(row.totalShares)}</td>
+                          <td className="text-right tabular-nums">
+                            {row.paidIn > 0 ? `NT$ ${row.paidIn.toLocaleString()}` : "\u2014"}
+                          </td>
+                          <td>
+                            {row.taxQualified ? (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Yes</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">\u2014</span>
+                            )}
+                          </td>
+                          <td className="text-muted-foreground text-sm">
+                            {row.lockUpDate ? formatDate(row.lockUpDate) : "\u2014"}
+                          </td>
+                          <td className="text-muted-foreground text-sm tabular-nums">
+                            {row.taxYear || "\u2014"}
+                          </td>
+                          <td className="text-right tabular-nums text-muted-foreground">
+                            {row.taxAmount > 0 ? `NT$ ${row.taxAmount.toLocaleString()}` : "\u2014"}
+                          </td>
+                        </tr>
+                        {/* Expanded transaction rows */}
+                        {isExpanded && row.txns.map(tx => (
+                          <tr key={`tx-${tx.id}`} className="bg-secondary/20 border-l-2 border-l-primary/30">
+                            <td></td>
+                            <td></td>
+                            <td colSpan={2} className="text-xs text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-1.5 py-0.5 rounded-full font-medium ${
+                                  tx.transactionType === "issuance" ? "bg-green-100 text-green-700" :
+                                  tx.transactionType === "transfer_in" ? "bg-blue-100 text-blue-700" :
+                                  tx.transactionType === "transfer_out" ? "bg-red-100 text-red-700" :
+                                  tx.transactionType === "esop_grant" ? "bg-purple-100 text-purple-700" :
+                                  "bg-secondary text-muted-foreground"
+                                }`}>
+                                  {tx.transactionType.replace(/_/g, " ")}
+                                </span>
+                                <span>{formatDate(tx.transactionDate)}</span>
+                                {tx.round && <span className="text-muted-foreground/60">({tx.round.name})</span>}
+                              </div>
+                            </td>
+                            <td className="text-right tabular-nums text-xs">{formatShares(tx.sharesAmount)}</td>
+                            <td className="text-right tabular-nums text-xs">
+                              {tx.totalAmountNtd ? `NT$ ${parseFloat(tx.totalAmountNtd).toLocaleString()}` : "\u2014"}
+                            </td>
+                            <td className="text-xs">
+                              {tx.taxQualified ? <span className="text-green-600">Yes</span> : <span className="text-muted-foreground">\u2014</span>}
+                            </td>
+                            {/* Editable Lock-Up Expiry */}
+                            <td className="text-xs">
+                              {editingTxId === tx.id ? (
+                                <input
+                                  type="date"
+                                  value={editForm.lockUpEndDate}
+                                  onChange={e => setEditForm(f => ({ ...f, lockUpEndDate: e.target.value }))}
+                                  className="w-28 border border-input rounded px-1.5 py-0.5 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              ) : (
+                                <span className="text-muted-foreground">{tx.lockUpEndDate ? formatDate(tx.lockUpEndDate) : "\u2014"}</span>
+                              )}
+                            </td>
+                            {/* Editable Tax Deduction Year */}
+                            <td className="text-xs">
+                              {editingTxId === tx.id ? (
+                                <input
+                                  type="number"
+                                  value={editForm.taxDeductionYear}
+                                  onChange={e => setEditForm(f => ({ ...f, taxDeductionYear: e.target.value }))}
+                                  className="w-16 border border-input rounded px-1.5 py-0.5 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                                  placeholder="Year"
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              ) : (
+                                <span className="text-muted-foreground tabular-nums">{tx.taxDeductionYear || "\u2014"}</span>
+                              )}
+                            </td>
+                            {/* Editable Tax Deduction Amount + Edit/Save buttons */}
+                            <td className="text-right text-xs">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {editingTxId === tx.id ? (
+                                  <>
+                                    <input
+                                      type="number"
+                                      value={editForm.taxDeductionAmountNtd}
+                                      onChange={e => setEditForm(f => ({ ...f, taxDeductionAmountNtd: e.target.value }))}
+                                      className="w-24 border border-input rounded px-1.5 py-0.5 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring text-right"
+                                      placeholder="Amount"
+                                      onClick={e => e.stopPropagation()}
+                                    />
+                                    <button
+                                      onClick={e => { e.stopPropagation(); saveEditTx(); }}
+                                      className="p-0.5 rounded hover:bg-green-100 text-green-600 transition-colors"
+                                      title="Save"
+                                    >
+                                      <Check className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={e => { e.stopPropagation(); setEditingTxId(null); }}
+                                      className="p-0.5 rounded hover:bg-red-100 text-red-500 transition-colors"
+                                      title="Cancel"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="tabular-nums text-muted-foreground">
+                                      {tx.taxDeductionAmountNtd ? `NT$ ${parseFloat(tx.taxDeductionAmountNtd).toLocaleString()}` : "\u2014"}
+                                    </span>
+                                    {canEdit && (
+                                      <button
+                                        onClick={e => { e.stopPropagation(); startEditTx(tx); }}
+                                        className="p-0.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors ml-1"
+                                        title="Edit lockup & tax"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="total-row">
+                    <td></td>
                     <td colSpan={3} className="font-semibold">Total</td>
                     <td className="text-right tabular-nums font-semibold">{formatShares(grandTotal)}</td>
                     <td className="text-right tabular-nums font-semibold">
@@ -471,8 +629,11 @@ function RegisterContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {enriched.map(t => (
-                      <tr key={t.id}>
+                    {enriched.map(t => {
+                      const pricePerShare = t.pricePerShareNtd || (t.round?.pricePerShareNtd ?? null);
+                      const totalAmount = t.totalAmountNtd || (pricePerShare && !t.totalAmountNtd ? String(parseFloat(pricePerShare) * t.sharesAmount) : null);
+                      return (
+                        <tr key={t.id}>
                         <td className="text-muted-foreground">{formatDate(t.transactionDate)}</td>
                         <td className="font-medium">{t.shareholder?.name || `#${t.shareholderId}`}</td>
                         <td>
@@ -491,17 +652,21 @@ function RegisterContent() {
                         <td className="text-muted-foreground text-xs">{t.shareClass}</td>
                         <td className="text-right tabular-nums font-medium">{formatShares(t.sharesAmount)}</td>
                         <td className="text-right tabular-nums text-muted-foreground">
-                          {t.pricePerShareNtd ? `NT$ ${parseFloat(t.pricePerShareNtd).toLocaleString()}` : "—"}
-                        </td>
+                          {pricePerShare ? `NT$ ${parseFloat(pricePerShare).toLocaleString()}` : "—"}
+                            {!t.pricePerShareNtd && pricePerShare && (
+                              <span className="text-[10px] text-muted-foreground/50 ml-0.5" title="From round">(R)</span>
+                            )}
+                          </td>
                         <td className="text-right tabular-nums">
-                          {t.totalAmountNtd ? `NT$ ${parseFloat(t.totalAmountNtd).toLocaleString()}` : "—"}
+                          {totalAmount ? `NT$ ${parseFloat(totalAmount).toLocaleString()}` : "—"}
                         </td>
                         <td className="text-muted-foreground text-xs">{t.round?.name || "—"}</td>
                         <td className="text-muted-foreground text-xs max-w-[160px] truncate" title={t.notes || ""}>
                           {t.notes || "—"}
                         </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
