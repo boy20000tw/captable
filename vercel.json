@@ -1,8 +1,8 @@
 {
-            "buildCommand": "npm run build && npx esbuild 'api/trpc/[trpc].ts' --bundle --platform=node --format=esm --packages=external --outfile='api/trpc/[trpc].js' && rm 'api/trpc/[trpc].ts'",
-            "outputDirectory": "dist/public",
-            "framework": null,
-            "rewrites": [
-                            { "source": "/((?!api/).*)", "destination": "/index.html" }
-            ]
+              "buildCommand": "npm run build && npx esbuild 'api/trpc/[trpc].ts' --bundle --platform=node --format=esm --packages=external --outfile='api/trpc/_bundled.js' && mv 'api/trpc/_bundled.js' 'api/trpc/[trpc].ts'",
+              "outputDirectory": "dist/public",
+              "framework": null,
+              "rewrites": [
+                              { "source": "/((?!api/).*)", "destination": "/index.html" }
+              ]
 }
