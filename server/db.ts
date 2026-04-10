@@ -158,9 +158,10 @@ export async function getAllFundingRounds() {
       }
     }
 
-    // Use stored values if available, otherwise use calculated
-    const preMoney = r.preMoneyValuationNtd ? Number(r.preMoneyValuationNtd) : preMoneyCalc;
-    const postMoney = r.postMoneyValuationNtd ? Number(r.postMoneyValuationNtd) : postMoneyCalc;
+    // Prefer formula-calculated values when price is available (most accurate);
+    // fall back to stored DB values only when formula can't compute
+    const preMoney = preMoneyCalc !== null ? preMoneyCalc : (r.preMoneyValuationNtd ? Number(r.preMoneyValuationNtd) : null);
+    const postMoney = postMoneyCalc !== null ? postMoneyCalc : (r.postMoneyValuationNtd ? Number(r.postMoneyValuationNtd) : null);
     const sharesIssued = sharesIssuedThisRound > 0 ? sharesIssuedThisRound : (sharesIssuedCalc ?? 0);
 
     cumulativeShares += sharesIssued;
