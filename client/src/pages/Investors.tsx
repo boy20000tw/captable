@@ -1102,7 +1102,7 @@ function ShareholderDrawer({
                 <div key={tx.id} className="bg-secondary/30 rounded-sm p-2.5 text-xs space-y-1">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{tx.transactionType.replace(/_/g, " ")} — {tx.sharesAmount?.toLocaleString()} shares</span>
-                    <span className="text-muted-foreground">{tx.transactionDate}</span>
+                    <span className="text-muted-foreground">{tx.transactionDate ? formatDate(tx.transactionDate) : ""}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-1">
                     <div>
@@ -1113,7 +1113,7 @@ function ShareholderDrawer({
                     </div>
                     <div>
                       <span className="text-[10px] text-muted-foreground/70 block">Lock-up Expiry</span>
-                      <span className="text-muted-foreground">{tx.lockUpEndDate || "—"}</span>
+                      <span className="text-muted-foreground">{tx.lockUpEndDate ? formatDate(tx.lockUpEndDate) : "—"}</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-muted-foreground/70 block">Tax Deduction</span>
