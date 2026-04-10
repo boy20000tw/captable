@@ -338,19 +338,19 @@ function RegisterContent() {
                 <thead>
                   <tr>
                     <th className="cursor-pointer select-none" onClick={() => toggleRegSort("id")}>
-                      # {regSortKey === "id" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                      # {regSortKey === "id" ? (regSortDir === "asc" ? "↑" : "↓") : <span className="text-muted-foreground/40">⇕</span>}
                     </th>
                     <th className="cursor-pointer select-none" onClick={() => toggleRegSort("name")}>
-                      Shareholder {regSortKey === "name" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                      Shareholder {regSortKey === "name" ? (regSortDir === "asc" ? "↑" : "↓") : <span className="text-muted-foreground/40">⇕</span>}
                     </th>
                     <th className="cursor-pointer select-none" onClick={() => toggleRegSort("type")}>
-                      Type {regSortKey === "type" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                      Type {regSortKey === "type" ? (regSortDir === "asc" ? "↑" : "↓") : <span className="text-muted-foreground/40">⇕</span>}
                     </th>
                     <th className="text-right cursor-pointer select-none" onClick={() => toggleRegSort("shares")}>
-                      Shares Held {regSortKey === "shares" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                      Shares Held {regSortKey === "shares" ? (regSortDir === "asc" ? "↑" : "↓") : <span className="text-muted-foreground/40">⇕</span>}
                     </th>
                     <th className="text-right cursor-pointer select-none" onClick={() => toggleRegSort("paidIn")}>
-                      Paid-In Capital {regSortKey === "paidIn" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                      Paid-In Capital {regSortKey === "paidIn" ? (regSortDir === "asc" ? "↑" : "↓") : <span className="text-muted-foreground/40">⇕</span>}
                     </th>
                     <th>Tax Qualified</th>
                     <th>Lock-Up Expiry</th>
