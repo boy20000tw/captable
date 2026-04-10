@@ -39,6 +39,16 @@ function RegisterContent() {
   const { data: shareholders } = trpc.shareholders.list.useQuery();
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
 
+  // Build stable #ID map matching Investors page — non-ESOP shareholders sorted by DB id
+  const sortedAllForIdx = useMemo(() => {
+    return (shareholders || []).filter(s => s.type !== "esop").slice().sort((a, b) => a.id - b.id);
+  }, [shareholders]);
+  const idxMap = useMemo(() => {
+    const m = new Map();
+    sortedAllForIdx.forEach((s, i) => m.set(s.id, i + 1));
+    return m;
+  }, [sortedAllForIdx]);
+
   const createTransaction = trpc.transactions.create.useMutation({
     onSuccess: () => {
       utils.transactions.list.invalidate();
@@ -318,7 +328,7 @@ function RegisterContent() {
                 <tbody>
                   {registerRows.map((row, i) => (
                     <tr key={row.sh!.id}>
-                      <td className="text-muted-foreground text-xs tabular-nums">{i + 1}</td>
+                      <td className="text-center text-[11px] font-mono text-muted-foreground tabular-nums">#{String(idxMap.get(row.sh!.id) || 0).padStart(3, "0")}</td>
                       <td>
                         <div>
                           <p className="font-medium text-sm">{row.sh!.name}</p>
