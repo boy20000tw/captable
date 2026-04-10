@@ -266,7 +266,7 @@ function DashboardContent() {
                     <td className="text-muted-foreground">{formatDate(r.roundDate)}</td>
                     <td className="text-right tabular-nums">{r.pricePerShareNtd ? `NT$ ${parseFloat(r.pricePerShareNtd).toLocaleString()}` : "—"}</td>
                     <td className="text-right tabular-nums">{formatValuation(r.moneyRaisedNtd)}</td>
-                    <td className="text-right tabular-nums">{formatValuation(r.postMoneyValuationNtd)}</td>
+                    <td className="text-right tabular-nums">{formatValuation(String((r as any).postMoneyCalc ?? r.postMoneyValuationNtd ?? ""))}</td>
                     <td>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         r.status === "completed" ? "bg-green-100 text-green-700" :
