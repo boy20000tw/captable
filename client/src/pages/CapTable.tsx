@@ -17,7 +17,7 @@ export default function CapTablePage() {
 
 function CapTableContent() {
   const [currency, setCurrency] = useState<"NTD" | "USD">("NTD");
-  const [sortBy, setSortBy] = useState<"shares" | "name" | "type">("shares");
+  const [sortBy, setSortBy] = useState<"shares" | "name" | "type" | "date">("shares");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedRoundId, setSelectedRoundId] = useState<number | null | "all">(null);
 
@@ -39,18 +39,23 @@ function CapTableContent() {
 
     type HoldingRow = NonNullable<typeof allHoldings>[number];
     type ShareholderRow = NonNullable<typeof shareholders>[number];
-    type AggRow = HoldingRow & { shareholder: ShareholderRow | undefined };
+    type AggRow = HoldingRow & { shareholder: ShareholderRow | undefined; earliestDate: string | null };
 
     // Helper: aggregate holdings per shareholder from a filtered set
     function aggregateHoldings(filtered: HoldingRow[]): AggRow[] {
       const map = new Map<number, AggRow>();
       for (const h of filtered) {
+        const hDate = (h as any).investmentDate as string | null;
         if (!map.has(h.shareholderId)) {
-          map.set(h.shareholderId, { ...h, shareholder: shareholders!.find(s => s.id === h.shareholderId) });
+          map.set(h.shareholderId, { ...h, shareholder: shareholders!.find(s => s.id === h.shareholderId), earliestDate: hDate ?? null });
         } else {
           const existing = map.get(h.shareholderId)!;
+          // Track earliest investment date
+          let earliest = existing.earliestDate;
+          if (hDate && (!earliest || hDate < earliest)) earliest = hDate;
           map.set(h.shareholderId, {
             ...existing,
+            earliestDate: earliest,
             totalShares: existing.totalShares + h.totalShares,
             commonShares: (existing.commonShares || 0) + (h.commonShares || 0),
             seedShares: (existing.seedShares || 0) + (h.seedShares || 0),
@@ -89,6 +94,7 @@ function CapTableContent() {
       if (sortBy === "shares") cmp = a.totalShares - b.totalShares;
       else if (sortBy === "name") cmp = (a.shareholder?.name || "").localeCompare(b.shareholder?.name || "");
       else if (sortBy === "type") cmp = (a.shareholder?.type || "").localeCompare(b.shareholder?.type || "");
+      else if (sortBy === "date") cmp = ((a as any).earliestDate || "").localeCompare((b as any).earliestDate || "");
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [holdingsForRound, sortBy, sortDir]);
@@ -104,12 +110,12 @@ function CapTableContent() {
     }));
   }, [sorted]);
 
-  function toggleSort(col: typeof sortBy) {
+  function toggleSort(col: "shares" | "name" | "type" | "date") {
     if (sortBy === col) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortBy(col); setSortDir("desc"); }
+    else { setSortBy(col); setSortDir(col === "date" ? "asc" : "desc"); }
   }
 
-  function SortIcon({ col }: { col: typeof sortBy }) {
+  function SortIcon({ col }: { col: "shares" | "name" | "type" | "date" }) {
     if (sortBy !== col) return <span className="text-muted-foreground/30">↕</span>;
     return sortDir === "desc" ? <ChevronDown className="h-3 w-3 inline" /> : <ChevronUp className="h-3 w-3 inline" />;
   }
@@ -161,19 +167,20 @@ function CapTableContent() {
               <DropdownMenuItem
                 onClick={() => {
                   const roundName = rounds?.find(r => r.id === activeRoundId)?.name || "All Rounds";
-                  const headers = ["Shareholder", "Type", "Shares", "Ownership %", "Paid-In Capital (NTD)"];
+                  const headers = ["Shareholder", "Type", "Date", "Shares", "Ownership %", "Paid-In Capital (NTD)"];
                   const rows = sorted.map(h => {
                     const pct = totalShares > 0 ? h.totalShares / totalShares : 0;
                     const paidIn = h.paidInCapitalNtd ? parseFloat(h.paidInCapitalNtd) : null;
                     return [
                       h.shareholder?.name || "",
                       h.shareholder?.type?.replace(/_/g, " ") || "",
+                      (h as any).earliestDate || "",
                       h.totalShares,
                       (pct * 100).toFixed(4) + "%",
                       paidIn ? paidIn.toLocaleString() : "",
                     ];
                   });
-                  rows.push(["TOTAL", "", totalShares, "100%", sorted.reduce((s, h) => s + (h.paidInCapitalNtd ? parseFloat(h.paidInCapitalNtd) : 0), 0).toLocaleString()]);
+                  rows.push(["TOTAL", "", "", totalShares, "100%", sorted.reduce((s, h) => s + (h.paidInCapitalNtd ? parseFloat(h.paidInCapitalNtd) : 0), 0).toLocaleString()]);
                   const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
                   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
                   const url = URL.createObjectURL(blob);
@@ -267,6 +274,9 @@ function CapTableContent() {
                     <th className="cursor-pointer select-none" onClick={() => toggleSort("type")}>
                       Type <SortIcon col="type" />
                     </th>
+                    <th className="cursor-pointer select-none" onClick={() => toggleSort("date")}>
+                      Date <SortIcon col="date" />
+                    </th>
                     <th className="text-right cursor-pointer select-none" onClick={() => toggleSort("shares")}>
                       Shares <SortIcon col="shares" />
                     </th>
@@ -305,6 +315,7 @@ function CapTableContent() {
                             {getRoundLabel(h.shareholder?.type || "other")}
                           </span>
                         </td>
+                        <td className="text-muted-foreground text-xs tabular-nums">{(h as any).earliestDate ? formatDate((h as any).earliestDate) : "—"}</td>
                         <td className="text-right tabular-nums font-medium">{formatShares(h.totalShares)}</td>
                         <td className="text-right tabular-nums">
                           <div className="flex items-center justify-end gap-2">
@@ -327,7 +338,7 @@ function CapTableContent() {
                 </tbody>
                 <tfoot>
                   <tr className="total-row">
-                    <td colSpan={2} className="font-semibold">Total</td>
+                    <td colSpan={3} className="font-semibold">Total</td>
                     <td className="text-right tabular-nums font-semibold">{formatShares(totalShares)}</td>
                     <td className="text-right font-semibold">100.00%</td>
                     <td className="text-right tabular-nums text-muted-foreground">
