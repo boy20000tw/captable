@@ -289,164 +289,155 @@ function DashboardContent() {
 
 function ComplianceAlerts() {
   const [, setLocation] = useLocation();
-  const { data: lockups } = trpc.compliance.upcomingLockups.useQuery({ daysAhead: 180 });
-  const { data: taxData } = trpc.compliance.taxDeductions.useQuery();
+  const { data: lockups } = trpc.compliance.upcomingLockups.useQuery();
+  const { data: taxDeductions } = trpc.compliance.taxDeductions.useQuery();
   const { data: documents } = trpc.documents.list.useQuery();
-  const { data: expiringGrants = [] } = trpc.esop.expiringGrants.useQuery({ withinDays: 90 });
+  const { data: expiringGrants } = trpc.esop.expiringGrants.useQuery();
   const { data: shareholders } = trpc.shareholders.list.useQuery();
-  const today = new Date();
 
-  // Tax expiry alerts: transactions where taxDeductionYear is this year or next year
-  const taxAlerts = useMemo(() => {
-    if (!taxData) return [];
-    const currentYear = today.getFullYear();
-    return taxData
-      .filter(t => t.taxDeductionYear && (t.taxDeductionYear === currentYear || t.taxDeductionYear === currentYear + 1))
-      .slice(0, 5);
-  }, [taxData, today]);
+  const shMap = useMemo(() => {
+    const m = new Map<number, string>();
+    (shareholders || []).forEach(s => m.set(s.id, s.name));
+    return m;
+  }, [shareholders]);
 
-  // Lockup expirations in the next 180 days
-  const upcomingLockups = useMemo(() => {
-    if (!lockups) return [];
-    return lockups.slice(0, 5);
-  }, [lockups]);
+  const hasLockups = lockups && lockups.length > 0;
+  const hasTax = taxDeductions && taxDeductions.length > 0;
+  const hasExpGrants = expiringGrants && expiringGrants.length > 0;
 
-  // Pending documents
-  const pendingDocs = useMemo(() => {
-    if (!documents) return [];
-    return documents.filter(d => d.status === "pending").slice(0, 5);
-  }, [documents]);
-
-   const hasTaxAlerts = taxAlerts.length > 0;
-  const hasLockups = upcomingLockups.length > 0;
-  const hasPendingDocs = pendingDocs.length > 0;
-  const hasExpiringGrants = expiringGrants.length > 0;
-  if (!hasTaxAlerts && !hasLockups && !hasPendingDocs && !hasExpiringGrants) return null;
+  if (!hasLockups && !hasTax && !hasExpGrants) {
+    return (
+      <div className="bg-card border border-border rounded-sm p-6 text-center text-muted-foreground text-sm">
+        No compliance alerts at this time.
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="h-px bg-foreground/20 flex-1" />
-        <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Compliance Alerts</p>
-        <div className="h-px bg-foreground/20 flex-1" />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Tax Deduction Alerts */}
-        {hasTaxAlerts && (
-          <div className="bg-amber-50 border border-amber-200 rounded-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <p className="text-xs font-semibold text-amber-800 tracking-wide uppercase">Tax Benefit Expiry</p>
-            </div>
-            <div className="space-y-2">
-              {taxAlerts.map(t => (
-                <div key={`tax-${t.id}`} className="flex items-center justify-between text-xs">
-                  <span className="text-amber-900 truncate max-w-[140px]">
-                    {t.shareholderId ? `Shareholder #${t.shareholderId}` : "Unknown"}
-                  </span>
-                  <span className={`font-semibold tabular-nums ${
-                    t.taxDeductionYear === today.getFullYear() ? "text-red-600" : "text-amber-700"
-                  }`}>
-                    {t.taxDeductionYear === today.getFullYear() ? "This Year" : `${t.taxDeductionYear}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setLocation("/register")}
-              className="text-xs text-amber-700 hover:text-amber-900 flex items-center gap-1 font-medium"
-            >
-              View Register <ArrowRight className="h-3 w-3" />
-            </button>
+    <div className="space-y-4">
+      {/* Lock-up Expiry Table */}
+      {hasLockups && (
+        <div className="bg-card border border-border rounded-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-500" /> Lock-up Expiry
+              <span className="text-xs font-normal text-muted-foreground">({lockups.length})</span>
+            </h3>
           </div>
-        )}
+          <div className="overflow-x-auto">
+            <table className="cap-table w-full">
+              <thead>
+                <tr>
+                  <th>Shareholder</th>
+                  <th>Transaction</th>
+                  <th className="text-right">Shares</th>
+                  <th>Lock-up End Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lockups.map((l: any, i: number) => {
+                  const isExpired = new Date(l.lockUpEndDate) < new Date();
+                  const isExpiringSoon = !isExpired && new Date(l.lockUpEndDate) < new Date(Date.now() + 90 * 86400000);
+                  return (
+                    <tr key={i}>
+                      <td className="font-medium text-sm">{shMap.get(l.shareholderId) || `#${l.shareholderId}`}</td>
+                      <td className="text-xs text-muted-foreground">{l.transactionType?.replace(/_/g, " ") || "\u2014"}</td>
+                      <td className="text-right tabular-nums">{l.sharesAmount?.toLocaleString() || "\u2014"}</td>
+                      <td className="tabular-nums">{l.lockUpEndDate}</td>
+                      <td>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          isExpired ? "bg-red-100 text-red-700" :
+                          isExpiringSoon ? "bg-amber-100 text-amber-700" :
+                          "bg-green-100 text-green-700"
+                        }`}>
+                          {isExpired ? "Expired" : isExpiringSoon ? "Expiring Soon" : "Active"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-        {/* Upcoming Lock-up Expirations */}
-        {hasLockups && (
-          <div className="bg-blue-50 border border-blue-200 rounded-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-blue-600" />
-              <p className="text-xs font-semibold text-blue-800 tracking-wide uppercase">Lock-up Expiring</p>
-            </div>
-            <div className="space-y-2">
-              {upcomingLockups.map(t => {
-                const expiry = t.lockUpEndDate ? new Date(t.lockUpEndDate) : null;
-                const daysLeft = expiry ? Math.ceil((expiry.getTime() - today.getTime()) / 86400000) : null;
-                return (
-                  <div key={`lockup-${t.id}`} className="flex items-center justify-between text-xs">
-                    <span className="text-blue-900 truncate max-w-[140px]">
-                      {t.shareholderId ? `Shareholder #${t.shareholderId}` : "Unknown"}
-                    </span>
-                    <span className={`font-semibold tabular-nums ${
-                      daysLeft !== null && daysLeft <= 30 ? "text-red-600" : "text-blue-700"
-                    }`}>
-                      {daysLeft !== null ? `${daysLeft}d` : "—"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setLocation("/investors")}
-              className="text-xs text-blue-700 hover:text-blue-900 flex items-center gap-1 font-medium"
-            >
-              View Investors <ArrowRight className="h-3 w-3" />
-            </button>
+      {/* Tax Benefit Expiry Table */}
+      {hasTax && (
+        <div className="bg-card border border-border rounded-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-blue-500" /> Tax Benefit Expiry
+              <span className="text-xs font-normal text-muted-foreground">({taxDeductions.length})</span>
+            </h3>
           </div>
-        )}
+          <div className="overflow-x-auto">
+            <table className="cap-table w-full">
+              <thead>
+                <tr>
+                  <th>Shareholder</th>
+                  <th>Tax Deduction Year</th>
+                  <th className="text-right">Tax Deduction Amount</th>
+                  <th>Tax Qualified</th>
+                </tr>
+              </thead>
+              <tbody>
+                {taxDeductions.map((t: any, i: number) => (
+                  <tr key={i}>
+                    <td className="font-medium text-sm">{shMap.get(t.shareholderId) || `#${t.shareholderId}`}</td>
+                    <td className="tabular-nums">{t.taxDeductionYear || "\u2014"}</td>
+                    <td className="text-right tabular-nums">
+                      {t.taxDeductionAmountNtd ? `NT$ ${parseFloat(t.taxDeductionAmountNtd).toLocaleString()}` : "\u2014"}
+                    </td>
+                    <td>
+                      {t.taxQualified ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Yes</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">\u2014</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-        {/* ESOP Expiry Alerts */}
-        {hasExpiringGrants && (
-          <div className="bg-red-50 border border-red-200 rounded-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <p className="text-xs font-semibold text-red-800 tracking-wide uppercase">Options Expiring</p>
-            </div>
-            <div className="space-y-2">
-              {expiringGrants.slice(0, 5).map(g => {
-                const sh = (shareholders || []).find(s => s.id === g.shareholderId);
-                return (
-                  <div key={g.id} className="flex items-center justify-between text-xs">
-                    <span className="text-red-900 truncate max-w-[140px]">{sh?.name ?? `Grantee #${g.shareholderId}`}</span>
-                    <span className={`font-semibold tabular-nums ${
-                      g.daysUntilExpiry <= 30 ? "text-red-700" : "text-orange-600"
-                    }`}>{g.daysUntilExpiry}d left</span>
-                  </div>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setLocation("/esop")}
-              className="text-xs text-red-700 hover:text-red-900 flex items-center gap-1 font-medium"
-            >
-              View ESOP <ArrowRight className="h-3 w-3" />
-            </button>
+      {/* ESOP Expiring Grants Table */}
+      {hasExpGrants && (
+        <div className="bg-card border border-border rounded-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-border">
+            <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-purple-500" /> Expiring ESOP Grants
+              <span className="text-xs font-normal text-muted-foreground">({expiringGrants.length})</span>
+            </h3>
           </div>
-        )}
-        {/* Pending Documents */}
-        {hasPendingDocs && (
-          <div className="bg-rose-50 border border-rose-200 rounded-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-rose-600" />
-              <p className="text-xs font-semibold text-rose-800 tracking-wide uppercase">Documents Pending</p>
-            </div>
-            <div className="space-y-2">
-              {pendingDocs.map(d => (
-                <div key={d.id} className="flex items-center justify-between text-xs">
-                  <span className="text-rose-900 truncate max-w-[140px]">{d.documentName}</span>
-                  <span className="font-medium text-rose-600 uppercase tracking-wide">{d.documentType}</span>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setLocation("/investors")}
-              className="text-xs text-rose-700 hover:text-rose-900 flex items-center gap-1 font-medium"
-            >
-              View Investors <ArrowRight className="h-3 w-3" />
-            </button>
+          <div className="overflow-x-auto">
+            <table className="cap-table w-full">
+              <thead>
+                <tr>
+                  <th>Shareholder</th>
+                  <th>Grant Date</th>
+                  <th className="text-right">Shares</th>
+                  <th>Expiry Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expiringGrants.map((g: any, i: number) => (
+                  <tr key={i}>
+                    <td className="font-medium text-sm">{shMap.get(g.shareholderId) || `#${g.shareholderId}`}</td>
+                    <td className="text-muted-foreground tabular-nums">{g.grantDate || "\u2014"}</td>
+                    <td className="text-right tabular-nums">{g.sharesAmount?.toLocaleString() || "\u2014"}</td>
+                    <td className="tabular-nums">{g.expiryDate || "\u2014"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
