@@ -22,8 +22,8 @@ function RegisterContent() {
   const { canEdit } = usePermissions();
 
   // Sort state for register table
-  const [regSortKey, setRegSortKey] = useState<"id" | "name" | "type" | "shares" | "paidIn">("shares");
-  const [regSortDir, setRegSortDir] = useState<"asc" | "desc">("desc");
+  const [regSortKey, setRegSortKey] = useState<"id" | "name" | "type" | "shares" | "paidIn">("id");
+  const [regSortDir, setRegSortDir] = useState<"asc" | "desc">("asc");
   function toggleRegSort(key: typeof regSortKey) {
     if (regSortKey === key) {
       setRegSortDir(d => d === "asc" ? "desc" : "asc");
