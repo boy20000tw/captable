@@ -429,23 +429,23 @@ function RegisterContent() {
                           </td>
                           <td className="text-right tabular-nums font-medium">{formatShares(row.totalShares)}</td>
                           <td className="text-right tabular-nums">
-                            {row.paidIn > 0 ? `NT$ ${row.paidIn.toLocaleString()}` : "\u2014"}
+                            {row.paidIn > 0 ? `NT$ ${row.paidIn.toLocaleString()}` : "—"}
                           </td>
                           <td>
                             {row.taxQualified ? (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Yes</span>
                             ) : (
-                              <span className="text-xs text-muted-foreground">\u2014</span>
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </td>
                           <td className="text-muted-foreground text-sm">
-                            {row.lockUpDate ? formatDate(row.lockUpDate) : "\u2014"}
+                            {row.lockUpDate ? formatDate(row.lockUpDate) : "—"}
                           </td>
                           <td className="text-muted-foreground text-sm tabular-nums">
-                            {row.taxYear || "\u2014"}
+                            {row.taxYear || "—"}
                           </td>
                           <td className="text-right tabular-nums text-muted-foreground">
-                            {row.taxAmount > 0 ? `NT$ ${row.taxAmount.toLocaleString()}` : "\u2014"}
+                            {row.taxAmount > 0 ? `NT$ ${row.taxAmount.toLocaleString()}` : "—"}
                           </td>
                         </tr>
                         {/* Expanded transaction rows */}
@@ -470,10 +470,10 @@ function RegisterContent() {
                             </td>
                             <td className="text-right tabular-nums text-xs">{formatShares(tx.sharesAmount)}</td>
                             <td className="text-right tabular-nums text-xs">
-                              {tx.totalAmountNtd ? `NT$ ${parseFloat(tx.totalAmountNtd).toLocaleString()}` : "\u2014"}
+                              {tx.totalAmountNtd ? `NT$ ${parseFloat(tx.totalAmountNtd).toLocaleString()}` : "—"}
                             </td>
                             <td className="text-xs">
-                              {tx.taxQualified ? <span className="text-green-600">Yes</span> : <span className="text-muted-foreground">\u2014</span>}
+                              {tx.taxQualified ? <span className="text-green-600">Yes</span> : <span className="text-muted-foreground">—</span>}
                             </td>
                             {/* Editable Lock-Up Expiry */}
                             <td className="text-xs">
@@ -486,7 +486,7 @@ function RegisterContent() {
                                   onClick={e => e.stopPropagation()}
                                 />
                               ) : (
-                                <span className="text-muted-foreground">{tx.lockUpEndDate ? formatDate(tx.lockUpEndDate) : "\u2014"}</span>
+                                <span className="text-muted-foreground">{tx.lockUpEndDate ? formatDate(tx.lockUpEndDate) : "—"}</span>
                               )}
                             </td>
                             {/* Editable Tax Deduction Year */}
@@ -501,7 +501,7 @@ function RegisterContent() {
                                   onClick={e => e.stopPropagation()}
                                 />
                               ) : (
-                                <span className="text-muted-foreground tabular-nums">{tx.taxDeductionYear || "\u2014"}</span>
+                                <span className="text-muted-foreground tabular-nums">{tx.taxDeductionYear || "—"}</span>
                               )}
                             </td>
                             {/* Editable Tax Deduction Amount + Edit/Save buttons */}
@@ -535,7 +535,7 @@ function RegisterContent() {
                                 ) : (
                                   <>
                                     <span className="tabular-nums text-muted-foreground">
-                                      {tx.taxDeductionAmountNtd ? `NT$ ${parseFloat(tx.taxDeductionAmountNtd).toLocaleString()}` : "\u2014"}
+                                      {tx.taxDeductionAmountNtd ? `NT$ ${parseFloat(tx.taxDeductionAmountNtd).toLocaleString()}` : "—"}
                                     </span>
                                     {canEdit && (
                                       <button
