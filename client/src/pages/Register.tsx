@@ -21,6 +21,18 @@ function RegisterContent() {
   const [showTransferForm, setShowTransferForm] = useState(false);
   const { canEdit } = usePermissions();
 
+  // Sort state for register table
+  const [regSortKey, setRegSortKey] = useState<"id" | "name" | "type" | "shares" | "paidIn">("shares");
+  const [regSortDir, setRegSortDir] = useState<"asc" | "desc">("desc");
+  function toggleRegSort(key: typeof regSortKey) {
+    if (regSortKey === key) {
+      setRegSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setRegSortKey(key);
+      setRegSortDir(key === "name" || key === "type" ? "asc" : "desc");
+    }
+  }
+
   // Transfer form state
   const [transferForm, setTransferForm] = useState({
     fromShareholderId: "",
@@ -98,8 +110,19 @@ function RegisterContent() {
       const taxAmount = txns.reduce((s, t) => s + (t.taxDeductionAmountNtd ? parseFloat(t.taxDeductionAmountNtd) : 0), 0);
       return { sh, totalShares, paidIn, taxQualified, lockUpDate, taxYear, taxAmount, txns };
     }).filter(r => r.sh && r.totalShares > 0)
-      .sort((a, b) => b.totalShares - a.totalShares);
-  }, [enriched, shareholders]);
+      .sort((a, b) => {
+      let av: string | number = 0;
+      let bv: string | number = 0;
+      if (regSortKey === "id") { av = idxMap.get(a.sh!.id) || 0; bv = idxMap.get(b.sh!.id) || 0; }
+      else if (regSortKey === "name") { av = a.sh!.name.toLowerCase(); bv = b.sh!.name.toLowerCase(); }
+      else if (regSortKey === "type") { av = a.sh!.type || ""; bv = b.sh!.type || ""; }
+      else if (regSortKey === "shares") { av = a.totalShares; bv = b.totalShares; }
+      else if (regSortKey === "paidIn") { av = a.paidIn; bv = b.paidIn; }
+      if (av < bv) return regSortDir === "asc" ? -1 : 1;
+      if (av > bv) return regSortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [enriched, shareholders, regSortKey, regSortDir, idxMap]);
 
   const grandTotal = registerRows.reduce((s, r) => s + r.totalShares, 0);
   const grandPaidIn = registerRows.reduce((s, r) => s + r.paidIn, 0);
@@ -314,11 +337,21 @@ function RegisterContent() {
               <table className="cap-table w-full">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Shareholder</th>
-                    <th>Type</th>
-                    <th className="text-right">Shares Held</th>
-                    <th className="text-right">Paid-In Capital</th>
+                    <th className="cursor-pointer select-none" onClick={() => toggleRegSort("id")}>
+                      # {regSortKey === "id" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                    </th>
+                    <th className="cursor-pointer select-none" onClick={() => toggleRegSort("name")}>
+                      Shareholder {regSortKey === "name" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                    </th>
+                    <th className="cursor-pointer select-none" onClick={() => toggleRegSort("type")}>
+                      Type {regSortKey === "type" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                    </th>
+                    <th className="text-right cursor-pointer select-none" onClick={() => toggleRegSort("shares")}>
+                      Shares Held {regSortKey === "shares" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                    </th>
+                    <th className="text-right cursor-pointer select-none" onClick={() => toggleRegSort("paidIn")}>
+                      Paid-In Capital {regSortKey === "paidIn" ? (regSortDir === "asc" ? "\u2191" : "\u2193") : <span className="text-muted-foreground/40">\u21D5</span>}
+                    </th>
                     <th>Tax Qualified</th>
                     <th>Lock-Up Expiry</th>
                     <th>Tax Deduction Year</th>
