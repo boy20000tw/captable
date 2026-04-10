@@ -5,7 +5,7 @@ import { formatShares, getRoundLabel, formatDate } from "@/lib/utils";
 import {
   Plus, Edit2, Trash2, X, Check, ChevronDown, ChevronUp,
   AlertTriangle, FileText, CheckCircle2, Clock, PlusCircle,
-  Upload, Download, Lock, ExternalLink, Pencil, Save
+  Upload, Download, ExternalLink, Pencil, Save
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -668,8 +668,6 @@ function ShareholderDrawer({
   const [uploadingFile, setUploadingFile] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(shareholder.notes || "");
-  const [editingLockup, setEditingLockup] = useState(false);
-  const [lockupValue, setLockupValue] = useState(shareholder.lockupPeriod || "");
   const [editingTaxBenefits, setEditingTaxBenefits] = useState(false);
   const [taxBenefitsValue, setTaxBenefitsValue] = useState(shareholder.taxBenefits || "");
   // Holdings: add new form
@@ -688,7 +686,6 @@ function ShareholderDrawer({
     onSuccess: () => {
       utils.shareholders.list.invalidate();
       setEditingNotes(false);
-      setEditingLockup(false);
       setEditingTaxBenefits(false);
       toast.success("Saved");
     },
@@ -758,22 +755,6 @@ function ShareholderDrawer({
   const holdings = allHoldings.filter(h => h.shareholderId === shareholderId);
   const sharesOwned = holdings.reduce((sum, h) => sum + h.totalShares, 0);
   const ownershipPct = totalShares > 0 ? (sharesOwned / totalShares * 100).toFixed(2) : "0.00";
-
-  // Lock-up info from transactions
-  const lockupTxns = useMemo(() => {
-    if (!transactions) return [];
-    return transactions.filter(t => t.lockUpEndDate).map(t => {
-      const expiry = new Date(t.lockUpEndDate!);
-      const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / 86400000);
-      return { ...t, daysLeft };
-    }).sort((a, b) => a.daysLeft - b.daysLeft);
-  }, [transactions, today]);
-
-  // Tax deduction info from transactions
-  const taxTxns = useMemo(() => {
-    if (!transactions) return [];
-    return transactions.filter(t => t.taxQualified && t.taxDeductionYear);
-  }, [transactions]);
 
   async function handleFileUpload(file: File) {
     setUploadingFile(true);
@@ -1110,46 +1091,6 @@ function ShareholderDrawer({
           </div>
         )}
 
-        {/* ── Lock-up Period (shareholder-level, editable) ── */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1">
-              <Lock className="h-3 w-3" /> Lock-up Period
-            </p>
-            {canEdit && !editingLockup && (
-              <button onClick={() => { setLockupValue(shareholder.lockupPeriod || ""); setEditingLockup(true); }}
-                className="text-muted-foreground hover:text-primary transition-colors" title="Edit lock-up period">
-                <Pencil className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          {editingLockup ? (
-            <div className="space-y-2">
-              <input
-                value={lockupValue}
-                onChange={e => setLockupValue(e.target.value)}
-                className="w-full border border-input rounded-sm px-3 py-2 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="e.g. 180 days from IPO, 6 months post-listing"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => updateShareholderMutation.mutate({ id: shareholderId, data: { lockupPeriod: lockupValue || undefined } })}
-                  disabled={updateShareholderMutation.isPending}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded-sm disabled:opacity-50"
-                >
-                  <Save className="h-3 w-3" /> Save
-                </button>
-                <button onClick={() => setEditingLockup(false)} className="px-3 py-1.5 border border-border text-xs rounded-sm">Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-foreground leading-relaxed">
-              {shareholder.lockupPeriod || <span className="text-muted-foreground italic">None — click pencil to add</span>}
-            </p>
-          )}
-        </div>
-
         {/* ── Tax Benefits (shareholder-level, editable) ── */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -1165,14 +1106,29 @@ function ShareholderDrawer({
           </div>
           {editingTaxBenefits ? (
             <div className="space-y-2">
-              <textarea
-                value={taxBenefitsValue}
-                onChange={e => setTaxBenefitsValue(e.target.value)}
-                rows={3}
-                className="w-full border border-input rounded-sm px-3 py-2 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                placeholder="e.g. 天使投資人抵稅 NT$3M, Section 1202 QSBS"
-                autoFocus
-              />
+              <select
+                value={taxBenefitsValue === "Not Applicable" ? "Not Applicable" : (taxBenefitsValue ? "custom" : "")}
+                onChange={e => {
+                  if (e.target.value === "Not Applicable") setTaxBenefitsValue("Not Applicable");
+                  else if (e.target.value === "") setTaxBenefitsValue("");
+                  else setTaxBenefitsValue(taxBenefitsValue === "Not Applicable" ? "" : taxBenefitsValue);
+                }}
+                className="w-full border border-input rounded-sm px-3 py-2 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">-- Select --</option>
+                <option value="Not Applicable">Not Applicable</option>
+                <option value="custom">Custom (enter below)</option>
+              </select>
+              {taxBenefitsValue !== "Not Applicable" && (
+                <textarea
+                  value={taxBenefitsValue}
+                  onChange={e => setTaxBenefitsValue(e.target.value)}
+                  rows={3}
+                  className="w-full border border-input rounded-sm px-3 py-2 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                  placeholder="e.g. 天使投資人抵稅 NT$3M, Section 1202 QSBS"
+                  autoFocus
+                />
+              )}
               <div className="flex gap-2">
                 <button
                   onClick={() => updateShareholderMutation.mutate({ id: shareholderId, data: { taxBenefits: taxBenefitsValue || undefined } })}
@@ -1190,51 +1146,6 @@ function ShareholderDrawer({
             </p>
           )}
         </div>
-
-        {/* ── Lock-up & Tax (transaction-level) ── */}
-        {(lockupTxns.length > 0 || taxTxns.length > 0) && (
-          <div className="grid grid-cols-2 gap-4">
-            {lockupTxns.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> Lock-up Periods
-                </p>
-                {lockupTxns.map(t => (
-                  <div key={t.id} className="flex items-center justify-between py-0.5">
-                    <span className="text-xs text-muted-foreground">{formatDate(t.lockUpEndDate!)}</span>
-                    <span className={`font-semibold tabular-nums px-2 py-0.5 rounded-full text-[10px] ${
-                      t.daysLeft < 0 ? "bg-red-100 text-red-700" :
-                      t.daysLeft < 90 ? "bg-amber-100 text-amber-700" :
-                      "bg-green-100 text-green-700"
-                    }`}>
-                      {t.daysLeft < 0 ? "Expired" : `${t.daysLeft}d left`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {taxTxns.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> Tax Benefits
-                </p>
-                {taxTxns.map(t => (
-                  <div key={t.id} className="flex items-center justify-between py-0.5">
-                    <span className="text-xs text-muted-foreground">Year {t.taxDeductionYear}</span>
-                    <span className={`font-semibold tabular-nums px-2 py-0.5 rounded-full text-[10px] ${
-                      t.taxDeductionYear === today.getFullYear() ? "bg-red-100 text-red-700" :
-                      t.taxDeductionYear === today.getFullYear() + 1 ? "bg-amber-100 text-amber-700" :
-                      "bg-green-100 text-green-700"
-                    }`}>
-                      {t.taxDeductionYear === today.getFullYear() ? "Expiring" :
-                       t.taxDeductionYear === today.getFullYear() + 1 ? "Next Year" : "Active"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── Notes ── */}
         <div className="space-y-2">
