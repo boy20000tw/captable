@@ -231,9 +231,6 @@ function DashboardContent() {
             </div>
           </div>
 
-          {/* Compliance Alerts Row */}
-          <ComplianceAlerts />
-
           {/* Recent Rounds Table */}
           <div className="bg-card border border-border rounded-sm">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
@@ -283,6 +280,9 @@ function DashboardContent() {
           </div>
         </>
       )}
+
+          {/* Compliance Alerts Row */}
+          <ComplianceAlerts />
     </div>
   );
 }
@@ -378,7 +378,7 @@ function ComplianceAlerts() {
                 <tr>
                   <th>Shareholder</th>
                   <th>Tax Deduction Year</th>
-                  <th className="text-right">Tax Deduction Amount</th>
+                  <th >Tax Deduction Amount</th>
                   <th>Tax Qualified</th>
                 </tr>
               </thead>
@@ -387,7 +387,7 @@ function ComplianceAlerts() {
                   <tr key={i}>
                     <td className="font-medium text-sm">{shMap.get(t.shareholderId) || `#${t.shareholderId}`}</td>
                     <td className="tabular-nums">{t.taxDeductionYear || "\u2014"}</td>
-                    <td className="text-right tabular-nums">
+                    <td className="tabular-nums">
                       {t.taxDeductionAmountNtd ? `NT$ ${parseFloat(t.taxDeductionAmountNtd).toLocaleString()}` : "\u2014"}
                     </td>
                     <td>
