@@ -690,3 +690,61 @@ export async function getAuditLogsByResource(resourceType: string, resourceId: n
     .where(and(eq(auditLogs.resourceType, resourceType), eq(auditLogs.resourceId, resourceId)))
     .orderBy(desc(auditLogs.createdAt));
 }
+
+// ─── Danger Zone ──────────────────────────────────────────────────────────────
+/**
+ * Truncate all business-data tables. Preserves: users, user_invitations.
+ * Resets auto-increment sequences. Cascades through FKs.
+ * Returns table-name -> row count deleted (best effort).
+ */
+export async function truncateAllBusinessData(): Promise<Record<string, number>> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Gather counts first (for audit + response)
+  const counts: Record<string, number> = {};
+  const countable: Array<[string, any]> = [
+    ["shareholders", shareholders],
+    ["funding_rounds", fundingRounds],
+    ["share_holdings", shareHoldings],
+    ["share_transactions", shareTransactions],
+    ["esop_pool", esopPool],
+    ["esop_grants", esopGrants],
+    ["valuation_projections", valuationProjections],
+    ["import_logs", importLogs],
+    ["cap_table_snapshots", capTableSnapshots],
+    ["anti_dilution_provisions", antiDilutionProvisions],
+    ["shareholder_documents", shareholderDocuments],
+    ["valuations_409a", valuations409a],
+    ["liquidation_preferences", liquidationPreferences],
+    ["audit_logs", auditLogs],
+  ];
+  for (const [name, table] of countable) {
+    try {
+      const rows = await db.select().from(table);
+      counts[name] = rows.length;
+    } catch {
+      counts[name] = -1;
+    }
+  }
+
+  // TRUNCATE — single statement, CASCADE handles FKs, RESTART IDENTITY resets sequences
+  await db.execute(sql`TRUNCATE TABLE
+    audit_logs,
+    share_transactions,
+    share_holdings,
+    shareholder_documents,
+    shareholders,
+    valuation_projections,
+    valuations_409a,
+    liquidation_preferences,
+    anti_dilution_provisions,
+    esop_grants,
+    esop_pool,
+    funding_rounds,
+    cap_table_snapshots,
+    import_logs
+    RESTART IDENTITY CASCADE`);
+
+  return counts;
+}

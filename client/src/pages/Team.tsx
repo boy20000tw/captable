@@ -2,7 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Users, UserPlus, Link2, Shield, Copy, Trash2, Check, X, Clock, Mail, ArrowRightLeft, AlertTriangle } from "lucide-react";
+import { Users, UserPlus, Link2, Shield, Copy, Trash2, Check, X, Clock, Mail, ArrowRightLeft, AlertTriangle, Database } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 
 // ─── Role Config ──────────────────────────────────────────────────────────────
@@ -149,6 +149,110 @@ function TransferOwnerDialog({
   );
 }
 
+// ─── Clear All Data Dialog ────────────────────────────────────────────────────
+function ClearAllDataDialog({ onClose }: { onClose: () => void }) {
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [phrase, setPhrase] = useState("");
+  const REQUIRED_PHRASE = "CLEAR ALL DATA";
+  const utils = trpc.useUtils();
+
+  const clearData = trpc.admin.clearAllData.useMutation({
+    onSuccess: (res) => {
+      toast.success("All business data cleared successfully.");
+      // Invalidate every query we can - data is gone
+      utils.invalidate();
+      onClose();
+      // Hard reload to reset any client-side caches and redirect UI to empty state
+      setTimeout(() => window.location.reload(), 500);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const canSubmit = acknowledged && phrase === REQUIRED_PHRASE && !clearData.isPending;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-background border border-border rounded-sm shadow-xl w-full max-w-md mx-4 p-6 space-y-5">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <Database className="h-5 w-5 text-red-700" />
+            </div>
+            <div>
+              <h2 className="font-serif text-lg font-semibold">Clear All Data</h2>
+              <p className="text-xs text-muted-foreground">This action cannot be undone</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground mt-1">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Warning */}
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-sm p-3">
+          <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="text-xs text-red-800 space-y-1">
+            <p className="font-semibold">This will permanently delete:</p>
+            <ul className="list-disc list-inside space-y-0.5 ml-1">
+              <li>All shareholders &amp; holdings</li>
+              <li>All funding rounds &amp; transactions</li>
+              <li>All ESOP pools &amp; grants</li>
+              <li>All valuations &amp; projections</li>
+              <li>All snapshots &amp; audit logs</li>
+              <li>All documents, anti-dilution &amp; liquidation data</li>
+            </ul>
+            <p className="pt-1">Team members &amp; invitations are preserved.</p>
+          </div>
+        </div>
+
+        {/* Step 1: Acknowledgment */}
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={e => setAcknowledged(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="text-sm text-muted-foreground">
+            I understand this will permanently delete all cap table data and this action is <strong>irreversible</strong>.
+          </span>
+        </label>
+
+        {/* Step 2: Type exact phrase */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+            Type <span className="font-mono text-foreground">{REQUIRED_PHRASE}</span> to confirm
+          </label>
+          <input
+            type="text"
+            value={phrase}
+            onChange={e => setPhrase(e.target.value)}
+            disabled={!acknowledged}
+            placeholder={REQUIRED_PHRASE}
+            className="w-full border border-input rounded-sm px-3 py-2 text-sm font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={() => clearData.mutate({ confirmationPhrase: phrase })}
+            disabled={!canSubmit}
+            className="flex items-center gap-2 px-5 py-2 bg-red-600 text-white text-sm font-medium rounded-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+            {clearData.isPending ? "Clearing..." : "Clear All Data"}
+          </button>
+          <button onClick={onClose} className="px-5 py-2 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Invite Form ──────────────────────────────────────────────────────────────
 function InviteForm({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
@@ -242,6 +346,7 @@ function TeamContent() {
   const { user } = useAuth();
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [showClearDialog, setShowClearDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"members" | "invitations">("members");
 
   const { data: members, isLoading: loadingMembers } = trpc.team.members.useQuery();
@@ -274,6 +379,11 @@ function TeamContent() {
           currentUserId={user.id}
           onClose={() => setShowTransferDialog(false)}
         />
+      )}
+
+      {/* Clear All Data Dialog */}
+      {showClearDialog && (
+        <ClearAllDataDialog onClose={() => setShowClearDialog(false)} />
       )}
 
       {/* Header */}
@@ -506,6 +616,34 @@ function TeamContent() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Danger Zone — Owner only */}
+      {isOwner && (
+        <div className="border border-red-200 rounded-sm bg-red-50/30">
+          <div className="px-5 py-4 border-b border-red-200 bg-red-50/50">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-700" />
+              <h2 className="font-serif text-lg font-semibold text-red-900">Danger Zone</h2>
+            </div>
+            <p className="text-xs text-red-700/80 mt-1">Irreversible actions. Owner-only.</p>
+          </div>
+          <div className="p-5 flex items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-sm">Clear all cap table data</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Permanently delete all shareholders, funding rounds, transactions, holdings, ESOP, valuations, and audit logs.
+                Team members and invitations are preserved.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowClearDialog(true)}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border border-red-300 text-red-700 bg-white text-sm font-medium rounded-sm hover:bg-red-50 transition-colors"
+            >
+              <Database className="h-4 w-4" /> Clear All Data
+            </button>
+          </div>
         </div>
       )}
     </div>

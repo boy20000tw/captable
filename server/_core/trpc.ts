@@ -59,3 +59,17 @@ export const ownerAdminProcedure = t.procedure.use(
     return next({ ctx: { ...ctx, user: ctx.user } });
   }),
 );
+
+export const ownerProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    }
+    const appRole = (ctx.user as { appRole?: string }).appRole;
+    if (appRole !== 'owner') {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Only the Owner can perform this action." });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user } });
+  }),
+);

@@ -1,4 +1,4 @@
-import { protectedProcedure, publicProcedure, router, editorProcedure, ownerAdminProcedure } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router, editorProcedure, ownerAdminProcedure, ownerProcedure } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
@@ -20,6 +20,7 @@ import {
   getAllUsers, updateUserAppRole,
   getAllInvitations, createInvitation, getInvitationByToken, updateInvitationStatus,
   createAuditLog, getAuditLogs, getAuditLogsByResource,
+  truncateAllBusinessData,
 } from "./db";
 
 // ─── Shareholders Router ──────────────────────────────────────────────────────
@@ -863,5 +864,36 @@ export const appRouter = router({
   team: teamRouter,
   invitations: invitationsRouter,
   auditLog: auditLogRouter,
+  admin: router({
+    // ─── Danger Zone: Clear All Business Data ──────────────────────────────
+    // Owner-only. Deletes shareholders, rounds, holdings, transactions, ESOP,
+    // valuations, projections, snapshots, documents, anti-dilution provisions,
+    // liquidation preferences, audit logs, import logs.
+    // Preserves: users, user_invitations.
+    clearAllData: ownerProcedure
+      .input(z.object({
+        confirmationPhrase: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Require exact confirmation phrase to prevent accidental invocation
+        if (input.confirmationPhrase !== "CLEAR ALL DATA") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Confirmation phrase does not match. Type exactly: CLEAR ALL DATA",
+          });
+        }
+        const counts = await truncateAllBusinessData();
+        // Re-create an audit log of this action (audit_logs was just truncated)
+        await createAuditLog({
+          userId: ctx.user!.id,
+          userName: ctx.user!.name ?? undefined,
+          action: "delete",
+          resourceType: "system",
+          resourceName: "All business data (truncated)",
+          changesBefore: JSON.stringify(counts),
+        });
+        return { success: true, cleared: counts };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
