@@ -17,7 +17,7 @@ import {
   getAll409aValuations, create409aValuation, update409aValuation, delete409aValuation,
   getLiquidationPreferences, upsertLiquidationPreference,
   computeWaterfall,
-  getAllUsers, updateUserAppRole,
+  getAllUsers, updateUserAppRole, deleteUserById,
   getAllInvitations, createInvitation, getInvitationByToken, updateInvitationStatus,
   createAuditLog, getAuditLogs, getAuditLogsByResource,
   truncateAllBusinessData,
@@ -746,6 +746,41 @@ const teamRouter = router({
     });
     return updated;
   }),
+  removeMember: ownerAdminProcedure.input(z.object({
+    userId: z.number(),
+  })).mutation(async ({ input, ctx }) => {
+    const currentUser = ctx.user!;
+    // Can't delete yourself
+    if (input.userId === currentUser.id) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "You cannot remove yourself from the team. Use Transfer Ownership or have another Owner remove you." });
+    }
+    // Look up the target user
+    const allUsers = await getAllUsers();
+    const target = allUsers.find(u => u.id === input.userId);
+    if (!target) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Team member not found." });
+    }
+    // Owner cannot be removed (must transfer ownership first)
+    if (target.appRole === "owner") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "The Owner cannot be removed. Transfer ownership first." });
+    }
+    // Admins cannot remove other admins (only owner can)
+    if (target.appRole === "admin" && currentUser.appRole !== "owner") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Only the Owner can remove Admin members." });
+    }
+    // Log BEFORE deletion (so the record of the action persists even if the user row is gone)
+    await createAuditLog({
+      userId: currentUser.id,
+      userName: currentUser.name ?? undefined,
+      action: "delete",
+      resourceType: "user",
+      resourceId: target.id,
+      resourceName: target.email ?? target.name ?? `User #${target.id}`,
+      changesBefore: JSON.stringify({ email: target.email, name: target.name, appRole: target.appRole }),
+    });
+    await deleteUserById(target.id);
+    return { success: true, removedId: target.id };
+  }),
   transferOwnership: ownerAdminProcedure.input(z.object({
     newOwnerId: z.number(),
   })).mutation(async ({ input, ctx }) => {
@@ -897,5 +932,3 @@ export const appRouter = router({
   }),
 });
 export type AppRouter = typeof appRouter;
-
-// Trigger redeploy

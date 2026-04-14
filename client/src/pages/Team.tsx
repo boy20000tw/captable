@@ -341,12 +341,79 @@ function InviteForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Remove Member Dialog ─────────────────────────────────────────────────────
+function RemoveMemberDialog({
+  member,
+  onClose,
+}: {
+  member: any;
+  onClose: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const removeMember = trpc.team.removeMember.useMutation({
+    onSuccess: () => {
+      utils.team.members.invalidate();
+      toast.success(`${member.name ?? member.email} has been removed.`);
+      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-background border border-border rounded-sm shadow-xl w-full max-w-md mx-4 p-6 space-y-5">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <Trash2 className="h-5 w-5 text-red-700" />
+            </div>
+            <div>
+              <h2 className="font-serif text-lg font-semibold">Remove Team Member</h2>
+              <p className="text-xs text-muted-foreground">This user will lose access to the cap table</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground mt-1">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-sm p-3">
+          <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="text-xs text-red-800 space-y-1">
+            <p>
+              Remove <strong>{member.name ?? member.email}</strong> ({member.email}) with role <strong>{member.appRole}</strong>?
+            </p>
+            <p className="pt-0.5">
+              They will no longer be able to access any data in this cap table. If they sign in again they will re-join as a new <em>viewer</em> until you assign them a role.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={() => removeMember.mutate({ userId: member.id })}
+            disabled={removeMember.isPending}
+            className="flex items-center gap-2 px-5 py-2 bg-red-600 text-white text-sm font-medium rounded-sm hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+            {removeMember.isPending ? "Removing..." : "Remove Member"}
+          </button>
+          <button onClick={onClose} className="px-5 py-2 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Content ─────────────────────────────────────────────────────────────
 function TeamContent() {
   const { user } = useAuth();
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<"members" | "invitations">("members");
 
   const { data: members, isLoading: loadingMembers } = trpc.team.members.useQuery();
@@ -384,6 +451,14 @@ function TeamContent() {
       {/* Clear All Data Dialog */}
       {showClearDialog && (
         <ClearAllDataDialog onClose={() => setShowClearDialog(false)} />
+      )}
+
+      {/* Remove Member Dialog */}
+      {memberToRemove && (
+        <RemoveMemberDialog
+          member={memberToRemove}
+          onClose={() => setMemberToRemove(null)}
+        />
       )}
 
       {/* Header */}
@@ -519,7 +594,25 @@ function TeamContent() {
                       <td className="px-4 py-3 text-muted-foreground">{formatDate(m.lastSignedIn)}</td>
                       {canManage && (
                         <td className="px-4 py-3 text-right">
-                          <span className="text-xs text-muted-foreground">—</span>
+                          {(() => {
+                            const targetRole = m.appRole ?? "viewer";
+                            const canRemove =
+                              !isCurrentUser &&
+                              targetRole !== "owner" &&
+                              (isOwner || targetRole !== "admin");
+                            return canRemove ? (
+                              <button
+                                onClick={() => setMemberToRemove(m)}
+                                className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded-sm transition-colors"
+                                title="Remove member"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span>Remove</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            );
+                          })()}
                         </td>
                       )}
                     </tr>

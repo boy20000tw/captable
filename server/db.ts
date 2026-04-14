@@ -691,6 +691,12 @@ export async function getAuditLogsByResource(resourceType: string, resourceId: n
     .orderBy(desc(auditLogs.createdAt));
 }
 
+export async function deleteUserById(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(users).where(eq(users.id, userId));
+}
+
 // ─── Danger Zone ──────────────────────────────────────────────────────────────
 /**
  * Truncate all business-data tables. Preserves: users, user_invitations.
