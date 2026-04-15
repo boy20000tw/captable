@@ -121,6 +121,18 @@ export default function Valuations() {
       totalValue: parseFloat(v.totalCompanyValueNtd || "0"),
     }));
 
+  // Sort valuations desc by date for summary
+  const sortedByDate = [...valuations]
+    .filter(v => v.valuationDate)
+    .sort((a, b) => (String(b.valuationDate) > String(a.valuationDate) ? 1 : -1));
+  const latestValuation = sortedByDate[0];
+  const latestFmv = latestValuation?.fmvPerShareNtd ? parseFloat(latestValuation.fmvPerShareNtd) : null;
+  const latestCompanyValue = latestValuation?.totalCompanyValueNtd ? parseFloat(latestValuation.totalCompanyValueNtd) : null;
+  const daysSinceLatest = latestValuation?.valuationDate
+    ? Math.floor((Date.now() - new Date(latestValuation.valuationDate as any).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const daysUntilStale = daysSinceLatest !== null ? 365 - daysSinceLatest : null;
+
   return (
     <DashboardLayout>
       <div className="px-8 py-10 max-w-7xl mx-auto">
@@ -220,6 +232,52 @@ export default function Valuations() {
             </Dialog>
           </div>
         </div>
+
+        {/* KPI Summary Cards */}
+        {valuations.length > 0 && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-card border border-stone-200 rounded-sm p-5 space-y-2">
+              <p className="text-[10px] tracking-widest uppercase text-stone-400 font-medium">Latest FMV / Share</p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                {latestFmv !== null ? `NT$${latestFmv.toFixed(2)}` : "—"}
+              </p>
+              <p className="text-xs text-stone-500">
+                {latestValuation?.valuationDate ? formatDate(latestValuation.valuationDate as any) : "No data"}
+              </p>
+            </div>
+            <div className="bg-card border border-stone-200 rounded-sm p-5 space-y-2">
+              <p className="text-[10px] tracking-widest uppercase text-stone-400 font-medium">Company Value</p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                {latestCompanyValue !== null
+                  ? `NT$${(latestCompanyValue / 100_000_000).toFixed(2)}億`
+                  : "—"}
+              </p>
+              <p className="text-xs text-stone-500">latest valuation</p>
+            </div>
+            <div className="bg-card border border-stone-200 rounded-sm p-5 space-y-2">
+              <p className="text-[10px] tracking-widest uppercase text-stone-400 font-medium">Total Records</p>
+              <p className="text-2xl font-bold tracking-tight tabular-nums" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                {valuations.length}
+              </p>
+              <p className="text-xs text-stone-500">valuations on file</p>
+            </div>
+            <div className="bg-card border border-stone-200 rounded-sm p-5 space-y-2">
+              <p className="text-[10px] tracking-widest uppercase text-stone-400 font-medium">Days Since Last</p>
+              <p className={`text-2xl font-bold tracking-tight tabular-nums ${
+                daysSinceLatest !== null && daysSinceLatest > 365 ? "text-amber-600" : ""
+              }`} style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                {daysSinceLatest !== null ? daysSinceLatest : "—"}
+              </p>
+              <p className="text-xs text-stone-500">
+                {daysUntilStale !== null
+                  ? (daysUntilStale > 0
+                      ? `${daysUntilStale} days to 12-mo mark`
+                      : `${-daysUntilStale} days overdue`)
+                  : "no reference"}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* FMV Chart */}
         {chartData.length > 1 && (
