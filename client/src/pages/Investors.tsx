@@ -5,8 +5,9 @@ import { formatShares, getRoundLabel, formatDate } from "@/lib/utils";
 import {
   Plus, Edit2, Trash2, X, Check, ChevronDown, ChevronUp,
   AlertTriangle, FileText, CheckCircle2, Clock, PlusCircle,
-  Upload, Download, ExternalLink, Pencil, Save
+  Upload, Download, ExternalLink, Pencil, Save, Search, Users
 } from "lucide-react";
+import { Link } from "wouter";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -51,6 +52,7 @@ function InvestorsContent() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<ShareholderForm>(emptyForm);
   const [filterType, setFilterType] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [showEsop, setShowEsop] = useState(false);
   const [sortKey, setSortKey] = useState<"id" | "name" | "type" | "shares" | "pct">("id");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -180,9 +182,17 @@ function InvestorsContent() {
   // Separate ESOP from regular shareholders
   const esopList = useMemo(() => (shareholders || []).filter(s => s.type === "esop"), [shareholders]);
   const filtered = useMemo(() => {
-    const base = (shareholders || []).filter(s =>
-      s.type !== "esop" && (filterType === "all" || s.type === filterType)
-    );
+    const q = searchQuery.trim().toLowerCase();
+    const base = (shareholders || []).filter(s => {
+      if (s.type === "esop") return false;
+      if (filterType !== "all" && s.type !== filterType) return false;
+      if (q) {
+        const hay = [s.name, s.aka, s.email, s.phone, s.nationality, s.notes]
+          .filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
     return base.slice().sort((a, b) => {
       let av: string | number = 0;
       let bv: string | number = 0;
@@ -202,7 +212,7 @@ function InvestorsContent() {
       if (av > bv) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [shareholders, filterType, sortKey, sortDir, summary, totalShares, idxMap]);
+  }, [shareholders, filterType, searchQuery, sortKey, sortDir, summary, totalShares, idxMap]);
 
   // Auto-calculate paid-in when shares and price are filled
   const autoCalcPaidIn = useMemo(() => {
@@ -237,6 +247,27 @@ function InvestorsContent() {
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
           >
             <Plus className="h-4 w-4" /> Add Investor
+          </button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search by name, email, nationality…"
+          className="w-full border border-input rounded-sm pl-9 pr-9 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
@@ -414,7 +445,52 @@ function InvestorsContent() {
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : !filtered.length ? (
-          <div className="p-12 text-center text-muted-foreground text-sm">No shareholders found.</div>
+          (() => {
+            const hasAny = (shareholders || []).some(s => s.type !== "esop");
+            const isFiltering = searchQuery.trim() !== "" || filterType !== "all";
+            if (hasAny && isFiltering) {
+              return (
+                <div className="p-12 text-center space-y-3">
+                  <p className="text-sm text-muted-foreground">No shareholders match your filters.</p>
+                  <button
+                    onClick={() => { setSearchQuery(""); setFilterType("all"); }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Clear search and filters
+                  </button>
+                </div>
+              );
+            }
+            return (
+              <div className="p-12 text-center space-y-4">
+                <div className="w-14 h-14 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-serif text-lg font-semibold">No investors yet</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    Add your first shareholder manually or bulk-import from an Excel cap table.
+                  </p>
+                </div>
+                {canEdit && (
+                  <div className="flex items-center justify-center gap-3 pt-2">
+                    <button
+                      onClick={() => { setEditId(null); setForm(emptyForm); setShowForm(true); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
+                    >
+                      <Plus className="h-4 w-4" /> Add Investor
+                    </button>
+                    <Link
+                      href="/import"
+                      className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
+                    >
+                      <Upload className="h-4 w-4" /> Import Excel
+                    </Link>
+                  </div>
+                )}
+              </div>
+            );
+          })()
         ) : (
           <table className="cap-table w-full">
             <thead>
