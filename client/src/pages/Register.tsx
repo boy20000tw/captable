@@ -2,7 +2,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatShares, formatDate, getRoundLabel } from "@/lib/utils";
 import { useState, useMemo } from "react";
-import { BookOpen, Download, ArrowRightLeft, Plus, X, Check, AlertCircle, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { BookOpen, Download, ArrowRightLeft, Plus, X, Check, AlertCircle, Pencil, ChevronDown, ChevronRight, Upload } from "lucide-react";
+import { Link } from "wouter";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -369,8 +370,24 @@ function RegisterContent() {
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
           ) : !registerRows.length ? (
-            <div className="p-12 text-center text-muted-foreground text-sm">
-              No shareholder records. Import your cap table to populate the register.
+            <div className="p-12 text-center space-y-4">
+              <div className="w-14 h-14 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                <BookOpen className="h-6 w-6 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-serif text-lg font-semibold">No shareholder records</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Import your existing cap table Excel, or add shareholders individually on the Investors page.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Link href="/import" className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity">
+                  <Upload className="h-4 w-4" /> Import Excel
+                </Link>
+                <Link href="/investors" className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors">
+                  <Plus className="h-4 w-4" /> Add Investors
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto">
