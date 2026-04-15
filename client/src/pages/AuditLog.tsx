@@ -120,11 +120,41 @@ function AuditLogContent() {
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="font-serif text-3xl font-bold tracking-tight">Audit Log</h1>
-        <p className="text-muted-foreground mt-1">
-          Complete history of all data changes for compliance and traceability.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-3xl font-bold tracking-tight">Audit Log</h1>
+          <p className="text-muted-foreground mt-1">
+            Complete history of all data changes for compliance and traceability.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            const headers = ["Timestamp", "User", "Action", "Resource Type", "Resource ID", "Resource Name", "IP Address"];
+            const rows = filtered.map(log => [
+              log.createdAt ? new Date(log.createdAt as any).toISOString() : "",
+              log.userName ?? "",
+              log.action ?? "",
+              log.resourceType ?? "",
+              log.resourceId ?? "",
+              log.resourceName ?? "",
+              log.ipAddress ?? "",
+            ]);
+            const csv = [headers, ...rows]
+              .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
+              .join("\n");
+            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `audit-log-${new Date().toISOString().split("T")[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          disabled={!filtered.length}
+          className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border border-border text-sm text-muted-foreground font-medium rounded-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          <Download className="h-4 w-4" /> Export CSV
+        </button>
       </div>
 
       {/* Stats */}
