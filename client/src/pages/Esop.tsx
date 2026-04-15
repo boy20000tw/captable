@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatShares, formatDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
-import { Plus, Edit2, Trash2, X, Check, Sparkles, TrendingUp, Calculator, AlertTriangle, ChevronDown, ChevronUp, Briefcase } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Check, Sparkles, TrendingUp, Calculator, AlertTriangle, ChevronDown, ChevronUp, Briefcase, Download } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
@@ -286,6 +286,38 @@ function EsopContent() {
           <p className="text-sm text-muted-foreground">Employee Stock Option Plan · {formatShares(totalPool)} total pool shares</p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={() => {
+              const headers = ["Grantee", "Grant Date", "Shares Granted", "Vested", "Exercised", "Exercise Price (NTD)", "Vesting Start", "Expiry Date", "Status", "Notes"];
+              const rows = (grants || []).map(g => [
+                g.granteeName || "",
+                g.grantDate || "",
+                g.sharesGranted ?? "",
+                g.sharesVested ?? "",
+                g.sharesExercised ?? "",
+                g.exercisePriceNtd || "",
+                g.vestingStartDate || "",
+                g.expiryDate || "",
+                g.status || "",
+                g.notes || "",
+              ]);
+              const csv = [headers, ...rows]
+                .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
+                .join("\n");
+              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `esop-grants-${new Date().toISOString().split("T")[0]}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success(`Exported ${rows.length} grants`);
+            }}
+            disabled={!(grants || []).length}
+            className="flex items-center gap-2 px-3 py-2 border border-border text-sm text-muted-foreground font-medium rounded-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Download className="h-4 w-4" /> Export CSV
+          </button>
           {canEdit && (
             <button
               onClick={() => { setEditPoolId(null); setPoolForm({ poolName: "ESOP Pool", totalShares: "", notes: "" }); setShowPoolForm(true); }}

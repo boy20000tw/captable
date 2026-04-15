@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatShares, formatDate, formatValuation } from "@/lib/utils";
 import { useState } from "react";
-import { Camera, Plus, Trash2, ChevronDown, ChevronUp, Eye, AlertCircle } from "lucide-react";
+import { Camera, Plus, Trash2, ChevronDown, ChevronUp, Eye, AlertCircle, Download } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -113,6 +113,33 @@ function SnapshotsContent() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const headers = ["Name", "Snapshot Date", "Description", "Created By", "Created At"];
+              const rows = (snapshots || []).map((s: any) => [
+                s.name || "",
+                s.snapshotDate || "",
+                s.description || "",
+                s.createdBy || "",
+                s.createdAt ? new Date(s.createdAt).toISOString() : "",
+              ]);
+              const csv = [headers, ...rows]
+                .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
+                .join("\n");
+              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `snapshots-${new Date().toISOString().split("T")[0]}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success(`Exported ${rows.length} snapshots`);
+            }}
+            disabled={!(snapshots || []).length}
+            className="flex items-center gap-1.5 text-xs font-medium border border-border text-muted-foreground rounded-sm px-3 py-1.5 hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" /> Export CSV
+          </button>
           {snapshots && snapshots.length >= 2 && (
             <button
               onClick={() => setShowCompare(v => !v)}

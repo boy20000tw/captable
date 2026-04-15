@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
-import { Plus, Edit2, Trash2, X, Check, TrendingUp, DollarSign, Layers, BarChart2, Info } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Check, TrendingUp, DollarSign, Layers, BarChart2, Info, Download } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -171,6 +171,36 @@ function FundingRoundsContent() {
               </button>
             ))}
           </div>
+          <button
+            onClick={() => {
+              const headers = ["Name", "Date", "Status", "Price/Share (NTD)", "Money Raised (NTD)", "Pre-Money (NTD)", "Post-Money (NTD)", "Notes"];
+              const csvRows = (rounds || []).map(r => [
+                r.name || "",
+                r.roundDate || "",
+                r.status || "",
+                r.pricePerShareNtd || "",
+                r.moneyRaisedNtd || "",
+                r.preMoneyValuationNtd || "",
+                r.postMoneyValuationNtd || "",
+                r.notes || "",
+              ]);
+              const csv = [headers, ...csvRows]
+                .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
+                .join("\n");
+              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `funding-rounds-${new Date().toISOString().split("T")[0]}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success(`Exported ${csvRows.length} rounds`);
+            }}
+            disabled={!(rounds || []).length}
+            className="flex items-center gap-2 px-3 py-2 border border-border text-sm text-muted-foreground font-medium rounded-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Download className="h-4 w-4" /> Export CSV
+          </button>
           {canEdit && (
             <button
               onClick={() => { setEditId(null); setForm(emptyForm); setShowForm(true); }}
