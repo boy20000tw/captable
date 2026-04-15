@@ -241,14 +241,53 @@ function InvestorsContent() {
             {" "}registered
           </p>
         </div>
-        {canEdit && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => { setEditId(null); setForm(emptyForm); setShowForm(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
+            onClick={() => {
+              const headers = ["#", "Name", "AKA", "Type", "Nationality", "Email", "Phone", "Total Shares", "Ownership %"];
+              const rows = filtered.map(s => {
+                const holding = summary?.shareholders?.find(sh => sh.id === s.id);
+                const shares = holding?.totalShares || 0;
+                const denom = totalShares;
+                const pct = denom > 0 ? (shares / denom * 100).toFixed(4) : "0.0000";
+                return [
+                  idxMap.get(s.id) || "",
+                  s.name || "",
+                  s.aka || "",
+                  getRoundLabel(s.type || "other"),
+                  s.nationality || "",
+                  s.email || "",
+                  s.phone || "",
+                  shares,
+                  pct + "%",
+                ];
+              });
+              const csv = [headers, ...rows]
+                .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
+                .join("\n");
+              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `investors-${new Date().toISOString().split("T")[0]}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success(`Exported ${rows.length} investors`);
+            }}
+            disabled={!filtered.length}
+            className="flex items-center gap-2 px-3 py-2 border border-border text-sm text-muted-foreground font-medium rounded-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            <Plus className="h-4 w-4" /> Add Investor
+            <Download className="h-4 w-4" /> Export CSV
           </button>
-        )}
+          {canEdit && (
+            <button
+              onClick={() => { setEditId(null); setForm(emptyForm); setShowForm(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
+            >
+              <Plus className="h-4 w-4" /> Add Investor
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search */}
