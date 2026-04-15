@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useState, useRef } from "react";
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Sparkles, X } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Sparkles, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -302,9 +302,22 @@ function ImportContent() {
 
       {/* Format Guide */}
       <div className="bg-card border border-border rounded-sm p-6 space-y-4">
-        <div className="space-y-0.5">
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Format Guide</p>
-          <h3 className="text-base font-semibold tracking-tight">Supported Excel Structure</h3>
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Format Guide</p>
+            <h3 className="text-base font-semibold tracking-tight">Supported Excel Structure</h3>
+            <p className="text-xs text-muted-foreground pt-1">
+              Download the sample template to see the exact format, or use it as a starting point for your own data.
+            </p>
+          </div>
+          <a
+            href="/templates/captable_template.xlsx"
+            download="captable_template.xlsx"
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border border-primary/30 text-primary bg-primary/5 text-sm font-medium rounded-sm hover:bg-primary/10 transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Download Template
+          </a>
         </div>
         <div className="grid grid-cols-2 gap-4">
           {[
