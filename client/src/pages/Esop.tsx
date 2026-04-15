@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatShares, formatDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
-import { Plus, Edit2, Trash2, X, Check, Sparkles, TrendingUp, Calculator, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Check, Sparkles, TrendingUp, Calculator, AlertTriangle, ChevronDown, ChevronUp, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
@@ -555,7 +555,38 @@ function EsopContent() {
         {grantsLoading ? (
           <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : !(grants || []).length ? (
-          <div className="p-12 text-center text-muted-foreground text-sm">No grants issued yet.</div>
+          <div className="p-12 text-center space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+              <Briefcase className="h-6 w-6 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-serif text-lg font-semibold">No option grants yet</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                {(pools || []).length === 0
+                  ? "Create an ESOP pool first, then issue grants from that pool to employees."
+                  : "Issue your first grant from the pool to an employee."}
+              </p>
+            </div>
+            {canEdit && (
+              <div className="flex items-center justify-center gap-3 pt-2">
+                {(pools || []).length === 0 ? (
+                  <button
+                    onClick={() => { setEditPoolId(null); setPoolForm({ poolName: "ESOP Pool", totalShares: "", notes: "" }); setShowPoolForm(true); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
+                  >
+                    <Plus className="h-4 w-4" /> Create Pool
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setGrantForm(f => ({ ...f, esopPoolId: pools?.[0]?.id || 0, granteeName: "", grantDate: "", sharesGranted: "", exercisePriceNtd: "", vestingStartDate: "", expiryDate: "", notes: "" })); setShowGrantForm(true); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
+                  >
+                    <Sparkles className="h-4 w-4" /> Issue First Grant
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         ) : (
           <table className="cap-table w-full">
             <thead>
