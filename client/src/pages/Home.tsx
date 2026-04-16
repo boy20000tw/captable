@@ -1,10 +1,28 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { formatShares, formatValuation, formatDate, getRoundLabel, ROUND_CHART_COLORS } from "@/lib/utils";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendingUp, Users, PieChart as PieIcon, Sparkles, ArrowRight, AlertTriangle, Lock, FileText, Clock, Briefcase, Shield, Camera, Calculator } from "lucide-react";
+import { formatShares, formatValuation, formatDate, ROUND_CHART_COLORS } from "@/lib/utils";
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from "recharts";
+import {
+  TrendingUp, Users, PieChart as PieIcon, Sparkles, ArrowRight,
+  Briefcase, Shield, Camera, Calculator, FileText, Rocket, BookOpen,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { useMemo } from "react";
+
+// ════════════════════════════════════════════════════════════════════════════
+// Dashboard — SPEC-mvp-split.md §2 V1 #6:
+//   "一頁摘要：當前 cap table 簡圖、進行中 round 狀態、近期 allocations"
+//
+// Data sources are all V1-native:
+//   trpc.v1.capTable.current  — derived cap table (holdings + ESOP)
+//   trpc.v1.investors.list    — investor pipeline + invested
+//   trpc.v1.allocations.list  — recent + in-flight allocations
+//   trpc.v1.esop.poolSummary  — pool totals and allocation counts
+//   trpc.fundingRounds.list   — rounds (shared table across versions)
+// ════════════════════════════════════════════════════════════════════════════
 
 export default function Home() {
   return (
@@ -16,42 +34,86 @@ export default function Home() {
 
 function DashboardContent() {
   const [, setLocation] = useLocation();
-  const { data: summary, isLoading } = trpc.capTable.summary.useQuery();
-  const { data: rounds } = trpc.fundingRounds.list.useQuery();
 
+  const capTable = trpc.v1.capTable.current.useQuery();
+  const investors = trpc.v1.investors.list.useQuery();
+  const allocations = trpc.v1.allocations.list.useQuery({});
+  const esopSummary = trpc.v1.esop.poolSummary.useQuery();
+  const rounds = trpc.fundingRounds.list.useQuery();
+
+  const isLoading =
+    capTable.isLoading || investors.isLoading || allocations.isLoading ||
+    esopSummary.isLoading || rounds.isLoading;
+
+  // ── Derived metrics ─────────────────────────────────────────────────────
+  const totalShares = capTable.data?.totalShares ?? 0;
+  const holdings = capTable.data?.holdings ?? [];
+  const investorCount = investors.data?.length ?? 0;
+  const investedCount = (investors.data ?? []).filter(i => i.status === "invested").length;
+  const pipelineCount = (investors.data ?? []).filter(i =>
+    i.status === "prospect" || i.status === "meeting" || i.status === "term_sheet"
+  ).length;
+  const esopUnallocated = esopSummary.data?.totalUnallocated ?? 0;
+  const esopTotal = esopSummary.data?.totalPool ?? 0;
+
+  // Active round = most recent non-completed status; fallback to most recent
+  const sortedRounds = useMemo(() => {
+    const list = (rounds.data ?? []).slice();
+    list.sort((a, b) => {
+      const da = a.roundDate ? new Date(a.roundDate).getTime() : 0;
+      const db = b.roundDate ? new Date(b.roundDate).getTime() : 0;
+      return db - da;
+    });
+    return list;
+  }, [rounds.data]);
+  const activeRound = sortedRounds.find(r => r.status !== "completed") ?? sortedRounds[0];
+
+  // Allocation funnel by status
+  const funnel = useMemo(() => {
+    const base = { planned: 0, committed: 0, signed: 0, funded: 0, issued: 0 };
+    for (const a of allocations.data ?? []) base[a.status as keyof typeof base]++;
+    return base;
+  }, [allocations.data]);
+  const inFlight = funnel.planned + funnel.committed + funnel.signed + funnel.funded;
+
+  // Ownership pie (top 8 by shares)
   const pieData = useMemo(() => {
-    if (!summary?.shareholders) return [];
-    return summary.shareholders
-      .filter(s => s.totalShares > 0)
+    return holdings
+      .filter(h => h.totalShares > 0)
       .slice(0, 8)
-      .map(s => ({
-        id: s.id,
-        name: s.name,
-        value: s.totalShares,
-        type: s.type || "other",
-      }));
-  }, [summary]);
+      .map(h => ({ id: h.investorId, name: h.investorName, value: h.totalShares }));
+  }, [holdings]);
 
+  // Valuation by round (post-money in NT$M, uses legacy calc fields where present)
   const roundsChartData = useMemo(() => {
-    if (!rounds) return [];
-    return rounds
+    return (rounds.data ?? [])
       .filter(r => (r as any).postMoneyCalc || r.postMoneyValuationNtd)
       .map(r => ({
         name: r.name,
         valuation: ((r as any).postMoneyCalc ?? parseFloat(r.postMoneyValuationNtd || "0")) / 1_000_000,
-        raised: parseFloat(r.moneyRaisedNtd || "0") / 1_000_000,
       }));
-  }, [rounds]);
+  }, [rounds.data]);
 
-  const latestRound = summary?.latestRound;
-  const totalShares = summary?.totalShares || 0;
-  const shareholderCount = summary?.shareholders?.length || 0;
-  const esopPool = summary?.esopPool;
+  // Recent allocations (latest 6 by updated/created)
+  const recentAllocations = useMemo(() => {
+    const list = (allocations.data ?? []).slice();
+    list.sort((a, b) => {
+      const da = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+      const db = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+      return db - da;
+    });
+    return list.slice(0, 6);
+  }, [allocations.data]);
+
+  const investorName = (id: number) =>
+    investors.data?.find(i => i.id === id)?.name ?? `Investor #${id}`;
+  const roundName = (id: number) =>
+    rounds.data?.find(r => r.id === id)?.name ?? `Round #${id}`;
 
   if (isLoading) {
     return (
       <div className="p-8 space-y-6">
-        <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+        <div className="h-8 w-64 bg-muted animate-pulse rounded" />
         <div className="grid grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-28 bg-muted animate-pulse rounded" />
@@ -61,222 +123,273 @@ function DashboardContent() {
     );
   }
 
-  const hasData = totalShares > 0;
+  const hasData = totalShares > 0 || investorCount > 0;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10">
       {/* Header */}
       <div className="space-y-1">
         <div className="h-px bg-foreground/20 w-16 mb-4" />
-        <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+        <h1
+          className="text-3xl font-bold tracking-tight"
+          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+        >
           Equity Dashboard
         </h1>
-        <p className="text-sm text-muted-foreground" style={{ letterSpacing: "0.05em" }}>
-          {hasData ? `As of ${formatDate(latestRound?.roundDate || new Date())} · ${latestRound?.name || "Current"} Round` : "No data yet — import your cap table to get started"}
+        <p
+          className="text-sm text-muted-foreground"
+          style={{ letterSpacing: "0.05em" }}
+        >
+          {hasData
+            ? activeRound
+              ? `Active round · ${activeRound.name}${activeRound.roundDate ? ` · ${formatDate(activeRound.roundDate)}` : ""}`
+              : "Overview"
+            : "No data yet — create your first funding round to get started"}
         </p>
       </div>
 
       {!hasData ? (
-        /* Empty State + Onboarding */
-        <>
-          <div className="border border-dashed border-border rounded-sm p-16 text-center space-y-6">
-            <div className="space-y-2">
-              <p className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-                Begin Your Cap Table
-              </p>
-              <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                Import your existing Excel cap table or add shareholders manually to start tracking your equity structure.
-              </p>
-            </div>
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => setLocation("/import")}
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
-              >
-                Import Excel <ArrowRight className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setLocation("/investors")}
-                className="flex items-center gap-2 px-6 py-3 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
-              >
-                Add Manually
-              </button>
-            </div>
-          </div>
-
-          {/* Feature Guide */}
-          <div className="space-y-4">
-            <div className="space-y-0.5">
-              <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Getting Started</p>
-              <h2 className="font-serif text-xl font-semibold">What you can do with Cap Table Manager</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { icon: Users,      title: "Manage shareholders",  desc: "Track investors across founders, seed, angel, and priced rounds.", href: "/investors" },
-                { icon: TrendingUp, title: "Track funding rounds", desc: "Record price, raise, pre/post-money for each round.",              href: "/funding-rounds" },
-                { icon: Briefcase,  title: "Run ESOP",             desc: "Create option pools, issue grants, track vesting + exercise.",    href: "/esop" },
-                { icon: PieIcon,    title: "Visualise cap table",  desc: "Ownership breakdown by round, export to CSV or PDF.",             href: "/cap-table" },
-                { icon: Calculator, title: "Valuation & Scenario Modeling",   desc: "Simulate future rounds and per-shareholder dilution impact.",     href: "/valuation" },
-                { icon: TrendingUp, title: "Projections & DCF",   desc: "5-year financial forecast → DCF → implied pre-money valuation.", href: "/projections" },
-                { icon: Shield,     title: "Anti-dilution & waterfall", desc: "Track investor protection clauses and simulate exit distributions.", href: "/anti-dilution" },
-                { icon: Camera,     title: "Snapshots",            desc: "Save point-in-time records for compliance and board reporting.",  href: "/snapshots" },
-                { icon: FileText,   title: "Audit log",            desc: "Full history of all data changes for traceability.",              href: "/audit-log" },
-              ].map(item => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.title}
-                    onClick={() => setLocation(item.href)}
-                    className="text-left border border-border rounded-sm p-4 bg-card hover:border-foreground/30 hover:shadow-sm transition-all space-y-2"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Icon className="h-4 w-4 text-primary" />
-                    </div>
-                    <h3 className="font-medium text-sm">{item.title}</h3>
-                    <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </>
+        <EmptyState setLocation={setLocation} />
       ) : (
         <>
-          {/* KPI Cards */}
+          {/* ─── KPI row ─────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
               label="Total Shares"
               value={formatShares(totalShares)}
               icon={<PieIcon className="h-4 w-4" />}
-              sub={`${shareholderCount} shareholders`}
+              sub={`${holdings.length} investors with holdings`}
               onClick={() => setLocation("/cap-table")}
             />
             <KpiCard
-              label="Post-Money Valuation"
-              value={formatValuation(
-                String((latestRound as any)?.postMoneyCalc ?? latestRound?.postMoneyValuationNtd ?? ""),
-                "USD"
-              )}
-              icon={<TrendingUp className="h-4 w-4" />}
-              sub={formatValuation(
-                String((latestRound as any)?.postMoneyCalc ?? latestRound?.postMoneyValuationNtd ?? ""),
-                "NTD"
-              )}
-              onClick={() => setLocation("/funding-rounds")}
-            />
-            <KpiCard
-              label="Shareholders"
-              value={String(shareholderCount)}
+              label="Investors"
+              value={String(investorCount)}
               icon={<Users className="h-4 w-4" />}
-              sub={`Latest: ${getRoundLabel(latestRound?.name || "")}`}
+              sub={`${investedCount} invested · ${pipelineCount} in pipeline`}
               onClick={() => setLocation("/investors")}
             />
             <KpiCard
+              label="Allocations in Flight"
+              value={String(inFlight)}
+              icon={<Rocket className="h-4 w-4" />}
+              sub={`${funnel.issued} issued · ${funnel.funded} funded`}
+              onClick={() => setLocation("/register")}
+            />
+            <KpiCard
               label="ESOP Pool"
-              value={formatShares(esopPool?.total)}
+              value={formatShares(esopTotal)}
               icon={<Sparkles className="h-4 w-4" />}
-              sub={`${formatShares(esopPool?.unallocated)} unallocated`}
+              sub={`${formatShares(esopUnallocated)} unallocated`}
               onClick={() => setLocation("/esop")}
             />
           </div>
 
-          {/* Charts Row */}
+          {/* ─── Charts + active round pipeline ──────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Ownership Pie */}
+            {/* Ownership pie */}
             <div className="lg:col-span-2 bg-card border border-border rounded-sm p-6 space-y-4">
-              <div className="space-y-0.5">
-                <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Ownership</p>
-                <h3 className="text-lg font-semibold tracking-tight">Equity Distribution</h3>
+              <div className="flex items-start justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    Ownership
+                  </p>
+                  <h3 className="text-lg font-semibold tracking-tight">
+                    Current Cap Table
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setLocation("/cap-table")}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                >
+                  Full view <ArrowRight className="h-3 w-3" />
+                </button>
               </div>
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={ROUND_CHART_COLORS[index % ROUND_CHART_COLORS.length]}
+              {pieData.length === 0 ? (
+                <div className="h-52 flex items-center justify-center text-xs text-muted-foreground">
+                  No shares issued yet
+                </div>
+              ) : (
+                <>
+                  <div className="h-52">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={90}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {pieData.map((_, i) => (
+                            <Cell key={i} fill={ROUND_CHART_COLORS[i % ROUND_CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(v: number) => [`${formatShares(v)} shares`, ""]}
+                          contentStyle={{
+                            fontSize: "12px",
+                            border: "1px solid var(--border)",
+                            borderRadius: "2px",
+                          }}
                         />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number) => [formatShares(value) + " shares", ""]}
-                      contentStyle={{ fontSize: "12px", border: "1px solid var(--border)", borderRadius: "2px" }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              {/* Legend */}
-              <div className="space-y-1.5">
-                {pieData.slice(0, 5).map((entry, i) => (
-                  <div key={`pie-${entry.id ?? i}`} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: ROUND_CHART_COLORS[i % ROUND_CHART_COLORS.length] }}
-                      />
-                      <span className="text-foreground truncate max-w-[120px]">{entry.name}</span>
-                    </div>
-                    <span className="text-muted-foreground tabular-nums">
-                      {totalShares > 0 ? ((entry.value / totalShares) * 100).toFixed(1) + "%" : "—"}
-                    </span>
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                ))}
-                {pieData.length > 5 && (
-                  <p className="text-xs text-muted-foreground">+{pieData.length - 5} more</p>
-                )}
-              </div>
+                  <div className="space-y-1.5">
+                    {pieData.slice(0, 5).map((entry, i) => (
+                      <div key={entry.id} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ background: ROUND_CHART_COLORS[i % ROUND_CHART_COLORS.length] }}
+                          />
+                          <span className="text-foreground truncate">{entry.name}</span>
+                        </div>
+                        <span className="text-muted-foreground tabular-nums shrink-0">
+                          {totalShares > 0 ? ((entry.value / totalShares) * 100).toFixed(1) + "%" : "—"}
+                        </span>
+                      </div>
+                    ))}
+                    {pieData.length > 5 && (
+                      <p className="text-xs text-muted-foreground">+{pieData.length - 5} more</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Valuation Bar Chart */}
+            {/* Valuation by round */}
             <div className="lg:col-span-3 bg-card border border-border rounded-sm p-6 space-y-4">
-              <div className="space-y-0.5">
-                <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Valuation History</p>
-                <h3 className="text-lg font-semibold tracking-tight">Post-Money by Round (NT$ M)</h3>
+              <div className="flex items-start justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    Valuation History
+                  </p>
+                  <h3 className="text-lg font-semibold tracking-tight">
+                    Post-Money by Round (NT$ M)
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setLocation("/funding-rounds")}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                >
+                  Rounds <ArrowRight className="h-3 w-3" />
+                </button>
               </div>
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={roundsChartData} barSize={28}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={v => `${v}M`}
-                    />
-                    <Tooltip
-                      formatter={(v: number) => [`NT$ ${v.toFixed(1)}M`, ""]}
-                      contentStyle={{ fontSize: "12px", border: "1px solid var(--border)", borderRadius: "2px" }}
-                    />
-                    <Bar dataKey="valuation" fill="var(--primary)" radius={[2, 2, 0, 0]} name="Post-Money" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {roundsChartData.length === 0 ? (
+                <div className="h-56 flex items-center justify-center text-xs text-muted-foreground">
+                  No valuations recorded yet
+                </div>
+              ) : (
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={roundsChartData} barSize={28}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={v => `${v}M`}
+                      />
+                      <Tooltip
+                        formatter={(v: number) => [`NT$ ${v.toFixed(1)}M`, ""]}
+                        contentStyle={{
+                          fontSize: "12px",
+                          border: "1px solid var(--border)",
+                          borderRadius: "2px",
+                        }}
+                      />
+                      <Bar dataKey="valuation" fill="var(--primary)" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Compliance Alerts Row */}
-          <ComplianceAlerts />
+          {/* ─── Allocation funnel + recent allocations ──────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-2">
+              <AllocationFunnel
+                funnel={funnel}
+                onClick={() => setLocation("/register")}
+              />
+            </div>
+            <div className="lg:col-span-3 bg-card border border-border rounded-sm">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    Recent activity
+                  </p>
+                  <h3 className="text-base font-semibold tracking-tight">Allocations</h3>
+                </div>
+                <button
+                  onClick={() => setLocation("/register")}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                >
+                  Register <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+              {recentAllocations.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No allocations yet. Create one from a funding round to start tracking commitments.
+                </div>
+              ) : (
+                <table className="cap-table w-full">
+                  <thead>
+                    <tr>
+                      <th>Investor</th>
+                      <th>Round</th>
+                      <th className="text-right">Shares</th>
+                      <th className="text-right">Amount</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentAllocations.map(a => (
+                      <tr
+                        key={a.id}
+                        className="cursor-pointer"
+                        onClick={() => setLocation(`/funding-rounds/${a.fundingRoundId}`)}
+                      >
+                        <td className="font-medium truncate max-w-[180px]">
+                          {investorName(a.investorId)}
+                        </td>
+                        <td className="text-muted-foreground truncate max-w-[120px]">
+                          {roundName(a.fundingRoundId)}
+                        </td>
+                        <td className="text-right tabular-nums">
+                          {a.sharesAllocated ? a.sharesAllocated.toLocaleString() : "—"}
+                        </td>
+                        <td className="text-right tabular-nums">
+                          {a.amount ? `${a.currency || "NTD"} ${parseFloat(a.amount).toLocaleString()}` : "—"}
+                        </td>
+                        <td>
+                          <AllocationStatusPill status={a.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
 
-          {/* Recent Rounds Table */}
+          {/* ─── Funding rounds table ────────────────────────────────── */}
           <div className="bg-card border border-border rounded-sm">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
-                <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">History</p>
+                <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                  History
+                </p>
                 <h3 className="text-base font-semibold tracking-tight">Funding Rounds</h3>
               </div>
               <button
@@ -286,38 +399,69 @@ function DashboardContent() {
                 View all <ArrowRight className="h-3 w-3" />
               </button>
             </div>
-            <table className="cap-table w-full">
-              <thead>
-                <tr>
-                  <th>Round</th>
-                  <th>Date</th>
-                  <th className="text-right">Price / Share</th>
-                  <th className="text-right">Raised</th>
-                  <th className="text-right">Post-Money</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(rounds || []).slice(0, 6).map(r => (
-                  <tr key={r.id} className="cursor-pointer" onClick={() => setLocation("/funding-rounds")}>
-                    <td className="font-medium">{r.name}</td>
-                    <td className="text-muted-foreground">{formatDate(r.roundDate)}</td>
-                    <td className="text-right tabular-nums">{r.pricePerShareNtd ? `NT$ ${parseFloat(r.pricePerShareNtd).toLocaleString()}` : "—"}</td>
-                    <td className="text-right tabular-nums">{formatValuation(r.moneyRaisedNtd)}</td>
-                    <td className="text-right tabular-nums">{formatValuation(String((r as any).postMoneyCalc ?? r.postMoneyValuationNtd ?? ""))}</td>
-                    <td>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        r.status === "completed" ? "bg-green-100 text-green-700" :
-                        r.status === "bridge" ? "bg-orange-100 text-orange-700" :
-                        "bg-blue-100 text-blue-700"
-                      }`}>
-                        {r.status}
-                      </span>
-                    </td>
+            {sortedRounds.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No rounds yet.{" "}
+                <button
+                  onClick={() => setLocation("/funding-rounds")}
+                  className="text-primary hover:underline"
+                >
+                  Create your first round
+                </button>
+                .
+              </div>
+            ) : (
+              <table className="cap-table w-full">
+                <thead>
+                  <tr>
+                    <th>Round</th>
+                    <th>Date</th>
+                    <th className="text-right">Price / Share</th>
+                    <th className="text-right">Raised</th>
+                    <th className="text-right">Post-Money</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sortedRounds.slice(0, 6).map(r => (
+                    <tr
+                      key={r.id}
+                      className="cursor-pointer"
+                      onClick={() => setLocation(`/funding-rounds/${r.id}`)}
+                    >
+                      <td className="font-medium">{r.name}</td>
+                      <td className="text-muted-foreground">{formatDate(r.roundDate)}</td>
+                      <td className="text-right tabular-nums">
+                        {r.pricePerShareNtd
+                          ? `NT$ ${parseFloat(r.pricePerShareNtd).toLocaleString()}`
+                          : "—"}
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {formatValuation(r.moneyRaisedNtd)}
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {formatValuation(
+                          String((r as any).postMoneyCalc ?? r.postMoneyValuationNtd ?? "")
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            r.status === "completed"
+                              ? "bg-green-100 text-green-700"
+                              : r.status === "bridge"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}
+                        >
+                          {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </>
       )}
@@ -325,188 +469,195 @@ function DashboardContent() {
   );
 }
 
-function ComplianceAlerts() {
-  const [, setLocation] = useLocation();
-  const { data: lockups } = trpc.compliance.upcomingLockups.useQuery({ daysAhead: 180 });
-  const { data: taxData } = trpc.compliance.taxDeductions.useQuery();
-  const { data: documents } = trpc.documents.list.useQuery();
-  const { data: expiringGrants = [] } = trpc.esop.expiringGrants.useQuery({ withinDays: 90 });
-  const { data: shareholders } = trpc.shareholders.list.useQuery();
-  const today = new Date();
+// ─── Empty State ──────────────────────────────────────────────────────────
+function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
+  return (
+    <>
+      <div className="border border-dashed border-border rounded-sm p-16 text-center space-y-6">
+        <div className="space-y-2">
+          <p
+            className="text-2xl font-bold"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            Begin Your Cap Table
+          </p>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            Create your first funding round, add investors, then allocate shares.
+            The register and cap table update automatically as allocations reach Issued.
+          </p>
+        </div>
+        <div className="flex gap-4 justify-center flex-wrap">
+          <button
+            onClick={() => setLocation("/funding-rounds")}
+            className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
+          >
+            <Rocket className="h-4 w-4" /> Create a Funding Round
+          </button>
+          <button
+            onClick={() => setLocation("/investors")}
+            className="flex items-center gap-2 px-6 py-3 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
+          >
+            <Users className="h-4 w-4" /> Add Investors
+          </button>
+          <button
+            onClick={() => setLocation("/import")}
+            className="flex items-center gap-2 px-6 py-3 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
+          >
+            <FileText className="h-4 w-4" /> Import Excel
+          </button>
+        </div>
+      </div>
 
-  // Tax expiry alerts: transactions where taxDeductionYear is this year or next year
-  const taxAlerts = useMemo(() => {
-    if (!taxData) return [];
-    const currentYear = today.getFullYear();
-    return taxData
-      .filter(t => t.taxDeductionYear && (t.taxDeductionYear === currentYear || t.taxDeductionYear === currentYear + 1))
-      .slice(0, 5);
-  }, [taxData, today]);
+      <div className="space-y-4">
+        <div className="space-y-0.5">
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+            Getting Started
+          </p>
+          <h2 className="font-serif text-xl font-semibold">
+            What you can do with Caploom
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {FEATURE_CARDS.map(item => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.title}
+                onClick={() => setLocation(item.href)}
+                className="text-left border border-border rounded-sm p-4 bg-card hover:border-foreground/30 hover:shadow-sm transition-all space-y-2"
+              >
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Icon className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="font-medium text-sm">{item.title}</h3>
+                <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
 
-  // Lockup expirations in the next 180 days
-  const upcomingLockups = useMemo(() => {
-    if (!lockups) return [];
-    return lockups.slice(0, 5);
-  }, [lockups]);
+const FEATURE_CARDS = [
+  { icon: Rocket,     title: "Funding Rounds & Allocations", desc: "Plan each raise, track commitments from Planned to Issued.",             href: "/funding-rounds" },
+  { icon: Users,      title: "Investors",                    desc: "Pipeline + invested. Prospects through invested, all in one place.",      href: "/investors" },
+  { icon: BookOpen,   title: "Share Register",               desc: "Append-only ledger of every issued share. Immutable law-of-record view.",  href: "/register" },
+  { icon: PieIcon,    title: "Cap Table",                    desc: "Derived from the register. Never directly edited.",                        href: "/cap-table" },
+  { icon: Briefcase,  title: "ESOP",                         desc: "Pool + grants + vesting. Unallocated shares show on the cap table.",      href: "/esop" },
+  { icon: Calculator, title: "Valuation & Scenario Modeling", desc: "Per-round estimates today; what-if scenario modeling in V2.",             href: "/valuation" },
+  { icon: TrendingUp, title: "Projections & DCF",            desc: "5-year forecast → DCF → implied pre-money valuation.",                    href: "/projections" },
+  { icon: Shield,     title: "Anti-Dilution & Waterfall",    desc: "Protection clauses today; exit simulation in V2.",                         href: "/anti-dilution" },
+  { icon: Camera,     title: "Snapshots",                    desc: "Auto-saved on every register write. Point-in-time cap tables.",            href: "/snapshots" },
+];
 
-  // Pending documents
-  const pendingDocs = useMemo(() => {
-    if (!documents) return [];
-    return documents.filter(d => d.status === "pending").slice(0, 5);
-  }, [documents]);
-
-   const hasTaxAlerts = taxAlerts.length > 0;
-  const hasLockups = upcomingLockups.length > 0;
-  const hasPendingDocs = pendingDocs.length > 0;
-  const hasExpiringGrants = expiringGrants.length > 0;
-  if (!hasTaxAlerts && !hasLockups && !hasPendingDocs && !hasExpiringGrants) return null;
+// ─── Allocation Funnel ────────────────────────────────────────────────────
+function AllocationFunnel({
+  funnel,
+  onClick,
+}: {
+  funnel: { planned: number; committed: number; signed: number; funded: number; issued: number };
+  onClick: () => void;
+}) {
+  const steps: Array<[keyof typeof funnel, string, string]> = [
+    ["planned",   "Planned",   "bg-slate-200 text-slate-700"],
+    ["committed", "Committed", "bg-blue-100 text-blue-700"],
+    ["signed",    "Signed",    "bg-indigo-100 text-indigo-700"],
+    ["funded",    "Funded",    "bg-amber-100 text-amber-700"],
+    ["issued",    "Issued",    "bg-emerald-100 text-emerald-700"],
+  ];
+  const total = Object.values(funnel).reduce((s, v) => s + v, 0);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="h-px bg-foreground/20 flex-1" />
-        <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Compliance Alerts</p>
-        <div className="h-px bg-foreground/20 flex-1" />
+    <div className="bg-card border border-border rounded-sm p-6 space-y-4 h-full">
+      <div className="flex items-start justify-between">
+        <div className="space-y-0.5">
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+            Pipeline
+          </p>
+          <h3 className="text-lg font-semibold tracking-tight">Allocation Funnel</h3>
+        </div>
+        <button
+          onClick={onClick}
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+        >
+          All <ArrowRight className="h-3 w-3" />
+        </button>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Tax Deduction Alerts */}
-        {hasTaxAlerts && (
-          <div className="bg-amber-50 border border-amber-200 rounded-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <p className="text-xs font-semibold text-amber-800 tracking-wide uppercase">Tax Benefit Expiry</p>
-            </div>
-            <div className="space-y-2">
-              {taxAlerts.map(t => (
-                <div key={`tax-${t.id}`} className="flex items-center justify-between text-xs">
-                  <span className="text-amber-900 truncate max-w-[140px]">
-                    {t.shareholderId ? `Shareholder #${t.shareholderId}` : "Unknown"}
-                  </span>
-                  <span className={`font-semibold tabular-nums ${
-                    t.taxDeductionYear === today.getFullYear() ? "text-red-600" : "text-amber-700"
-                  }`}>
-                    {t.taxDeductionYear === today.getFullYear() ? "This Year" : `${t.taxDeductionYear}`}
-                  </span>
+      {total === 0 ? (
+        <div className="py-8 text-center text-xs text-muted-foreground">
+          No allocations yet.
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {steps.map(([key, label, color]) => {
+            const count = funnel[key];
+            const pct = total > 0 ? (count / total) * 100 : 0;
+            return (
+              <div key={key} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className={`px-2 py-0.5 rounded-full font-medium ${color}`}>{label}</span>
+                  <span className="tabular-nums text-muted-foreground">{count}</span>
                 </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setLocation("/register")}
-              className="text-xs text-amber-700 hover:text-amber-900 flex items-center gap-1 font-medium"
-            >
-              View Register <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-        )}
-
-        {/* Upcoming Lock-up Expirations */}
-        {hasLockups && (
-          <div className="bg-blue-50 border border-blue-200 rounded-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-blue-600" />
-              <p className="text-xs font-semibold text-blue-800 tracking-wide uppercase">Lock-up Expiring</p>
-            </div>
-            <div className="space-y-2">
-              {upcomingLockups.map(t => {
-                const expiry = t.lockUpEndDate ? new Date(t.lockUpEndDate) : null;
-                const daysLeft = expiry ? Math.ceil((expiry.getTime() - today.getTime()) / 86400000) : null;
-                return (
-                  <div key={`lockup-${t.id}`} className="flex items-center justify-between text-xs">
-                    <span className="text-blue-900 truncate max-w-[140px]">
-                      {t.shareholderId ? `Shareholder #${t.shareholderId}` : "Unknown"}
-                    </span>
-                    <span className={`font-semibold tabular-nums ${
-                      daysLeft !== null && daysLeft <= 30 ? "text-red-600" : "text-blue-700"
-                    }`}>
-                      {daysLeft !== null ? `${daysLeft}d` : "—"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setLocation("/investors")}
-              className="text-xs text-blue-700 hover:text-blue-900 flex items-center gap-1 font-medium"
-            >
-              View Investors <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-        )}
-
-        {/* ESOP Expiry Alerts */}
-        {hasExpiringGrants && (
-          <div className="bg-red-50 border border-red-200 rounded-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <p className="text-xs font-semibold text-red-800 tracking-wide uppercase">Options Expiring</p>
-            </div>
-            <div className="space-y-2">
-              {expiringGrants.slice(0, 5).map(g => {
-                const sh = (shareholders || []).find(s => s.id === g.shareholderId);
-                return (
-                  <div key={g.id} className="flex items-center justify-between text-xs">
-                    <span className="text-red-900 truncate max-w-[140px]">{sh?.name ?? `Grantee #${g.shareholderId}`}</span>
-                    <span className={`font-semibold tabular-nums ${
-                      g.daysUntilExpiry <= 30 ? "text-red-700" : "text-orange-600"
-                    }`}>{g.daysUntilExpiry}d left</span>
-                  </div>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setLocation("/esop")}
-              className="text-xs text-red-700 hover:text-red-900 flex items-center gap-1 font-medium"
-            >
-              View ESOP <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-        )}
-        {/* Pending Documents */}
-        {hasPendingDocs && (
-          <div className="bg-rose-50 border border-rose-200 rounded-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-rose-600" />
-              <p className="text-xs font-semibold text-rose-800 tracking-wide uppercase">Documents Pending</p>
-            </div>
-            <div className="space-y-2">
-              {pendingDocs.map(d => (
-                <div key={d.id} className="flex items-center justify-between text-xs">
-                  <span className="text-rose-900 truncate max-w-[140px]">{d.documentName}</span>
-                  <span className="font-medium text-rose-600 uppercase tracking-wide">{d.documentType}</span>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary/60 transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setLocation("/investors")}
-              className="text-xs text-rose-700 hover:text-rose-900 flex items-center gap-1 font-medium"
-            >
-              View Investors <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
+// ─── Allocation Status Pill ───────────────────────────────────────────────
+function AllocationStatusPill({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    planned:   "bg-slate-100 text-slate-700",
+    committed: "bg-blue-100 text-blue-700",
+    signed:    "bg-indigo-100 text-indigo-700",
+    funded:    "bg-amber-100 text-amber-700",
+    issued:    "bg-emerald-100 text-emerald-700",
+  };
+  return (
+    <span
+      className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors[status] ?? "bg-muted text-muted-foreground"}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────
 function KpiCard({
-  label, value, icon, sub, onClick,
+  label,
+  value,
+  icon,
+  sub,
+  onClick,
 }: {
-  label: string; value: string; icon: React.ReactNode; sub?: string; onClick?: () => void;
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+  sub?: string;
+  onClick?: () => void;
 }) {
   return (
-    <div
-      className="bg-card border border-border rounded-sm p-5 space-y-3 cursor-pointer hover:border-foreground/30 transition-colors group"
+    <button
       onClick={onClick}
+      className="bg-card border border-border rounded-sm p-5 text-left space-y-2 hover:border-foreground/30 hover:shadow-sm transition-all"
     >
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{label}</p>
-        <span className="text-muted-foreground group-hover:text-foreground transition-colors">{icon}</span>
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {icon}
+        <p className="text-[10px] tracking-widest uppercase font-medium">{label}</p>
       </div>
-      <p className="text-2xl font-bold tracking-tight tabular-nums" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-        {value}
-      </p>
+      <p className="text-2xl font-bold tabular-nums tracking-tight">{value}</p>
       {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-    </div>
+    </button>
   );
 }
