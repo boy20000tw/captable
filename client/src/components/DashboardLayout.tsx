@@ -41,6 +41,7 @@ import {
   UserCog,
   ClipboardList,
   Calculator,
+  Rocket,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -83,6 +84,12 @@ const menuGroups = [
     label: "Tools",
     items: [
       { icon: Upload, label: "Import & Analysis", path: "/import" },
+    ],
+  },
+  {
+    label: "V1 (MVP)",
+    items: [
+      { icon: Rocket, label: "Rounds & Allocations", path: "/v1/rounds" },
     ],
   },
   {

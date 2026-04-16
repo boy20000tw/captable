@@ -19,6 +19,8 @@ import WaterfallPage from "./pages/Waterfall";
 import TeamPage from "./pages/Team";
 import AuditLogPage from "./pages/AuditLog";
 import JoinPage from "./pages/Join";
+import V1RoundsPage from "./pages/v1/Rounds";
+import V1RoundDetailPage from "./pages/v1/RoundDetail";
 
 function Router() {
   return (
@@ -38,6 +40,8 @@ function Router() {
       <Route path="/team" component={TeamPage} />
       <Route path="/audit-log" component={AuditLogPage} />
       <Route path="/join" component={JoinPage} />
+      <Route path="/v1/rounds" component={V1RoundsPage} />
+      <Route path="/v1/rounds/:id" component={V1RoundDetailPage} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -29,8 +29,15 @@ import {
   getCompanyById, createCompany, updateCompany,
   getUserCompanyMemberships, listCompanyMembers,
   addCompanyMember, updateCompanyMemberRole, removeCompanyMember,
+  // V1
+  getAllInvestors, getInvestorById, createInvestor, updateInvestor, deleteInvestor,
+  getAllocationsByCompany, getAllocationById, createAllocation, updateAllocation, deleteAllocation,
+  getAllRegisterEntries, getAllSnapshotsV1,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
+import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
+import { writeRegisterEntry, createManualSnapshot } from "./v1/registerWrite";
+import { deriveCapTable } from "./v1/capTable";
 
 // ─── Shareholders Router ──────────────────────────────────────────────────────
 const shareholdersRouter = router({
@@ -1067,6 +1074,197 @@ const companiesRouter = router({
   }),
 });
 
+// ─── V1 Investors Router ────────────────────────────────────────────────────
+const v1InvestorsRouter = router({
+  list: companyProcedure.query(({ ctx }) => getAllInvestors(ctx.companyId)),
+  get: companyProcedure.input(z.object({ id: z.number() })).query(({ ctx, input }) => getInvestorById(ctx.companyId, input.id)),
+  create: companyEditorProcedure.input(z.object({
+    name: z.string().min(1).max(255),
+    entityKind: z.enum(["individual", "entity"]).default("individual"),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+    nationality: z.string().optional(),
+    status: z.enum(["prospect", "meeting", "term_sheet", "invested", "passed"]).default("prospect"),
+    aka: z.string().optional(),
+    website: z.string().optional(),
+    linkedinUrl: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ ctx, input }) => {
+    const created = await createInvestor({ ...input, companyId: ctx.companyId, ownerUserId: ctx.user!.id });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "create", resourceType: "investor", resourceId: created.id, resourceName: input.name,
+    });
+    return created;
+  }),
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      name: z.string().min(1).optional(),
+      entityKind: z.enum(["individual", "entity"]).optional(),
+      email: z.string().email().optional().nullable(),
+      phone: z.string().optional().nullable(),
+      nationality: z.string().optional().nullable(),
+      status: z.enum(["prospect", "meeting", "term_sheet", "invested", "passed"]).optional(),
+      aka: z.string().optional().nullable(),
+      website: z.string().optional().nullable(),
+      linkedinUrl: z.string().optional().nullable(),
+      notes: z.string().optional().nullable(),
+    }),
+  })).mutation(async ({ ctx, input }) => {
+    await updateInvestor(ctx.companyId, input.id, input.data);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "investor", resourceId: input.id,
+      changesAfter: JSON.stringify(input.data),
+    });
+  }),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    await deleteInvestor(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "delete", resourceType: "investor", resourceId: input.id,
+    });
+  }),
+});
+
+// ─── V1 Allocations Router ──────────────────────────────────────────────────
+const v1AllocationsRouter = router({
+  list: companyProcedure.input(z.object({ roundId: z.number().optional() })).query(({ ctx, input }) => getAllocationsByCompany(ctx.companyId, input.roundId)),
+  get: companyProcedure.input(z.object({ id: z.number() })).query(({ ctx, input }) => getAllocationById(ctx.companyId, input.id)),
+  create: companyEditorProcedure.input(z.object({
+    fundingRoundId: z.number(),
+    investorId: z.number(),
+    shareClass: z.enum(["common","seed","seed_plus","pre_a","bridge","series_a","pre_b","series_b","pre_c","series_c","esop"]),
+    amount: z.string().optional(),              // numeric-as-string
+    currency: z.string().default("NTD"),
+    fxToNtd: z.string().default("1"),
+    sharesAllocated: z.number().optional(),
+    pricePerShare: z.string().optional(),
+    termSheetUrl: z.string().optional(),
+    agreementUrl: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ ctx, input }) => {
+    const created = await createAllocation({
+      ...input, companyId: ctx.companyId,
+      status: "planned",
+      createdByUserId: ctx.user!.id,
+    });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "create", resourceType: "allocation", resourceId: created.id,
+      changesAfter: JSON.stringify({ fundingRoundId: input.fundingRoundId, investorId: input.investorId, amount: input.amount }),
+    });
+    return created;
+  }),
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      amount: z.string().optional(),
+      currency: z.string().optional(),
+      fxToNtd: z.string().optional(),
+      sharesAllocated: z.number().optional(),
+      pricePerShare: z.string().optional(),
+      termSheetUrl: z.string().optional().nullable(),
+      agreementUrl: z.string().optional().nullable(),
+      notes: z.string().optional().nullable(),
+    }),
+  })).mutation(async ({ ctx, input }) => {
+    await updateAllocation(ctx.companyId, input.id, input.data);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "allocation", resourceId: input.id,
+      changesAfter: JSON.stringify(input.data),
+    });
+  }),
+  // The main event: advance through the lifecycle. When reaching "issued",
+  // we write a register entry and a snapshot atomically-ish via writeRegisterEntry.
+  advance: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    const existing = await getAllocationById(ctx.companyId, input.id);
+    if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Allocation not found" });
+    const result = advanceAllocation({
+      status: existing.status as AllocationStatus,
+      termSheetUrl: existing.termSheetUrl,
+      agreementUrl: existing.agreementUrl,
+      amount: existing.amount,
+      sharesAllocated: existing.sharesAllocated,
+      pricePerShare: existing.pricePerShare,
+    });
+    if (!result.ok) throw new TRPCError({ code: "BAD_REQUEST", message: result.errors.join("; ") });
+    // Stamp status + timestamp
+    const updateFields: Record<string, unknown> = {
+      status: result.newStatus,
+      [result.timestampField]: new Date(),
+    };
+    await updateAllocation(ctx.companyId, input.id, updateFields as any);
+
+    // If reaching "issued", write the register entry
+    let registerEntryId: number | null = null;
+    let snapshotId: number | null = null;
+    if (result.newStatus === "issued") {
+      if (!existing.sharesAllocated || !existing.pricePerShare) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot issue without sharesAllocated and pricePerShare." });
+      }
+      const written = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
+        investorId: existing.investorId,
+        eventType: "issuance",
+        shareClass: existing.shareClass as any,
+        shares: existing.sharesAllocated,
+        effectiveDate: new Date().toISOString().slice(0, 10),
+        allocationId: existing.id,
+        fundingRoundId: existing.fundingRoundId,
+        pricePerShare: existing.pricePerShare,
+        currency: existing.currency,
+        fxToNtd: existing.fxToNtd,
+        totalAmount: existing.amount,
+      });
+      registerEntryId = written.entry.id;
+      snapshotId = written.snapshot.id;
+    }
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "allocation", resourceId: input.id,
+      changesAfter: JSON.stringify({ status: result.newStatus, registerEntryId, snapshotId }),
+    });
+    return { newStatus: result.newStatus, registerEntryId, snapshotId };
+  }),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    const existing = await getAllocationById(ctx.companyId, input.id);
+    if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Allocation not found" });
+    if (existing.status === "issued") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Cannot delete an issued allocation. Use a reversal register entry instead." });
+    }
+    await deleteAllocation(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "delete", resourceType: "allocation", resourceId: input.id,
+    });
+  }),
+});
+
+// ─── V1 Register Router (read-only; writes go via allocation advance) ──────
+const v1RegisterRouter = router({
+  list: companyProcedure.input(z.object({ investorId: z.number().optional() }).optional()).query(
+    ({ ctx, input }) => getAllRegisterEntries(ctx.companyId, input)
+  ),
+});
+
+// ─── V1 Cap Table Router (derived view) ─────────────────────────────────────
+const v1CapTableRouter = router({
+  current: companyProcedure.query(({ ctx }) => deriveCapTable(ctx.companyId)),
+});
+
+// ─── V1 Snapshots Router (auto + manual) ────────────────────────────────────
+const v1SnapshotsRouter = router({
+  list: companyProcedure.query(({ ctx }) => getAllSnapshotsV1(ctx.companyId)),
+  createManual: companyEditorProcedure.input(z.object({
+    name: z.string().min(1).max(255),
+    notes: z.string().optional(),
+  })).mutation(async ({ ctx, input }) => {
+    return createManualSnapshot(ctx.companyId, ctx.user!.id, input.name, input.notes ?? null);
+  }),
+});
+
 // ─── App Router ────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
@@ -1099,6 +1297,13 @@ export const appRouter = router({
   auditLog: auditLogRouter,
   financialProjections: financialProjectionsRouter,
   dcf: dcfRouter,
+  v1: router({
+    investors: v1InvestorsRouter,
+    allocations: v1AllocationsRouter,
+    register: v1RegisterRouter,
+    capTable: v1CapTableRouter,
+    snapshots: v1SnapshotsRouter,
+  }),
   admin: router({
     // ─── Danger Zone: Clear All Business Data for the active company ──────
     // Owner-only. Deletes all rows scoped to ctx.companyId across business tables.

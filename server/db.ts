@@ -22,6 +22,10 @@ import {
   auditLogs, InsertAuditLog,
   financialProjections, InsertFinancialProjection,
   dcfScenarios, InsertDcfScenario,
+  investors, InsertInvestor,
+  allocations, InsertAllocation,
+  shareRegisterEntries, InsertShareRegisterEntry,
+  snapshots as snapshotsV1, InsertSnapshot,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -965,6 +969,85 @@ export async function deleteDcfScenario(companyId: number, id: number) {
     .where(and(eq(dcfScenarios.id, id), eq(dcfScenarios.companyId, companyId)));
 }
 
+// ─── V1: Investors ──────────────────────────────────────────────────────────
+export async function getAllInvestors(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(investors).where(eq(investors.companyId, companyId)).orderBy(asc(investors.name));
+}
+export async function getInvestorById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(investors).where(and(eq(investors.id, id), eq(investors.companyId, companyId))).limit(1);
+  return rows[0];
+}
+export async function createInvestor(data: InsertInvestor) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.insert(investors).values(data).returning();
+  return rows[0];
+}
+export async function updateInvestor(companyId: number, id: number, data: Partial<InsertInvestor>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(investors).set({ ...data, updatedAt: new Date() })
+    .where(and(eq(investors.id, id), eq(investors.companyId, companyId)));
+}
+export async function deleteInvestor(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(investors).where(and(eq(investors.id, id), eq(investors.companyId, companyId)));
+}
+
+// ─── V1: Allocations ────────────────────────────────────────────────────────
+export async function getAllocationsByCompany(companyId: number, roundId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const whereClause = roundId != null
+    ? and(eq(allocations.companyId, companyId), eq(allocations.fundingRoundId, roundId))
+    : eq(allocations.companyId, companyId);
+  return db.select().from(allocations).where(whereClause).orderBy(asc(allocations.createdAt));
+}
+export async function getAllocationById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(allocations).where(and(eq(allocations.id, id), eq(allocations.companyId, companyId))).limit(1);
+  return rows[0];
+}
+export async function createAllocation(data: InsertAllocation) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.insert(allocations).values(data).returning();
+  return rows[0];
+}
+export async function updateAllocation(companyId: number, id: number, data: Partial<InsertAllocation>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(allocations).set({ ...data, updatedAt: new Date() })
+    .where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
+}
+export async function deleteAllocation(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(allocations).where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
+}
+
+// ─── V1: Register + Snapshots ──────────────────────────────────────────────
+export async function getAllRegisterEntries(companyId: number, opts?: { issuedOnly?: boolean; investorId?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const where = [eq(shareRegisterEntries.companyId, companyId)];
+  if (opts?.investorId) where.push(eq(shareRegisterEntries.investorId, opts.investorId));
+  // SPEC says Register default view is "Issued only" but our eventType has issuance/transfer/etc — all are "issued" facts.
+  // For V1 we show all entries; future Phase 2+ can add eventType filter via opts.
+  return db.select().from(shareRegisterEntries).where(and(...where)).orderBy(desc(shareRegisterEntries.effectiveDate), desc(shareRegisterEntries.id));
+}
+export async function getAllSnapshotsV1(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(snapshotsV1).where(eq(snapshotsV1.companyId, companyId)).orderBy(desc(snapshotsV1.createdAt));
+}
+
 // ─── Danger Zone ──────────────────────────────────────────────────────────────
 /**
  * Delete all business-data rows belonging to a single company. Preserves: users,
@@ -996,6 +1079,10 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
     ["financial_projections", financialProjections, financialProjections.companyId],
     ["dcf_scenarios", dcfScenarios, dcfScenarios.companyId],
     ["user_invitations", userInvitations, userInvitations.companyId],
+    ["snapshots", snapshotsV1, snapshotsV1.companyId],
+    ["share_register_entries", shareRegisterEntries, shareRegisterEntries.companyId],
+    ["allocations", allocations, allocations.companyId],
+    ["investors", investors, investors.companyId],
   ];
   for (const [name, table, companyIdCol] of countable) {
     try {
@@ -1022,6 +1109,11 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   await db.delete(importLogs).where(eq(importLogs.companyId, companyId));
   await db.delete(dcfScenarios).where(eq(dcfScenarios.companyId, companyId));
   await db.delete(financialProjections).where(eq(financialProjections.companyId, companyId));
+  // V1 tables — delete in FK-safe order: snapshots → register entries → allocations → investors.
+  await db.delete(snapshotsV1).where(eq(snapshotsV1.companyId, companyId));
+  await db.delete(shareRegisterEntries).where(eq(shareRegisterEntries.companyId, companyId));
+  await db.delete(allocations).where(eq(allocations.companyId, companyId));
+  await db.delete(investors).where(eq(investors.companyId, companyId));
   await db.delete(shareholders).where(eq(shareholders.companyId, companyId));
   await db.delete(fundingRounds).where(eq(fundingRounds.companyId, companyId));
   await db.delete(userInvitations).where(eq(userInvitations.companyId, companyId));
