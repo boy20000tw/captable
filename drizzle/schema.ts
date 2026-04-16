@@ -588,3 +588,56 @@ export const snapshots = pgTable("snapshots", {
 });
 export type Snapshot = typeof snapshots.$inferSelect;
 export type InsertSnapshot = typeof snapshots.$inferInsert;
+
+// ─── V1 ESOP Pools ──────────────────────────────────────────────────────────
+// Replaces legacy `esop_pool`. A company can have multiple pools (e.g. a
+// Seed-era pool + a post-Series-A top-up). Tracks totals; per-grant detail
+// lives in `esop_grants_v1`.
+export const esopPoolsV1 = pgTable("esop_pools_v1", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    fundingRoundId: integer("fundingRoundId"),
+    totalShares: bigint("totalShares", { mode: "number" }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type EsopPoolV1 = typeof esopPoolsV1.$inferSelect;
+export type InsertEsopPoolV1 = typeof esopPoolsV1.$inferInsert;
+
+// ─── V1 ESOP Grant Status ───────────────────────────────────────────────────
+export const esopGrantV1StatusEnum = pgEnum("esop_grant_v1_status", [
+    "active",
+    "fully_vested",
+    "exercised",
+    "cancelled",
+]);
+
+// ─── V1 ESOP Grants ─────────────────────────────────────────────────────────
+// Replaces legacy `esop_grants`. Always points at an `investors` row via
+// `investorId` (V1-native, no legacy shareholderId). Employees who are not
+// investors should be added to `investors` first.
+export const esopGrantsV1 = pgTable("esop_grants_v1", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    poolId: integer("poolId").notNull(),
+    investorId: integer("investorId").notNull(),
+    grantDate: date("grantDate").notNull(),
+    sharesGranted: bigint("sharesGranted", { mode: "number" }).notNull(),
+    sharesVested: bigint("sharesVested", { mode: "number" }).default(0).notNull(),
+    sharesExercised: bigint("sharesExercised", { mode: "number" }).default(0).notNull(),
+    sharesCancelled: bigint("sharesCancelled", { mode: "number" }).default(0).notNull(),
+    exercisePrice: decimal("exercisePrice", { precision: 20, scale: 6 }),
+    currency: varchar("currency", { length: 8 }).default("NTD"),
+    vestingStartDate: date("vestingStartDate"),
+    vestingCliffMonths: integer("vestingCliffMonths").default(12),
+    vestingTotalMonths: integer("vestingTotalMonths").default(48),
+    status: esopGrantV1StatusEnum("status").default("active").notNull(),
+    expiryDate: date("expiryDate"),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type EsopGrantV1 = typeof esopGrantsV1.$inferSelect;
+export type InsertEsopGrantV1 = typeof esopGrantsV1.$inferInsert;

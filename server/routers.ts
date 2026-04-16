@@ -33,6 +33,8 @@ import {
   getAllInvestors, getInvestorById, createInvestor, updateInvestor, deleteInvestor,
   getAllocationsByCompany, getAllocationById, createAllocation, updateAllocation, deleteAllocation,
   getAllRegisterEntries, getAllSnapshotsV1,
+  getAllEsopPoolsV1, getEsopPoolV1ById, createEsopPoolV1, updateEsopPoolV1, deleteEsopPoolV1,
+  getAllEsopGrantsV1, getEsopGrantV1ById, createEsopGrantV1, updateEsopGrantV1, deleteEsopGrantV1,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
@@ -1265,6 +1267,136 @@ const v1SnapshotsRouter = router({
   }),
 });
 
+// ─── V1 ESOP Router ─────────────────────────────────────────────────────────
+const v1EsopRouter = router({
+  // Pools
+  pools: companyProcedure.query(({ ctx }) => getAllEsopPoolsV1(ctx.companyId)),
+  getPool: companyProcedure.input(z.object({ id: z.number() })).query(({ ctx, input }) => getEsopPoolV1ById(ctx.companyId, input.id)),
+  createPool: companyEditorProcedure.input(z.object({
+    name: z.string().min(1).max(255),
+    fundingRoundId: z.number().nullable().optional(),
+    totalShares: z.number().positive(),
+    notes: z.string().optional(),
+  })).mutation(async ({ ctx, input }) => {
+    const created = await createEsopPoolV1({ ...input, companyId: ctx.companyId });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "create", resourceType: "esop_pool_v1", resourceId: created.id, resourceName: input.name,
+    });
+    return created;
+  }),
+  updatePool: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      name: z.string().min(1).optional(),
+      totalShares: z.number().positive().optional(),
+      fundingRoundId: z.number().nullable().optional(),
+      notes: z.string().optional().nullable(),
+    }),
+  })).mutation(async ({ ctx, input }) => {
+    await updateEsopPoolV1(ctx.companyId, input.id, input.data);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "esop_pool_v1", resourceId: input.id,
+      changesAfter: JSON.stringify(input.data),
+    });
+  }),
+  deletePool: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    // Guard: can't delete a pool that still has grants
+    const grants = await getAllEsopGrantsV1(ctx.companyId, input.id);
+    if (grants.length > 0) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot delete pool with ${grants.length} grant(s). Cancel or reassign grants first.` });
+    }
+    await deleteEsopPoolV1(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "delete", resourceType: "esop_pool_v1", resourceId: input.id,
+    });
+  }),
+
+  // Grants
+  grants: companyProcedure.input(z.object({ poolId: z.number().optional() }).optional())
+    .query(({ ctx, input }) => getAllEsopGrantsV1(ctx.companyId, input?.poolId)),
+  createGrant: companyEditorProcedure.input(z.object({
+    poolId: z.number(),
+    investorId: z.number(),
+    grantDate: z.string(),                                  // YYYY-MM-DD
+    sharesGranted: z.number().positive(),
+    exercisePrice: z.string().optional(),                   // numeric-as-string
+    currency: z.string().default("NTD"),
+    vestingStartDate: z.string().optional(),
+    vestingCliffMonths: z.number().default(12),
+    vestingTotalMonths: z.number().default(48),
+    expiryDate: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ ctx, input }) => {
+    // Guard: pool must have enough unallocated shares
+    const pool = await getEsopPoolV1ById(ctx.companyId, input.poolId);
+    if (!pool) throw new TRPCError({ code: "NOT_FOUND", message: "Pool not found" });
+    const existingGrants = await getAllEsopGrantsV1(ctx.companyId, input.poolId);
+    const allocated = existingGrants.reduce((s, g) => s + g.sharesGranted - g.sharesCancelled, 0);
+    const remaining = pool.totalShares - allocated;
+    if (input.sharesGranted > remaining) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: `Pool only has ${remaining.toLocaleString()} shares remaining; cannot grant ${input.sharesGranted.toLocaleString()}.` });
+    }
+    const created = await createEsopGrantV1({ ...input, companyId: ctx.companyId });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "create", resourceType: "esop_grant_v1", resourceId: created.id,
+      changesAfter: JSON.stringify({ poolId: input.poolId, investorId: input.investorId, sharesGranted: input.sharesGranted }),
+    });
+    return created;
+  }),
+  updateGrant: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      sharesVested: z.number().optional(),
+      sharesExercised: z.number().optional(),
+      sharesCancelled: z.number().optional(),
+      exercisePrice: z.string().optional().nullable(),
+      vestingStartDate: z.string().optional().nullable(),
+      vestingCliffMonths: z.number().optional(),
+      vestingTotalMonths: z.number().optional(),
+      status: z.enum(["active", "fully_vested", "exercised", "cancelled"]).optional(),
+      expiryDate: z.string().optional().nullable(),
+      notes: z.string().optional().nullable(),
+    }),
+  })).mutation(async ({ ctx, input }) => {
+    await updateEsopGrantV1(ctx.companyId, input.id, input.data);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "esop_grant_v1", resourceId: input.id,
+      changesAfter: JSON.stringify(input.data),
+    });
+  }),
+  deleteGrant: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+    await deleteEsopGrantV1(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "delete", resourceType: "esop_grant_v1", resourceId: input.id,
+    });
+  }),
+
+  // Pool + usage summary (for Cap Table + Dashboard)
+  poolSummary: companyProcedure.query(async ({ ctx }) => {
+    const pools = await getAllEsopPoolsV1(ctx.companyId);
+    const grants = await getAllEsopGrantsV1(ctx.companyId);
+    const totalPool = pools.reduce((s, p) => s + p.totalShares, 0);
+    const totalAllocated = grants.reduce((s, g) => s + g.sharesGranted - g.sharesCancelled, 0);
+    const totalVested = grants.reduce((s, g) => s + g.sharesVested, 0);
+    const totalExercised = grants.reduce((s, g) => s + g.sharesExercised, 0);
+    return {
+      pools,
+      totalPool,
+      totalAllocated,
+      totalUnallocated: totalPool - totalAllocated,
+      totalVested,
+      totalExercised,
+      grantCount: grants.length,
+    };
+  }),
+});
+
 // ─── App Router ────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
@@ -1303,6 +1435,7 @@ export const appRouter = router({
     register: v1RegisterRouter,
     capTable: v1CapTableRouter,
     snapshots: v1SnapshotsRouter,
+    esop: v1EsopRouter,
   }),
   admin: router({
     // ─── Danger Zone: Clear All Business Data for the active company ──────

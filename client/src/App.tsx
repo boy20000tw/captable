@@ -7,7 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import V1CapTablePage from "./pages/v1/CapTable";
 import V1ShareRegisterPage from "./pages/v1/ShareRegister";
-import EsopPage from "./pages/Esop";
+import EsopV1Page from "./pages/v1/Esop";
 import V1RoundsPage from "./pages/v1/Rounds";
 import V1RoundDetailPage from "./pages/v1/RoundDetail";
 import V1InvestorsPage from "./pages/v1/Investors";
@@ -28,7 +28,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/cap-table" component={V1CapTablePage} />
       <Route path="/register" component={V1ShareRegisterPage} />
-      <Route path="/esop" component={EsopPage} />
+      <Route path="/esop" component={EsopV1Page} />
       <Route path="/funding-rounds" component={V1RoundsPage} />
       <Route path="/funding-rounds/:id" component={V1RoundDetailPage} />
       <Route path="/investors" component={V1InvestorsPage} />

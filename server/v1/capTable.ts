@@ -21,7 +21,8 @@ import { getDb } from "../db";
 import {
   shareRegisterEntries,
   investors,
-  esopPool,
+  esopPoolsV1,
+  esopGrantsV1,
 } from "../../drizzle/schema";
 
 export type CapTableHolding = {
@@ -107,11 +108,15 @@ export async function deriveCapTable(companyId: number): Promise<CapTable> {
     perInvestor.set(r.investorId, entry);
   }
 
-  // ── ESOP pool (V1 reuses legacy esop_pool table) ────────────────────────
-  const pools = await db.select().from(esopPool)
-    .where(eq(esopPool.companyId, companyId));
-  const esopPoolTotal = pools.reduce((s, p) => s + (p.totalShares ?? 0), 0);
-  const esopPoolAllocated = pools.reduce((s, p) => s + (p.allocatedShares ?? 0), 0);
+  // ── ESOP pool (V1 tables: pools + grants) ───────────────────────────────
+  const pools = await db.select().from(esopPoolsV1)
+    .where(eq(esopPoolsV1.companyId, companyId));
+  const esopPoolTotal = pools.reduce((s, p) => s + p.totalShares, 0);
+
+  // Allocated = sum of grants minus cancelled (a cancelled grant returns shares to the pool)
+  const grants = await db.select().from(esopGrantsV1)
+    .where(eq(esopGrantsV1.companyId, companyId));
+  const esopPoolAllocated = grants.reduce((s, g) => s + g.sharesGranted - g.sharesCancelled, 0);
   const esopPoolUnallocated = esopPoolTotal - esopPoolAllocated;
 
   // ── Totals + ownership % ────────────────────────────────────────────────

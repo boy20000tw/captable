@@ -26,6 +26,8 @@ import {
   allocations, InsertAllocation,
   shareRegisterEntries, InsertShareRegisterEntry,
   snapshots as snapshotsV1, InsertSnapshot,
+  esopPoolsV1, InsertEsopPoolV1,
+  esopGrantsV1, InsertEsopGrantV1,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1048,6 +1050,69 @@ export async function getAllSnapshotsV1(companyId: number) {
   return db.select().from(snapshotsV1).where(eq(snapshotsV1.companyId, companyId)).orderBy(desc(snapshotsV1.createdAt));
 }
 
+// ─── V1 ESOP Pools ──────────────────────────────────────────────────────────
+export async function getAllEsopPoolsV1(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(esopPoolsV1).where(eq(esopPoolsV1.companyId, companyId)).orderBy(desc(esopPoolsV1.createdAt));
+}
+export async function getEsopPoolV1ById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(esopPoolsV1).where(and(eq(esopPoolsV1.id, id), eq(esopPoolsV1.companyId, companyId))).limit(1);
+  return rows[0];
+}
+export async function createEsopPoolV1(data: InsertEsopPoolV1) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.insert(esopPoolsV1).values(data).returning();
+  return rows[0];
+}
+export async function updateEsopPoolV1(companyId: number, id: number, data: Partial<InsertEsopPoolV1>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(esopPoolsV1).set({ ...data, updatedAt: new Date() })
+    .where(and(eq(esopPoolsV1.id, id), eq(esopPoolsV1.companyId, companyId)));
+}
+export async function deleteEsopPoolV1(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(esopPoolsV1).where(and(eq(esopPoolsV1.id, id), eq(esopPoolsV1.companyId, companyId)));
+}
+
+// ─── V1 ESOP Grants ─────────────────────────────────────────────────────────
+export async function getAllEsopGrantsV1(companyId: number, poolId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const where = poolId != null
+    ? and(eq(esopGrantsV1.companyId, companyId), eq(esopGrantsV1.poolId, poolId))
+    : eq(esopGrantsV1.companyId, companyId);
+  return db.select().from(esopGrantsV1).where(where).orderBy(desc(esopGrantsV1.grantDate));
+}
+export async function getEsopGrantV1ById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(esopGrantsV1).where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId))).limit(1);
+  return rows[0];
+}
+export async function createEsopGrantV1(data: InsertEsopGrantV1) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.insert(esopGrantsV1).values(data).returning();
+  return rows[0];
+}
+export async function updateEsopGrantV1(companyId: number, id: number, data: Partial<InsertEsopGrantV1>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(esopGrantsV1).set({ ...data, updatedAt: new Date() })
+    .where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId)));
+}
+export async function deleteEsopGrantV1(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(esopGrantsV1).where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId)));
+}
+
 // ─── Danger Zone ──────────────────────────────────────────────────────────────
 /**
  * Delete all business-data rows belonging to a single company. Preserves: users,
@@ -1083,6 +1148,8 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
     ["share_register_entries", shareRegisterEntries, shareRegisterEntries.companyId],
     ["allocations", allocations, allocations.companyId],
     ["investors", investors, investors.companyId],
+    ["esop_grants_v1", esopGrantsV1, esopGrantsV1.companyId],
+    ["esop_pools_v1", esopPoolsV1, esopPoolsV1.companyId],
   ];
   for (const [name, table, companyIdCol] of countable) {
     try {
@@ -1113,6 +1180,9 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   await db.delete(snapshotsV1).where(eq(snapshotsV1.companyId, companyId));
   await db.delete(shareRegisterEntries).where(eq(shareRegisterEntries.companyId, companyId));
   await db.delete(allocations).where(eq(allocations.companyId, companyId));
+  // V1 ESOP — grants before pools (grants reference pools)
+  await db.delete(esopGrantsV1).where(eq(esopGrantsV1.companyId, companyId));
+  await db.delete(esopPoolsV1).where(eq(esopPoolsV1.companyId, companyId));
   await db.delete(investors).where(eq(investors.companyId, companyId));
   await db.delete(shareholders).where(eq(shareholders.companyId, companyId));
   await db.delete(fundingRounds).where(eq(fundingRounds.companyId, companyId));
