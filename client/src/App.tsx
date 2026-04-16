@@ -43,11 +43,6 @@ function Router() {
       <Route path="/team" component={TeamPage} />
       <Route path="/join" component={JoinPage} />
 
-      {/* legacy redirects — users with bookmarks still land on the right page */}
-      <Route path="/v1/rounds" component={V1RoundsPage} />
-      <Route path="/v1/rounds/:id" component={V1RoundDetailPage} />
-      <Route path="/estimated-valuation" component={ValuationPage} />
-
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

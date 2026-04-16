@@ -7,10 +7,6 @@ import { z } from "zod";
 import {
   // Funding rounds (still used by V1 Rounds UI; tables shared)
   getAllFundingRounds, getFundingRoundById, createFundingRound, updateFundingRound, deleteFundingRound,
-  // Cap table summary (legacy router still used by EstimatedValuation/Snapshots/Import — to be removed in next pass)
-  getAllShareholders, getAllShareHoldings, getAllEsopPools,
-  // Snapshots (legacy snapshotsRouter still used by Snapshots page)
-  getAllSnapshots, getSnapshotById, createSnapshot, deleteSnapshot,
   // Anti-dilution
   getAllAntiDilutionProvisions, getProvisionsByShareholder, createAntiDilutionProvision, updateAntiDilutionProvision, deleteAntiDilutionProvision,
   // Waterfall
@@ -93,77 +89,6 @@ const fundingRoundsRouter = router({
 
 
 
-// ─── Snapshots Router ────────────────────────────────────────────────────────
-const snapshotsRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllSnapshots(ctx.companyId)),
-  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) => getSnapshotById(ctx.companyId, input.id)),
-  create: companyEditorProcedure.input(z.object({
-    name: z.string().min(1),
-    description: z.string().optional(),
-    snapshotDate: z.string(),
-    triggerEvent: z.string().optional(),
-    fundingRoundId: z.number().optional(),
-    totalShares: z.number().default(0),
-    totalShareholders: z.number().default(0),
-    esopPoolTotal: z.number().default(0),
-    esopAllocated: z.number().default(0),
-    postMoneyValuationNtd: z.string().optional(),
-    snapshotData: z.string().optional(),
-  })).mutation(({ input, ctx }) => createSnapshot({
-    ...input,
-    companyId: ctx.companyId,
-    snapshotDate: new Date(input.snapshotDate),
-  })),
-  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteSnapshot(ctx.companyId, input.id)),
-  // Auto-snapshot: takes current cap table state and saves it
-  autoSnapshot: companyEditorProcedure.input(z.object({
-    name: z.string().min(1),
-    description: z.string().optional(),
-    triggerEvent: z.string().optional(),
-    fundingRoundId: z.number().optional(),
-  })).mutation(async ({ input, ctx }) => {
-    const [shareholders, rounds, holdings, esopPools] = await Promise.all([
-      getAllShareholders(ctx.companyId),
-      getAllFundingRounds(ctx.companyId),
-      getAllShareHoldings(ctx.companyId),
-      getAllEsopPools(ctx.companyId),
-    ]);
-    const latestRound = rounds[rounds.length - 1];
-    // Sum all holdings per shareholder across all rounds
-    const holdingMap = new Map<number, number>();
-    for (const h of holdings) {
-      holdingMap.set(h.shareholderId, (holdingMap.get(h.shareholderId) || 0) + h.totalShares);
-    }
-    const totalShares = Array.from(holdingMap.values()).reduce((s, v) => s + v, 0);
-    const esopTotal = esopPools.reduce((s, p) => s + p.totalShares, 0);
-    const esopAllocated = esopPools.reduce((s, p) => s + p.allocatedShares, 0);
-    const shareholderBreakdown = Array.from(holdingMap.entries()).map(([shareholderId, sharesTotal]) => {
-      const sh = shareholders.find(s => s.id === shareholderId);
-      return {
-        id: shareholderId,
-        name: sh?.name,
-        type: sh?.type,
-        totalShares: sharesTotal,
-        ownershipPct: totalShares > 0 ? ((sharesTotal / totalShares) * 100).toFixed(4) : "0",
-      };
-    });
-    return createSnapshot({
-      companyId: ctx.companyId,
-      name: input.name,
-      description: input.description,
-      snapshotDate: new Date(),
-      triggerEvent: input.triggerEvent,
-      fundingRoundId: input.fundingRoundId,
-      totalShares,
-      totalShareholders: shareholderBreakdown.length,
-      esopPoolTotal: esopTotal,
-      esopAllocated,
-      postMoneyValuationNtd: latestRound?.postMoneyValuationNtd ?? undefined,
-      snapshotData: JSON.stringify(shareholderBreakdown),
-    });
-  }),
-});
-
 // ─── Anti-Dilution Router ─────────────────────────────────────────────────────
 const antiDilutionRouter = router({
   list: companyProcedure.query(({ ctx }) => getAllAntiDilutionProvisions(ctx.companyId)),
@@ -232,93 +157,6 @@ const analysisRouter = router({
   }),
 });
 
-// ─── Cap Table Summary ────────────────────────────────────────────────────────
-const capTableRouter = router({
-   summary: companyProcedure.query(async ({ ctx }) => {
-    const [shareholders, rounds, holdings, esopPools] = await Promise.all([
-      getAllShareholders(ctx.companyId),
-      getAllFundingRounds(ctx.companyId),
-      getAllShareHoldings(ctx.companyId),
-      getAllEsopPools(ctx.companyId),
-    ]);
-     const latestRound = rounds[rounds.length - 1];
-    // Sum all holdings per shareholder across all rounds (each row = new shares in that round)
-    const holdingByShareholder = new Map<number, {
-      totalShares: number;
-      paidInCapitalNtd: string | null;
-      commonShares: number;
-      seedShares: number;
-      seedPlusShares: number;
-      preAShares: number;
-      bridgeShares: number;
-      seriesAShares: number;
-      esopShares: number;
-    }>();
-    for (const h of holdings) {
-      const existing = holdingByShareholder.get(h.shareholderId);
-      if (!existing) {
-        holdingByShareholder.set(h.shareholderId, {
-          totalShares: h.totalShares,
-          paidInCapitalNtd: h.paidInCapitalNtd,
-          commonShares: h.commonShares,
-          seedShares: h.seedShares,
-          seedPlusShares: h.seedPlusShares,
-          preAShares: h.preAShares,
-          bridgeShares: h.bridgeShares,
-          seriesAShares: h.seriesAShares,
-          esopShares: h.esopShares,
-        });
-      } else {
-        existing.totalShares += h.totalShares;
-        existing.commonShares += h.commonShares;
-        existing.seedShares += h.seedShares;
-        existing.seedPlusShares += h.seedPlusShares;
-        existing.preAShares += h.preAShares;
-        existing.bridgeShares += h.bridgeShares;
-        existing.seriesAShares += h.seriesAShares;
-        existing.esopShares += h.esopShares;
-        const existingPaid = parseFloat(existing.paidInCapitalNtd || "0");
-        const newPaid = parseFloat(h.paidInCapitalNtd || "0");
-        existing.paidInCapitalNtd = (existingPaid + newPaid).toFixed(2);
-      }
-    }
-    const latestHoldings = Array.from(holdingByShareholder.entries()).map(([shareholderId, h]) => ({ shareholderId, ...h }));
-    const totalShares = latestHoldings.reduce((sum, h) => sum + h.totalShares, 0);
-    const esopTotal = esopPools.reduce((sum, p) => sum + p.totalShares, 0);
-    const esopAllocated = esopPools.reduce((sum, p) => sum + p.allocatedShares, 0);
-    const shareholderSummary = latestHoldings.map(h => {
-      const sh = shareholders.find(s => s.id === h.shareholderId);
-      // Recalculate ownershipPct based on current totalShares across all shareholders
-      const pct = totalShares > 0 ? ((h.totalShares / totalShares) * 100).toFixed(4) : "0";
-      return {
-        id: h.shareholderId,
-        name: sh?.name || "Unknown",
-        aka: sh?.aka,
-        type: sh?.type,
-        totalShares: h.totalShares,
-        ownershipPct: pct,
-        paidInCapitalNtd: h.paidInCapitalNtd,
-        commonShares: h.commonShares,
-        seedShares: h.seedShares,
-        seedPlusShares: h.seedPlusShares,
-        preAShares: h.preAShares,
-        bridgeShares: h.bridgeShares,
-        seriesAShares: h.seriesAShares,
-        esopShares: h.esopShares,
-      };
-    }).sort((a, b) => b.totalShares - a.totalShares);
-
-    return {
-      shareholders: shareholderSummary,
-      rounds,
-      latestRound,
-      totalShares,
-      esopPool: { total: esopTotal, allocated: esopAllocated, unallocated: esopTotal - esopAllocated },
-    };
-  }),
-});
-
-
 // ─── Waterfall Router ───────────────────────────────────────────────────────────────────────
 const waterfallRouter = router({
   compute: companyProcedure
@@ -367,18 +205,21 @@ const teamRouter = router({
     if (input.userId === currentUser.id) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "You cannot remove yourself from the team. Use Transfer Ownership or have another Owner remove you." });
     }
-    // Look up the target's membership in this company
+    // Look up the target's membership in this company. listCompanyMembers
+    // now returns UI-shape rows where `id` = users.id and `appRole` = the
+    // company role.
     const members = await listCompanyMembers(ctx.companyId);
-    const target = members.find(m => m.userId === input.userId);
-    if (!target) {
+    const target = members.find(m => m.id === input.userId);
+    if (!target || target.id == null) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Team member not found." });
     }
+    const targetUserId: number = target.id;
     // Owner cannot be removed (must transfer ownership first)
-    if (target.role === "owner") {
+    if (target.appRole === "owner") {
       throw new TRPCError({ code: "FORBIDDEN", message: "The Owner cannot be removed. Transfer ownership first." });
     }
     // Admins cannot remove other admins (only owner can)
-    if (target.role === "admin" && ctx.companyRole !== "owner") {
+    if (target.appRole === "admin" && ctx.companyRole !== "owner") {
       throw new TRPCError({ code: "FORBIDDEN", message: "Only the Owner can remove Admin members." });
     }
     // Log BEFORE removal so the record persists
@@ -388,12 +229,12 @@ const teamRouter = router({
       userName: currentUser.name ?? undefined,
       action: "delete",
       resourceType: "user",
-      resourceId: target.userId,
-      resourceName: target.userEmail ?? target.userName ?? `User #${target.userId}`,
-      changesBefore: JSON.stringify({ email: target.userEmail, name: target.userName, role: target.role }),
+      resourceId: targetUserId,
+      resourceName: target.email ?? target.name ?? `User #${targetUserId}`,
+      changesBefore: JSON.stringify({ email: target.email, name: target.name, role: target.appRole }),
     });
-    await removeCompanyMember(ctx.companyId, target.userId);
-    return { success: true, removedId: target.userId };
+    await removeCompanyMember(ctx.companyId, targetUserId);
+    return { success: true, removedId: targetUserId };
   }),
 
   // Transfer ownership of the active company to another member
@@ -999,8 +840,6 @@ export const appRouter = router({
   fundingRounds: fundingRoundsRouter,
   import: importRouter,
   analysis: analysisRouter,
-  capTable: capTableRouter,
-  snapshots: snapshotsRouter,
   antiDilution: antiDilutionRouter,
   waterfall: waterfallRouter,
   team: teamRouter,

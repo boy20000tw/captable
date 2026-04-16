@@ -336,7 +336,7 @@ function V1InvestorsContent() {
                   <TableRow key={inv.id} className="hover:bg-secondary/30">
                     <TableCell className="font-medium">
                       {inv.name}
-                      {inv.aka && (
+                      {inv.aka && inv.aka !== inv.name && (
                         <span className="ml-2 text-xs text-muted-foreground">
                           ({inv.aka})
                         </span>

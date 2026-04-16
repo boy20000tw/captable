@@ -178,7 +178,9 @@ function V1ShareRegisterContent() {
               <CardTitle>Register Entries</CardTitle>
               <CardDescription>
                 {filteredEntries.length} entr
-                {filteredEntries.length === 1 ? "y" : "ies"} · read-only, append-only
+                {filteredEntries.length === 1 ? "y" : "ies"} · read-only, append-only.
+                Entries with no Round / Price are legacy founder issuances migrated from
+                the pre-V1 share_transactions table.
               </CardDescription>
             </CardHeader>
             <CardContent>

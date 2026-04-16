@@ -38,12 +38,13 @@ function DashboardContent() {
   const capTable = trpc.v1.capTable.current.useQuery();
   const investors = trpc.v1.investors.list.useQuery();
   const allocations = trpc.v1.allocations.list.useQuery({});
+  const register = trpc.v1.register.list.useQuery({});
   const esopSummary = trpc.v1.esop.poolSummary.useQuery();
   const rounds = trpc.fundingRounds.list.useQuery();
 
   const isLoading =
     capTable.isLoading || investors.isLoading || allocations.isLoading ||
-    esopSummary.isLoading || rounds.isLoading;
+    register.isLoading || esopSummary.isLoading || rounds.isLoading;
 
   // ── Derived metrics ─────────────────────────────────────────────────────
   const totalShares = capTable.data?.totalShares ?? 0;
@@ -75,23 +76,43 @@ function DashboardContent() {
     return base;
   }, [allocations.data]);
   const inFlight = funnel.planned + funnel.committed + funnel.signed + funnel.funded;
+  const registerEntryCount = (register.data ?? []).length;
 
-  // Ownership pie (top 8 by shares)
+  // Ownership pie (top 8 by shares + a synthetic "Others" if more)
+  // Note: keep the values as plain Number (not BigInt) — Recharts breaks on
+  // huge numbers if represented oddly.
   const pieData = useMemo(() => {
-    return holdings
+    const sorted = holdings
       .filter(h => h.totalShares > 0)
-      .slice(0, 8)
-      .map(h => ({ id: h.investorId, name: h.investorName, value: h.totalShares }));
+      .slice()
+      .sort((a, b) => b.totalShares - a.totalShares);
+    const top = sorted.slice(0, 8);
+    const otherTotal = sorted.slice(8).reduce((s, h) => s + h.totalShares, 0);
+    const out = top.map(h => ({
+      id: h.investorId,
+      name: h.investorName,
+      value: Number(h.totalShares),
+    }));
+    if (otherTotal > 0) {
+      out.push({ id: -1, name: `+${sorted.length - 8} others`, value: Number(otherTotal) });
+    }
+    return out;
   }, [holdings]);
 
-  // Valuation by round (post-money in NT$M, uses legacy calc fields where present)
+  // Valuation by round (post-money in NT$M)
+  // Falls back to: postMoneyValuationNtd → postMoneyCalc → preMoney + moneyRaised → 0
   const roundsChartData = useMemo(() => {
     return (rounds.data ?? [])
-      .filter(r => (r as any).postMoneyCalc || r.postMoneyValuationNtd)
-      .map(r => ({
-        name: r.name,
-        valuation: ((r as any).postMoneyCalc ?? parseFloat(r.postMoneyValuationNtd || "0")) / 1_000_000,
-      }));
+      .map(r => {
+        const stored = parseFloat(r.postMoneyValuationNtd || "0");
+        const calc = (r as any).postMoneyCalc ?? null;
+        const preMoney = parseFloat(r.preMoneyValuationNtd || "0");
+        const raised = parseFloat(r.moneyRaisedNtd || "0");
+        const fallback = preMoney > 0 && raised > 0 ? preMoney + raised : 0;
+        const post = stored || calc || fallback;
+        return { name: r.name, valuation: post / 1_000_000 };
+      })
+      .filter(r => r.valuation > 0);
   }, [rounds.data]);
 
   // Recent allocations (latest 6 by updated/created)
@@ -172,7 +193,7 @@ function DashboardContent() {
               label="Allocations in Flight"
               value={String(inFlight)}
               icon={<Rocket className="h-4 w-4" />}
-              sub={`${funnel.issued} issued · ${funnel.funded} funded`}
+              sub={`${funnel.issued} issued · ${registerEntryCount} register entries`}
               onClick={() => setLocation("/register")}
             />
             <KpiCard
@@ -210,17 +231,18 @@ function DashboardContent() {
                 </div>
               ) : (
                 <>
-                  <div className="h-52">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-52 w-full" style={{ minHeight: 208 }}>
+                    <ResponsiveContainer width="100%" height={208}>
                       <PieChart>
                         <Pie
                           data={pieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={55}
-                          outerRadius={90}
+                          innerRadius={48}
+                          outerRadius={84}
                           paddingAngle={2}
                           dataKey="value"
+                          isAnimationActive={false}
                         >
                           {pieData.map((_, i) => (
                             <Cell key={i} fill={ROUND_CHART_COLORS[i % ROUND_CHART_COLORS.length]} />

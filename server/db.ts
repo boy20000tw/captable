@@ -97,14 +97,20 @@ export async function resolveCompanyMembership(userId: number, companyId: number
 export async function listCompanyMembers(companyId: number) {
   const db = await getDb();
   if (!db) return [];
+  // Returns the shape the Team UI expects: id = user.id (NOT membership id),
+  // appRole = company_members.role for the active company. The membership
+  // bookkeeping fields (membershipId, joinedAt) are also exposed for power
+  // users.
   return db.select({
-    id: companyMembers.id,
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    appRole: companyMembers.role,
+    createdAt: companyMembers.createdAt,   // join date for THIS company
+    lastSignedIn: users.lastSignedIn,
+    // bookkeeping
+    membershipId: companyMembers.id,
     companyId: companyMembers.companyId,
-    userId: companyMembers.userId,
-    role: companyMembers.role,
-    createdAt: companyMembers.createdAt,
-    userName: users.name,
-    userEmail: users.email,
   })
     .from(companyMembers)
     .leftJoin(users, eq(companyMembers.userId, users.id))
@@ -727,21 +733,52 @@ export async function upsertLiquidationPreference(data: InsertLiquidationPrefere
   });
 }
 
-// ─── Waterfall Calculation ────────────────────────────────────────────────────
+// ─── Waterfall Calculation (V1 — derives from share_register_entries + investors) ──
+// Replaces the legacy version that read share_holdings + shareholders. Now sums
+// register entries by (investorId, fundingRoundId) and looks up names from
+// investors. The legacy "ESOP placeholder shareholder" no longer appears.
 export async function computeWaterfall(companyId: number, exitValueNtd: number) {
   const db = await getDb();
-  if (!db) return { tranches: [], common: [], totalDistributed: 0 };
+  if (!db) return { tranches: [], common: [], totalDistributed: 0, remainingForCommon: 0 };
 
-  // Get all funding rounds with their holdings and preferences (scoped to company)
   const rounds = await db.select().from(fundingRounds)
     .where(eq(fundingRounds.companyId, companyId))
     .orderBy(asc(fundingRounds.sortOrder));
   const prefs = await getLiquidationPreferences(companyId);
-  const allHoldings = await db.select().from(shareHoldings)
-    .where(eq(shareHoldings.companyId, companyId));
-  const allShareholders = await db.select().from(shareholders)
-    .where(eq(shareholders.companyId, companyId));
 
+  // Aggregate register entries by (investorId, fundingRoundId)
+  // - shares = SUM(shares) for that (investor, round)
+  // - paidIn = SUM(totalAmount in NTD-equivalent) for that (investor, round)
+  const entries = await db.select().from(shareRegisterEntries)
+    .where(eq(shareRegisterEntries.companyId, companyId));
+
+  const investorRows = await db.select().from(investors)
+    .where(eq(investors.companyId, companyId));
+
+  type Holding = {
+    investorId: number;
+    fundingRoundId: number | null;
+    totalShares: number;
+    paidInNtd: number;
+  };
+  const holdingMap = new Map<string, Holding>();
+  for (const e of entries) {
+    if (e.shares === 0) continue;
+    const key = `${e.investorId}:${e.fundingRoundId ?? "null"}`;
+    const existing = holdingMap.get(key) ?? {
+      investorId: e.investorId,
+      fundingRoundId: e.fundingRoundId ?? null,
+      totalShares: 0,
+      paidInNtd: 0,
+    };
+    existing.totalShares += e.shares;
+    const amount = parseFloat(e.totalAmount ?? "0");
+    const fx = parseFloat(e.fxToNtd ?? "1");
+    existing.paidInNtd += amount * fx;
+    holdingMap.set(key, existing);
+  }
+  const allHoldings = Array.from(holdingMap.values()).filter(h => h.totalShares > 0);
+  const investorMap = new Map(investorRows.map(i => [i.id, i]));
   const prefMap = new Map(prefs.map(p => [p.fundingRoundId, p]));
 
   let remaining = exitValueNtd;
@@ -751,30 +788,24 @@ export async function computeWaterfall(companyId: number, exitValueNtd: number) 
     distributed: number; shareholders: Array<{ name: string; shares: number; amount: number }>;
   }> = [];
 
-  // Sort rounds by seniority (most senior first)
+  // Phase 1: Liquidation preferences (most senior first)
   const preferredRounds = rounds
     .filter(r => prefMap.has(r.id))
-    .sort((a, b) => {
-      const pa = prefMap.get(a.id)!.seniorityRank;
-      const pb = prefMap.get(b.id)!.seniorityRank;
-      return pa - pb;
-    });
+    .sort((a, b) => prefMap.get(a.id)!.seniorityRank - prefMap.get(b.id)!.seniorityRank);
 
-  // Phase 1: Liquidation preferences
   for (const round of preferredRounds) {
     const pref = prefMap.get(round.id)!;
     const roundHoldings = allHoldings.filter(h => h.fundingRoundId === round.id);
-    const paidIn = roundHoldings.reduce((sum, h) => sum + parseFloat(h.paidInCapitalNtd || "0"), 0);
+    const paidIn = roundHoldings.reduce((s, h) => s + h.paidInNtd, 0);
     const multiple = parseFloat(String(pref.liquidationMultiple));
     const preferenceAmount = paidIn * multiple;
     const distributed = Math.min(preferenceAmount, remaining);
     remaining -= distributed;
 
     const shDetails = roundHoldings.map(h => {
-      const sh = allShareholders.find(s => s.id === h.shareholderId);
-      const shPaidIn = parseFloat(h.paidInCapitalNtd || "0");
-      const shAmount = paidIn > 0 ? (shPaidIn / paidIn) * distributed : 0;
-      return { name: sh?.name || `#${h.shareholderId}`, shares: h.totalShares, amount: shAmount };
+      const inv = investorMap.get(h.investorId);
+      const shAmount = paidIn > 0 ? (h.paidInNtd / paidIn) * distributed : 0;
+      return { name: inv?.name ?? `Investor #${h.investorId}`, shares: h.totalShares, amount: shAmount };
     });
 
     tranches.push({
@@ -786,21 +817,33 @@ export async function computeWaterfall(companyId: number, exitValueNtd: number) 
     });
   }
 
-  // Phase 2: Participating preferred + common
+  // Phase 2: common + participating preferred share the residual pro rata
   const commonHoldings = allHoldings.filter(h => {
-    const round = rounds.find(r => r.id === h.fundingRoundId);
+    const round = h.fundingRoundId != null ? rounds.find(r => r.id === h.fundingRoundId) : null;
     const pref = round ? prefMap.get(round.id) : undefined;
     return !pref || pref.preferenceType !== "non_participating";
   });
 
   const totalCommonShares = commonHoldings.reduce((s, h) => s + h.totalShares, 0);
-  const commonDistributions = commonHoldings.map(h => {
-    const sh = allShareholders.find(s => s.id === h.shareholderId);
+  // Combine multiple holdings of the same investor into one row
+  const commonByInvestor = new Map<number, { name: string; shares: number; amount: number }>();
+  for (const h of commonHoldings) {
+    const inv = investorMap.get(h.investorId);
+    const name = inv?.name ?? `Investor #${h.investorId}`;
     const amount = totalCommonShares > 0 ? (h.totalShares / totalCommonShares) * remaining : 0;
-    return { name: sh?.name || `#${h.shareholderId}`, shares: h.totalShares, amount };
-  });
+    const existing = commonByInvestor.get(h.investorId);
+    if (existing) {
+      existing.shares += h.totalShares;
+      existing.amount += amount;
+    } else {
+      commonByInvestor.set(h.investorId, { name, shares: h.totalShares, amount });
+    }
+  }
+  const commonDistributions = Array.from(commonByInvestor.values())
+    .sort((a, b) => b.amount - a.amount);
 
-  const totalDistributed = exitValueNtd - remaining + remaining;
+  // Total distributed = exit - leftover. With pro-rata residual that is full exit.
+  const totalDistributed = exitValueNtd;
 
   return { tranches, common: commonDistributions, totalDistributed, remainingForCommon: remaining };
 }
