@@ -38,8 +38,7 @@ function ImportContent() {
   const utils = trpc.useUtils();
 
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
-  const { data: summary } = trpc.capTable.summary.useQuery();
-  const { data: projections } = trpc.projections.list.useQuery();
+  const { data: capTable } = trpc.v1.capTable.current.useQuery();
 
   const importExcel = trpc.import.excel.useMutation({
     onSuccess: (data) => {
@@ -54,13 +53,13 @@ function ImportContent() {
       setResult(r);
       if (raw.success) {
         toast.success(`Cap table imported! ${raw.recordsImported} records processed.`);
-        utils.capTable.summary.invalidate();
-        utils.shareholders.list.invalidate();
         utils.fundingRounds.list.invalidate();
-        utils.holdings.all.invalidate();
-        utils.transactions.list.invalidate();
-        utils.esop.pools.invalidate();
-        utils.esop.grants.invalidate();
+        utils.v1.capTable.current.invalidate();
+        utils.v1.investors.list.invalidate();
+        utils.v1.allocations.list.invalidate();
+        utils.v1.register.list.invalidate();
+        utils.v1.esop.pools.invalidate();
+        utils.v1.esop.grants.invalidate();
       } else {
         toast.error("Import completed with errors.");
       }
@@ -137,14 +136,9 @@ function ImportContent() {
         postMoneyValuationNtd: r.postMoneyValuationNtd,
         roundDate: r.roundDate ? new Date(r.roundDate).toISOString() : null,
       })),
-      totalShares: summary?.totalShares || 0,
-      esopPoolShares: summary?.esopPool?.total || undefined,
-      projections: (projections || []).map(p => ({
-        name: p.name,
-        targetRaiseNtd: p.targetRaiseNtd,
-        postMoneyValuationNtd: p.postMoneyValuationNtd,
-        scenario: p.scenario,
-      })),
+      totalShares: capTable?.totalShares || 0,
+      esopPoolShares: capTable?.esopPoolTotal || undefined,
+      projections: [],
     });
   }
 

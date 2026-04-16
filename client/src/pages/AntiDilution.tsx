@@ -73,7 +73,7 @@ function AntiDilutionContent() {
 
   const utils = trpc.useUtils();
   const { data: provisions, isLoading } = trpc.antiDilution.list.useQuery();
-  const { data: shareholders } = trpc.shareholders.list.useQuery();
+  const { data: shareholders } = trpc.v1.investors.list.useQuery();
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
 
   const createProvision = trpc.antiDilution.create.useMutation({
@@ -219,7 +219,7 @@ function AntiDilutionContent() {
                 className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="">Select investor...</option>
-                {(shareholders || []).filter(s => s.type !== "founder" && s.type !== "esop").map(s => (
+                {(shareholders || []).map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>

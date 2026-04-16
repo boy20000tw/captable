@@ -5,27 +5,28 @@ import {
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
-  getAllShareholders, getShareholderById, createShareholder, updateShareholder, deleteShareholder,
+  // Funding rounds (still used by V1 Rounds UI; tables shared)
   getAllFundingRounds, getFundingRoundById, createFundingRound, updateFundingRound, deleteFundingRound,
-  getAllShareHoldings, getShareHoldingsByRound, getShareHoldingsByShareholder, upsertShareHolding, updateShareHolding, deleteShareHolding,
-  getAllTransactions, getTransactionsByShareholder, createTransaction, updateTransaction, deleteTransaction,
-  getAllEsopPools, createEsopPool, updateEsopPool,
-  getAllGrants, getGrantsByPool, createGrant, updateGrant, deleteGrant,
-  getAllProjections, createProjection, updateProjection, deleteProjection,
-  getAllImportLogs,
+  // Cap table summary (legacy router still used by EstimatedValuation/Snapshots/Import — to be removed in next pass)
+  getAllShareholders, getAllShareHoldings, getAllEsopPools,
+  // Snapshots (legacy snapshotsRouter still used by Snapshots page)
   getAllSnapshots, getSnapshotById, createSnapshot, deleteSnapshot,
+  // Anti-dilution
   getAllAntiDilutionProvisions, getProvisionsByShareholder, createAntiDilutionProvision, updateAntiDilutionProvision, deleteAntiDilutionProvision,
-  getAllShareholderDocuments, getDocumentsByShareholder, createShareholderDocument, updateShareholderDocument, deleteShareholderDocument,
-  getUpcomingLockupExpirations, getTaxDeductionInfo,
-  getAll409aValuations, create409aValuation, update409aValuation, delete409aValuation,
-  getLiquidationPreferences, upsertLiquidationPreference,
-  computeWaterfall,
+  // Waterfall
+  getLiquidationPreferences, upsertLiquidationPreference, computeWaterfall,
+  // Import logs
+  getAllImportLogs,
+  // Invitations
   getAllInvitations, createInvitation, getInvitationByToken, updateInvitationStatus,
+  // Audit
   createAuditLog, getAuditLogs, getAuditLogsByResource,
+  // Danger zone
   truncateAllBusinessData,
+  // Financial projections + DCF
   getAllFinancialProjections, getFinancialProjectionById, createFinancialProjection, updateFinancialProjection, deleteFinancialProjection,
   getDcfScenariosByProjection, createDcfScenario, updateDcfScenario, deleteDcfScenario,
-  // Company-related
+  // Companies
   getCompanyById, createCompany, updateCompany,
   getUserCompanyMemberships, listCompanyMembers,
   addCompanyMember, updateCompanyMemberRole, removeCompanyMember,
@@ -41,51 +42,6 @@ import { advanceAllocation, type AllocationStatus } from "../shared/allocationLi
 import { writeRegisterEntry, createManualSnapshot } from "./v1/registerWrite";
 import { deriveCapTable } from "./v1/capTable";
 
-// ─── Shareholders Router ──────────────────────────────────────────────────────
-const shareholdersRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllShareholders(ctx.companyId)),
-  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) => getShareholderById(ctx.companyId, input.id)),
-  create: companyEditorProcedure.input(z.object({
-    name: z.string().min(1),
-    aka: z.string().optional(),
-    type: z.enum(["founder","angel","seed","seed_plus","pre_a","bridge","series_a","pre_b","series_b","pre_c","series_c","esop","other"]).default("other"),
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
-    nationality: z.string().optional(),
-    isEntity: z.boolean().default(false),
-    notes: z.string().optional(),
-    lockupPeriod: z.string().optional(),
-    taxBenefits: z.string().optional(),
-  })).mutation(async ({ input, ctx }) => {
-    const result = await createShareholder({ ...input, companyId: ctx.companyId });
-    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "shareholder", resourceName: input.name, changesAfter: JSON.stringify(input) });
-    return result;
-  }),
-  update: companyEditorProcedure.input(z.object({
-    id: z.number(),
-    data: z.object({
-      name: z.string().min(1).optional(),
-      aka: z.string().optional(),
-      type: z.enum(["founder","angel","seed","seed_plus","pre_a","bridge","series_a","pre_b","series_b","pre_c","series_c","esop","other"]).optional(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-      nationality: z.string().optional(),
-      isEntity: z.boolean().optional(),
-      notes: z.string().optional(),
-      lockupPeriod: z.string().optional(),
-      taxBenefits: z.string().optional(),
-    }),
-  })).mutation(async ({ input, ctx }) => {
-    const result = await updateShareholder(ctx.companyId, input.id, input.data);
-    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "shareholder", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
-    return result;
-  }),
-  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
-    const result = await deleteShareholder(ctx.companyId, input.id);
-    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "shareholder", resourceId: input.id });
-    return result;
-  }),
-});
 
 // ─── Funding Rounds Router ────────────────────────────────────────────────────
 const fundingRoundsRouter = router({
@@ -133,287 +89,9 @@ const fundingRoundsRouter = router({
   }),
 });
 
-// ─── Share Holdings Router ────────────────────────────────────────────────────
-const holdingsRouter = router({
-  all: companyProcedure.query(({ ctx }) => getAllShareHoldings(ctx.companyId)),
-  byRound: companyProcedure.input(z.object({ fundingRoundId: z.number() })).query(({ input, ctx }) => getShareHoldingsByRound(ctx.companyId, input.fundingRoundId)),
-  byShareholder: companyProcedure.input(z.object({ shareholderId: z.number() })).query(({ input, ctx }) => getShareHoldingsByShareholder(ctx.companyId, input.shareholderId)),
-  upsert: companyEditorProcedure.input(z.object({
-    shareholderId: z.number(),
-    fundingRoundId: z.number(),
-    commonShares: z.number().default(0),
-    seedShares: z.number().default(0),
-    seedPlusShares: z.number().default(0),
-    preAShares: z.number().default(0),
-    bridgeShares: z.number().default(0),
-    seriesAShares: z.number().default(0),
-    esopShares: z.number().default(0),
-    totalShares: z.number().default(0),
-    ownershipPct: z.string().optional(),
-    paidInCapitalNtd: z.string().optional(),
-    investmentDate: z.string().optional(),
-  })).mutation(({ input, ctx }) => {
-    const data: Parameters<typeof upsertShareHolding>[0] = { ...input, companyId: ctx.companyId } as any;
-    if (input.investmentDate) {
-      // Keep as YYYY-MM-DD string for MySQL date column (do not convert to Date object)
-      data.investmentDate = input.investmentDate.slice(0, 10) as any;
-    }
-    return upsertShareHolding(data);
-  }),
-  update: companyEditorProcedure.input(z.object({
-    id: z.number(),
-    fundingRoundId: z.number().optional(),
-    commonShares: z.number().optional(),
-    seedShares: z.number().optional(),
-    seedPlusShares: z.number().optional(),
-    preAShares: z.number().optional(),
-    bridgeShares: z.number().optional(),
-    seriesAShares: z.number().optional(),
-    esopShares: z.number().optional(),
-    totalShares: z.number().optional(),
-    ownershipPct: z.string().optional(),
-    paidInCapitalNtd: z.string().optional(),
-    investmentDate: z.string().optional(),
-  })).mutation(({ input, ctx }) => {
-    const { id, ...rest } = input;
-    const data: any = { ...rest };
-    if (rest.investmentDate) {
-      // Keep as YYYY-MM-DD string for MySQL date column (do not convert to Date object)
-      data.investmentDate = rest.investmentDate.slice(0, 10);
-    }
-    return updateShareHolding(ctx.companyId, id, data);
-  }),
-  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteShareHolding(ctx.companyId, input.id)),
-});
 
-// ─── Transactions Router ──────────────────────────────────────────────────────
-const transactionsRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllTransactions(ctx.companyId)),
-  byShareholder: companyProcedure.input(z.object({ shareholderId: z.number() })).query(({ input, ctx }) => getTransactionsByShareholder(ctx.companyId, input.shareholderId)),
-  create: companyEditorProcedure.input(z.object({
-    shareholderId: z.number(),
-    fundingRoundId: z.number().optional(),
-    transactionDate: z.string().optional(),
-    transactionType: z.enum(["issuance","transfer_in","transfer_out","esop_grant","esop_exercise","esop_cancel"]),
-    shareClass: z.enum(["common","seed","seed_plus","pre_a","bridge","series_a","pre_b","series_b","pre_c","series_c","esop"]),
-    sharesAmount: z.number(),
-    pricePerShareNtd: z.string().optional(),
-    totalAmountNtd: z.string().optional(),
-    taxQualified: z.boolean().default(false),
-    taxCapNtd: z.string().optional(),
-    lockUpEndDate: z.string().optional(),
-    taxDeductionYear: z.number().optional(),
-    taxDeductionAmountNtd: z.string().optional(),
-    notes: z.string().optional(),
-  })).mutation(({ input, ctx }) => {
-    const data: any = { ...input, companyId: ctx.companyId };
-    if (input.lockUpEndDate) {
-      data.lockUpEndDate = input.lockUpEndDate;
-    }
-    if (input.transactionDate) {
-      data.transactionDate = input.transactionDate as any;
-    }
-    return createTransaction(data);
-  }),
-  update: companyEditorProcedure.input(z.object({
-    id: z.number(),
-    data: z.object({
-      transactionDate: z.string().optional(),
-      sharesAmount: z.number().optional(),
-      pricePerShareNtd: z.string().optional(),
-      totalAmountNtd: z.string().optional(),
-      taxQualified: z.boolean().optional(),
-      taxCapNtd: z.string().optional(),
-      lockUpEndDate: z.string().optional(),
-      taxDeductionYear: z.number().optional(),
-      taxDeductionAmountNtd: z.string().optional(),
-      notes: z.string().optional(),
-    }),
-  })).mutation(({ input, ctx }) => {
-    const data: any = { ...input.data };
-    if (input.data.lockUpEndDate) {
-      data.lockUpEndDate = input.data.lockUpEndDate;
-    }
-    if (input.data.transactionDate) {
-      data.transactionDate = input.data.transactionDate as any;
-    }
-    return updateTransaction(ctx.companyId, input.id, data);
-  }),
-  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteTransaction(ctx.companyId, input.id)),
-});
 
-// ─── ESOP Router ──────────────────────────────────────────────────────────────
-const esopRouter = router({
-  pools: companyProcedure.query(({ ctx }) => getAllEsopPools(ctx.companyId)),
-  createPool: companyEditorProcedure.input(z.object({
-    fundingRoundId: z.number().optional(),
-    poolName: z.string().default("ESOP Pool"),
-    totalShares: z.number(),
-    allocatedShares: z.number().default(0),
-    notes: z.string().optional(),
-  })).mutation(({ input, ctx }) => createEsopPool({ ...input, companyId: ctx.companyId })),
-  updatePool: companyEditorProcedure.input(z.object({
-    id: z.number(),
-    data: z.object({
-      totalShares: z.number().optional(),
-      allocatedShares: z.number().optional(),
-      vestedShares: z.number().optional(),
-      exercisedShares: z.number().optional(),
-      cancelledShares: z.number().optional(),
-      notes: z.string().optional(),
-    }),
-  })).mutation(({ input, ctx }) => updateEsopPool(ctx.companyId, input.id, input.data)),
-  grants: companyProcedure.query(({ ctx }) => getAllGrants(ctx.companyId)),
-  grantsByPool: companyProcedure.input(z.object({ poolId: z.number() })).query(({ input, ctx }) => getGrantsByPool(ctx.companyId, input.poolId)),
-  createGrant: companyEditorProcedure.input(z.object({
-    esopPoolId: z.number(),
-    shareholderId: z.number().optional(),
-    granteeName: z.string().optional(),
-    grantDate: z.string().optional(),
-    sharesGranted: z.number(),
-    exercisePriceNtd: z.string().optional(),
-    vestingStartDate: z.string().optional(),
-    vestingCliffMonths: z.number().default(12),
-    vestingTotalMonths: z.number().default(48),
-    expiryDate: z.string().optional(),
-    notes: z.string().optional(),
-  })).mutation(async ({ input, ctx }) => {
-    const result = await createGrant({ ...input, companyId: ctx.companyId, grantDate: input.grantDate ?? undefined, vestingStartDate: input.vestingStartDate ?? undefined, expiryDate: input.expiryDate ?? undefined });
-    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "esop_grant", resourceName: input.granteeName ?? `Grant #${input.esopPoolId}`, changesAfter: JSON.stringify(input) });
-    return result;
-  }),
-  updateGrant: companyEditorProcedure.input(z.object({
-    id: z.number(),
-    data: z.object({
-      sharesVested: z.number().optional(),
-      sharesExercised: z.number().optional(),
-      sharesCancelled: z.number().optional(),
-      status: z.enum(["active","fully_vested","cancelled","exercised"]).optional(),
-      expiryDate: z.string().optional(),
-      notes: z.string().optional(),
-    }),
-  })).mutation(async ({ input, ctx }) => {
-    const result = await updateGrant(ctx.companyId, input.id, { ...input.data, expiryDate: input.data.expiryDate ?? undefined });
-    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "esop_grant", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
-    return result;
-  }),
-  deleteGrant: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
-    const result = await deleteGrant(ctx.companyId, input.id);
-    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "esop_grant", resourceId: input.id });
-    return result;
-  }),
 
-  // Vesting schedule calculation
-  vestingSchedule: companyProcedure.input(z.object({ grantId: z.number() })).query(async ({ input, ctx }) => {
-    const grants = await getAllGrants(ctx.companyId);
-    const grant = grants.find(g => g.id === input.grantId);
-    if (!grant) throw new Error('Grant not found');
-    const startDate = grant.vestingStartDate ? new Date(grant.vestingStartDate) : (grant.grantDate ? new Date(grant.grantDate) : new Date());
-    const cliffMonths = grant.vestingCliffMonths ?? 12;
-    const totalMonths = grant.vestingTotalMonths ?? 48;
-    const totalShares = grant.sharesGranted;
-    const schedule: { month: number; date: string; sharesUnlocked: number; cumulative: number; isCliff: boolean }[] = [];
-    let cumulative = 0;
-    for (let m = 1; m <= totalMonths; m++) {
-      const d = new Date(startDate);
-      d.setMonth(d.getMonth() + m);
-      const isCliff = m === cliffMonths;
-      let sharesUnlocked = 0;
-      if (m < cliffMonths) {
-        sharesUnlocked = 0;
-      } else if (m === cliffMonths) {
-        sharesUnlocked = Math.floor((totalShares * cliffMonths) / totalMonths);
-      } else {
-        sharesUnlocked = Math.floor(totalShares / totalMonths);
-      }
-      cumulative += sharesUnlocked;
-      schedule.push({ month: m, date: d.toISOString().split('T')[0], sharesUnlocked, cumulative, isCliff });
-    }
-    return { grant, schedule, totalShares, cliffMonths, totalMonths };
-  }),
-
-  // Exercise simulation
-  exerciseSimulation: companyProcedure.input(z.object({
-    grantId: z.number(),
-    sharesToExercise: z.number(),
-    currentFmvNtd: z.string(),
-    taxRate: z.number().default(0.2),
-  })).query(async ({ input, ctx }) => {
-    const grants = await getAllGrants(ctx.companyId);
-    const grant = grants.find(g => g.id === input.grantId);
-    if (!grant) throw new Error('Grant not found');
-    const exercisePrice = parseFloat(grant.exercisePriceNtd ?? '0');
-    const fmv = parseFloat(input.currentFmvNtd);
-    const shares = input.sharesToExercise;
-    const exerciseCost = exercisePrice * shares;
-    const spread = (fmv - exercisePrice) * shares;
-    const taxLiability = spread > 0 ? spread * input.taxRate : 0;
-    const netGain = spread - taxLiability;
-    const totalShares = grant.sharesGranted;
-    const dilutionPct = (shares / totalShares) * 100;
-    return {
-      grantId: input.grantId,
-      sharesToExercise: shares,
-      exercisePrice,
-      currentFmv: fmv,
-      exerciseCost,
-      spread,
-      taxLiability,
-      netGain,
-      dilutionPct,
-      totalCost: exerciseCost + taxLiability,
-    };
-  }),
-
-  // Expiring grants (within N days)
-  expiringGrants: companyProcedure.input(z.object({ withinDays: z.number().default(90) })).query(async ({ input, ctx }) => {
-    const grants = await getAllGrants(ctx.companyId);
-    const now = new Date();
-    return grants
-      .filter(g => g.expiryDate && g.status === 'active')
-      .map(g => ({
-        ...g,
-        daysUntilExpiry: Math.ceil((new Date(g.expiryDate!).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
-      }))
-      .filter(g => g.daysUntilExpiry <= input.withinDays && g.daysUntilExpiry >= 0)
-      .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
-  }),
-});
-
-// ─── Projections Router ───────────────────────────────────────────────────────
-const projectionsRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllProjections(ctx.companyId)),
-  create: companyEditorProcedure.input(z.object({
-    name: z.string().min(1),
-    projectionDate: z.string().optional(),
-    pricePerShareNtd: z.string().optional(),
-    targetRaiseNtd: z.string().optional(),
-    preMoneyValuationNtd: z.string().optional(),
-    postMoneyValuationNtd: z.string().optional(),
-    newSharesIssued: z.number().optional(),
-    exchangeRate: z.string().optional(),
-    scenario: z.enum(["base","optimistic","conservative"]).default("base"),
-    notes: z.string().optional(),
-  })).mutation(({ input, ctx }) => createProjection({
-    ...input,
-    companyId: ctx.companyId,
-    projectionDate: input.projectionDate ?? undefined,
-  })),
-  update: companyEditorProcedure.input(z.object({
-    id: z.number(),
-    data: z.object({
-      name: z.string().optional(),
-      pricePerShareNtd: z.string().optional(),
-      targetRaiseNtd: z.string().optional(),
-      preMoneyValuationNtd: z.string().optional(),
-      postMoneyValuationNtd: z.string().optional(),
-      newSharesIssued: z.number().optional(),
-      scenario: z.enum(["base","optimistic","conservative"]).optional(),
-      notes: z.string().optional(),
-    }),
-  })).mutation(({ input, ctx }) => updateProjection(ctx.companyId, input.id, input.data)),
-  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteProjection(ctx.companyId, input.id)),
-});
 
 // ─── Snapshots Router ────────────────────────────────────────────────────────
 const snapshotsRouter = router({
@@ -640,98 +318,7 @@ const capTableRouter = router({
   }),
 });
 
-// ─── Documents Router ───────────────────────────────────────────────────────────
-const documentsRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllShareholderDocuments(ctx.companyId)),
-  listByShareholder: companyProcedure
-    .input(z.object({ shareholderId: z.number() }))
-    .query(({ input, ctx }) => getDocumentsByShareholder(ctx.companyId, input.shareholderId)),
-  create: companyEditorProcedure.input(z.object({
-    shareholderId: z.number(),
-    documentType: z.enum(["sha","subscription","nda","board_consent","side_letter","warrant","other"]),
-    documentName: z.string().min(1),
-    status: z.enum(["pending","signed","expired","waived"]).default("pending"),
-    signedDate: z.string().optional(),
-    expiryDate: z.string().optional(),
-    fundingRoundId: z.number().optional(),
-    fileUrl: z.string().optional(),
-    notes: z.string().optional(),
-  })).mutation(({ input, ctx }) => {
-    const data: Record<string, unknown> = { ...input, companyId: ctx.companyId };
-    if (input.signedDate) data.signedDate = new Date(input.signedDate);
-    if (input.expiryDate) data.expiryDate = new Date(input.expiryDate);
-    return createShareholderDocument(data as Parameters<typeof createShareholderDocument>[0]);
-  }),
-  update: companyEditorProcedure.input(z.object({
-    id: z.number(),
-    data: z.object({
-      documentType: z.enum(["sha","subscription","nda","board_consent","side_letter","warrant","other"]).optional(),
-      documentName: z.string().optional(),
-      status: z.enum(["pending","signed","expired","waived"]).optional(),
-      signedDate: z.string().optional(),
-      expiryDate: z.string().optional(),
-      fundingRoundId: z.number().optional(),
-      fileUrl: z.string().optional(),
-      notes: z.string().optional(),
-    }),
-  })).mutation(({ input, ctx }) => {
-    const data: Record<string, unknown> = { ...input.data };
-    if (input.data.signedDate) data.signedDate = new Date(input.data.signedDate);
-    if (input.data.expiryDate) data.expiryDate = new Date(input.data.expiryDate);
-    return updateShareholderDocument(ctx.companyId, input.id, data as Parameters<typeof updateShareholderDocument>[2]);
-  }),
-  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteShareholderDocument(ctx.companyId, input.id)),
-});
 
-// ─── Compliance Router ────────────────────────────────────────────────────────
-const complianceRouter = router({
-  upcomingLockups: companyProcedure
-    .input(z.object({ daysAhead: z.number().default(180) }))
-    .query(({ input, ctx }) => getUpcomingLockupExpirations(ctx.companyId, input.daysAhead)),
-  taxDeductions: companyProcedure.query(({ ctx }) => getTaxDeductionInfo(ctx.companyId)),
-});
-// ─── 409A Valuations Router ─────────────────────────────────────────────────────────────
-const valuations409aRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAll409aValuations(ctx.companyId)),
-  create: companyEditorProcedure.input(z.object({
-    valuationDate: z.string(),
-    fmvPerShareNtd: z.string().optional(),
-    fmvPerShareUsd: z.string().optional(),
-    commonStockValueNtd: z.string().optional(),
-    preferredStockValueNtd: z.string().optional(),
-    totalCompanyValueNtd: z.string().optional(),
-    valuationFirm: z.string().optional(),
-    reportUrl: z.string().optional(),
-    method: z.enum(["dcf","market_comparable","asset_based","409a_safe_harbor","other"]).optional(),
-    relatedRoundId: z.number().optional(),
-    notes: z.string().optional(),
-  })).mutation(({ input, ctx }) => {
-    const data: Record<string, unknown> = { ...input, companyId: ctx.companyId };
-    data.valuationDate = new Date(input.valuationDate);
-    return create409aValuation(data as Parameters<typeof create409aValuation>[0]);
-  }),
-  update: companyEditorProcedure.input(z.object({
-    id: z.number(),
-    data: z.object({
-      valuationDate: z.string().optional(),
-      fmvPerShareNtd: z.string().optional(),
-      fmvPerShareUsd: z.string().optional(),
-      commonStockValueNtd: z.string().optional(),
-      preferredStockValueNtd: z.string().optional(),
-      totalCompanyValueNtd: z.string().optional(),
-      valuationFirm: z.string().optional(),
-      reportUrl: z.string().optional(),
-      method: z.enum(["dcf","market_comparable","asset_based","409a_safe_harbor","other"]).optional(),
-      relatedRoundId: z.number().optional(),
-      notes: z.string().optional(),
-    }),
-  })).mutation(({ input, ctx }) => {
-    const data: Record<string, unknown> = { ...input.data };
-    if (input.data.valuationDate) data.valuationDate = new Date(input.data.valuationDate);
-    return update409aValuation(ctx.companyId, input.id, data as Parameters<typeof update409aValuation>[2]);
-  }),
-  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => delete409aValuation(ctx.companyId, input.id)),
-});
 // ─── Waterfall Router ───────────────────────────────────────────────────────────────────────
 const waterfallRouter = router({
   compute: companyProcedure
@@ -1409,20 +996,12 @@ export const appRouter = router({
     }),
   }),
   companies: companiesRouter,
-  shareholders: shareholdersRouter,
   fundingRounds: fundingRoundsRouter,
-  holdings: holdingsRouter,
-  transactions: transactionsRouter,
-  esop: esopRouter,
-  projections: projectionsRouter,
   import: importRouter,
   analysis: analysisRouter,
   capTable: capTableRouter,
   snapshots: snapshotsRouter,
-   antiDilution: antiDilutionRouter,
-  documents: documentsRouter,
-  compliance: complianceRouter,
-  valuations409a: valuations409aRouter,
+  antiDilution: antiDilutionRouter,
   waterfall: waterfallRouter,
   team: teamRouter,
   invitations: invitationsRouter,

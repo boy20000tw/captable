@@ -46,7 +46,12 @@ function SnapshotsContent() {
   const utils = trpc.useUtils();
   const { data: snapshots, isLoading } = trpc.snapshots.list.useQuery();
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
-  const { data: summary } = trpc.capTable.summary.useQuery();
+  const { data: capTable } = trpc.v1.capTable.current.useQuery();
+  const latestRound = (rounds || []).slice().sort((a, b) => {
+    const da = a.roundDate ? new Date(a.roundDate).getTime() : 0;
+    const db = b.roundDate ? new Date(b.roundDate).getTime() : 0;
+    return db - da;
+  })[0];
 
   const autoSnapshot = trpc.snapshots.autoSnapshot.useMutation({
     onSuccess: () => {
@@ -160,13 +165,13 @@ function SnapshotsContent() {
       </div>
 
       {/* Current State Summary */}
-      {summary && (
+      {capTable && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Current Shares", value: formatShares(summary.totalShares), sub: "issued" },
-            { label: "Shareholders", value: String(summary.shareholders.length), sub: "active" },
-            { label: "ESOP Pool", value: formatShares(summary.esopPool.total), sub: "authorized" },
-            { label: "Latest Valuation", value: formatValuation(summary.latestRound?.postMoneyValuationNtd, "NTD", exchangeRate), sub: summary.latestRound?.name || "—" },
+            { label: "Current Shares", value: formatShares(capTable.totalShares), sub: "fully diluted" },
+            { label: "Investors", value: String(capTable.holdings.length), sub: "with holdings" },
+            { label: "ESOP Pool", value: formatShares(capTable.esopPoolTotal), sub: "authorized" },
+            { label: "Latest Valuation", value: formatValuation(latestRound?.postMoneyValuationNtd, "NTD", exchangeRate), sub: latestRound?.name || "—" },
           ].map(card => (
             <div key={card.label} className="bg-card border border-border rounded-sm p-5 space-y-2">
               <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{card.label}</p>

@@ -31,11 +31,18 @@ export function EstimatedValuationContent() {
   const exchangeRate = 0.03128;
 
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
-  const { data: summary } = trpc.capTable.summary.useQuery();
+  const { data: capTable } = trpc.v1.capTable.current.useQuery();
 
-  const currentShares = summary?.totalShares || 0;
-  const esopPool = summary?.esopPool?.total || 0;
-  const totalFullyDiluted = currentShares + esopPool;
+  const currentShares = capTable?.totalIssuedShares || 0;
+  const esopPool = capTable?.esopPoolTotal || 0;
+  const totalFullyDiluted = currentShares + (capTable?.esopPoolUnallocated || 0);
+
+  // Latest funding round (sort by date desc)
+  const latestRound = (rounds || []).slice().sort((a, b) => {
+    const da = a.roundDate ? new Date(a.roundDate).getTime() : 0;
+    const db = b.roundDate ? new Date(b.roundDate).getTime() : 0;
+    return db - da;
+  })[0];
 
   // Build chart data from existing rounds
   const historicalData = useMemo(() => {
@@ -80,17 +87,17 @@ export function EstimatedValuationContent() {
     const newInvestorPct = totalAfter > 0 ? newShares / totalAfter : 0;
 
     // Per-shareholder dilution
-    const shareholderBreakdown = (summary?.shareholders || []).map(sh => {
+    const shareholderBreakdown = (capTable?.holdings || []).map(sh => {
       const currentPct = totalFullyDiluted > 0 ? sh.totalShares / totalFullyDiluted : 0;
       const afterPct = totalAfter > 0 ? sh.totalShares / totalAfter : 0;
       const dilutionDelta = currentPct - afterPct;
       const valueBeforeNtd = preMoney * currentPct;
       const valueAfterNtd = postMoney * afterPct;
       return {
-        id: sh.id,
-        name: sh.name,
-        aka: sh.aka,
-        type: sh.type,
+        id: sh.investorId,
+        name: sh.investorName,
+        aka: null as string | null,
+        type: sh.entityKind === "entity" ? "other" : "other",
         shares: sh.totalShares,
         currentPct,
         afterPct,
@@ -112,7 +119,7 @@ export function EstimatedValuationContent() {
       newInvestorPct,
       shareholderBreakdown,
     };
-  }, [valuationMode, preMoneyInput, raiseAmountInput, postMoneyInput, raiseAmountPostInput, newRoundName, totalFullyDiluted, summary]);
+  }, [valuationMode, preMoneyInput, raiseAmountInput, postMoneyInput, raiseAmountPostInput, newRoundName, totalFullyDiluted, capTable]);
 
   const chartData = useMemo(() => {
     const data: { name: string; value: number; type: "actual" | "projected" }[] = historicalData.map(d => ({
@@ -161,8 +168,8 @@ export function EstimatedValuationContent() {
           { label: "Fully Diluted", value: formatShares(totalFullyDiluted), sub: "total" },
           {
             label: "Latest Valuation",
-            value: formatValuation(rounds?.find(r => r.id === summary?.latestRound?.id)?.postMoneyValuationNtd, currency, exchangeRate),
-            sub: rounds?.find(r => r.id === summary?.latestRound?.id)?.name || "—",
+            value: formatValuation(latestRound?.postMoneyValuationNtd, currency, exchangeRate),
+            sub: latestRound?.name || "—",
           },
         ].map(card => (
           <div key={card.label} className="bg-card border border-border rounded-sm p-5 space-y-2">
