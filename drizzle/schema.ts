@@ -427,3 +427,164 @@ export const dcfScenarios = pgTable("dcf_scenarios", {
 });
 export type DcfScenario = typeof dcfScenarios.$inferSelect;
 export type InsertDcfScenario = typeof dcfScenarios.$inferInsert;
+
+// ════════════════════════════════════════════════════════════════════════════
+// MVP V1 DATA LAYER (per SPEC-mvp-split.md Phase 1)
+// ────────────────────────────────────────────────────────────────────────────
+// Design principles:
+//   1. Cap Table is a pure derived view — never edited directly
+//   2. Allocation is the only fundraising operation entry point
+//   3. Share register is append-only; corrections via reversing entries
+//   4. Investor is a superset (pipeline + invested + passed)
+//
+// Coexists with legacy tables (shareholders, share_holdings, share_transactions,
+// cap_table_snapshots). Migration happens in Phase 3.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ─── Enums for V1 ───────────────────────────────────────────────────────────
+export const investorEntityKindEnum = pgEnum("investor_entity_kind", ["individual", "entity"]);
+export const investorStatusEnum = pgEnum("investor_status", [
+    "prospect",
+    "meeting",
+    "term_sheet",
+    "invested",
+    "passed",
+]);
+export const allocationStatusEnum = pgEnum("allocation_status", [
+    "planned",
+    "committed",
+    "signed",
+    "funded",
+    "issued",
+]);
+export const registerEventTypeEnum = pgEnum("register_event_type", [
+    "issuance",       // new shares issued to an investor
+    "transfer_in",    // shares transferred to an investor from another
+    "transfer_out",   // shares transferred away from an investor
+    "cancellation",   // shares retired / cancelled
+    "reversal",       // corrects a prior entry (points via reversedEntryId)
+]);
+export const snapshotTriggerEnum = pgEnum("snapshot_trigger", [
+    "register_write",
+    "manual",
+]);
+
+// ─── Investors (superset: pipeline + invested + passed) ─────────────────────
+// Replaces `shareholders` for V1+ work. Legacy `shareholders` kept until
+// Phase 3 migration.
+export const investors = pgTable("investors", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    entityKind: investorEntityKindEnum("entityKind").default("individual").notNull(),
+    email: varchar("email", { length: 320 }),
+    phone: varchar("phone", { length: 64 }),
+    nationality: varchar("nationality", { length: 100 }),
+    status: investorStatusEnum("status").default("prospect").notNull(),
+    // Investor profile / meta
+    aka: varchar("aka", { length: 255 }),
+    website: text("website"),
+    linkedinUrl: text("linkedinUrl"),
+    // Pipeline bookkeeping
+    firstContactAt: timestamp("firstContactAt"),
+    lastContactAt: timestamp("lastContactAt"),
+    ownerUserId: integer("ownerUserId"),              // which team member owns this relationship
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type Investor = typeof investors.$inferSelect;
+export type InsertInvestor = typeof investors.$inferInsert;
+
+// ─── Allocations (lifecycle-tracked fundraising operations) ─────────────────
+// The ONLY fundraising operation entry point. Must pass through statuses
+// planned → committed → signed → funded → issued; Issued triggers register write.
+export const allocations = pgTable("allocations", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    fundingRoundId: integer("fundingRoundId").notNull(),
+    investorId: integer("investorId").notNull(),
+    shareClass: shareClassEnum("shareClass").notNull(),
+
+    // Money (multi-currency ready)
+    amount: decimal("amount", { precision: 20, scale: 2 }),             // in `currency`
+    currency: varchar("currency", { length: 8 }).default("NTD").notNull(),
+    fxToNtd: decimal("fxToNtd", { precision: 18, scale: 8 }).default("1").notNull(),
+    // Share terms
+    sharesAllocated: bigint("sharesAllocated", { mode: "number" }),
+    pricePerShare: decimal("pricePerShare", { precision: 20, scale: 6 }), // in `currency`
+
+    // Lifecycle state machine
+    status: allocationStatusEnum("status").default("planned").notNull(),
+    plannedAt: timestamp("plannedAt").defaultNow(),
+    committedAt: timestamp("committedAt"),
+    signedAt: timestamp("signedAt"),
+    fundedAt: timestamp("fundedAt"),
+    issuedAt: timestamp("issuedAt"),
+
+    // Documents
+    termSheetUrl: text("termSheetUrl"),
+    agreementUrl: text("agreementUrl"),
+
+    notes: text("notes"),
+    createdByUserId: integer("createdByUserId"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type Allocation = typeof allocations.$inferSelect;
+export type InsertAllocation = typeof allocations.$inferInsert;
+
+// ─── Share Register Entries (append-only fact ledger) ───────────────────────
+// Immutable. Corrections are done by inserting a reversal entry that points
+// to the original via reversedEntryId, then inserting the corrected entry.
+// Cap Table is computed as: sum of all entries per investor per share class.
+export const shareRegisterEntries = pgTable("share_register_entries", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    // Origin — nullable for founder/manual entries
+    allocationId: integer("allocationId"),
+    fundingRoundId: integer("fundingRoundId"),
+    // Who + what
+    investorId: integer("investorId").notNull(),
+    eventType: registerEventTypeEnum("eventType").notNull(),
+    shareClass: shareClassEnum("shareClass").notNull(),
+    // Shares: signed integer. Issuance / transfer_in positive;
+    // transfer_out / cancellation / reversal negative (by convention).
+    shares: bigint("shares", { mode: "number" }).notNull(),
+    // Economics at event time (nullable for non-monetary events e.g. transfers)
+    pricePerShare: decimal("pricePerShare", { precision: 20, scale: 6 }),
+    currency: varchar("currency", { length: 8 }).default("NTD"),
+    fxToNtd: decimal("fxToNtd", { precision: 18, scale: 8 }).default("1"),
+    totalAmount: decimal("totalAmount", { precision: 20, scale: 2 }),
+    // Effective date separate from createdAt (backdating support)
+    effectiveDate: date("effectiveDate").notNull(),
+    // Reversal linkage
+    reversedEntryId: integer("reversedEntryId"),
+    notes: text("notes"),
+    createdByUserId: integer("createdByUserId"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ShareRegisterEntry = typeof shareRegisterEntries.$inferSelect;
+export type InsertShareRegisterEntry = typeof shareRegisterEntries.$inferInsert;
+
+// ─── Snapshots (auto-created on register write, plus manual) ────────────────
+// Captures the derived cap-table state at a point in time. Distinct from
+// legacy `cap_table_snapshots` (which remains for backwards compatibility).
+export const snapshots = pgTable("snapshots", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    triggerType: snapshotTriggerEnum("triggerType").default("register_write").notNull(),
+    // Which register entry triggered this snapshot (null for manual)
+    registerEntryId: integer("registerEntryId"),
+    // Serialized cap table at this point in time
+    capTableData: jsonb("capTableData").notNull(),
+    // Quick stats
+    totalShares: bigint("totalShares", { mode: "number" }).default(0).notNull(),
+    totalInvestors: integer("totalInvestors").default(0).notNull(),
+    notes: text("notes"),
+    createdByUserId: integer("createdByUserId"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Snapshot = typeof snapshots.$inferSelect;
+export type InsertSnapshot = typeof snapshots.$inferInsert;
