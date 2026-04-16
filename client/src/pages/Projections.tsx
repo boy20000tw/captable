@@ -1,11 +1,18 @@
+import { useState, useMemo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { formatShares, formatValuation, formatDate, getRoundLabel, getRoundColor } from "@/lib/utils";
-import { useState, useMemo } from "react";
-import { TrendingUp, Calculator, Users, ChevronDown, ChevronUp, Info } from "lucide-react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
+import { buildProjection, type YearlyPnL } from "@shared/projectionCalc";
+import { runDCF, type DCFResult } from "@shared/dcfCalc";
+import { DEFAULT_ASSUMPTIONS, type ProjectionAssumptions } from "@shared/projectionTypes";
+import { BarChart3, DollarSign, Download, Plus, TrendingUp } from "lucide-react";
 
 export default function ProjectionsPage() {
   return (
@@ -15,456 +22,783 @@ export default function ProjectionsPage() {
   );
 }
 
-type ValuationMode = "pre-money" | "post-money";
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function fmtCurrency(v: number): string {
+  if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(v) >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
+  return `$${v.toFixed(0)}`;
+}
+
+// ─── Main Content ───────────────────────────────────────────────────────────
 
 function ProjectionsContent() {
-  const [currency, setCurrency] = useState<"NTD" | "USD">("NTD");
-  const [valuationMode, setValuationMode] = useState<ValuationMode>("pre-money");
-  const [newRoundName, setNewRoundName] = useState("Series A");
-  // pre-money mode: user inputs pre-money valuation + raise amount
-  const [preMoneyInput, setPreMoneyInput] = useState("");
-  const [raiseAmountInput, setRaiseAmountInput] = useState("");
-  // post-money mode: user inputs post-money valuation + raise amount
-  const [postMoneyInput, setPostMoneyInput] = useState("");
-  const [raiseAmountPostInput, setRaiseAmountPostInput] = useState("");
-  const [showPerShareholder, setShowPerShareholder] = useState(true);
-  const exchangeRate = 0.03128;
+  const { canEdit } = usePermissions();
+  const utils = trpc.useUtils();
 
-  const { data: rounds } = trpc.fundingRounds.list.useQuery();
-  const { data: summary } = trpc.capTable.summary.useQuery();
+  // ── Projections CRUD ────────────────────────────────────────────────────
+  const { data: projections = [], isLoading } = trpc.financialProjections.list.useQuery();
 
-  const currentShares = summary?.totalShares || 0;
-  const esopPool = summary?.esopPool?.total || 0;
-  const totalFullyDiluted = currentShares + esopPool;
+  const [selectedProjectionId, setSelectedProjectionId] = useState<number | null>(null);
 
-  // Build chart data from existing rounds
-  const historicalData = useMemo(() => {
-    return (rounds || [])
-      .filter(r => r.postMoneyValuationNtd && r.roundDate)
-      .map(r => ({
-        name: r.name,
-        date: formatDate(r.roundDate),
-        postMoney: parseFloat(r.postMoneyValuationNtd || "0"),
-        preMoney: parseFloat(r.preMoneyValuationNtd || "0"),
-        raised: parseFloat(r.moneyRaisedNtd || "0"),
-        price: parseFloat(r.pricePerShareNtd || "0"),
-        status: r.status,
-      }));
-  }, [rounds]);
+  // Auto-select first projection when data arrives
+  const activeProjectionId = selectedProjectionId ?? projections[0]?.id ?? null;
+  const activeProjection = projections.find((p) => p.id === activeProjectionId) ?? null;
 
-  // Dilution simulation calculation
-  const simulation = useMemo(() => {
-    let preMoney = 0;
-    let postMoney = 0;
-    let raised = 0;
+  const createProjection = trpc.financialProjections.create.useMutation({
+    onSuccess: (created) => {
+      utils.financialProjections.list.invalidate();
+      setSelectedProjectionId((created as any).id);
+      toast.success("Projection created");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
-    if (valuationMode === "pre-money") {
-      preMoney = parseFloat(preMoneyInput) || 0;
-      raised = parseFloat(raiseAmountInput) || 0;
-      postMoney = preMoney + raised;
-    } else {
-      postMoney = parseFloat(postMoneyInput) || 0;
-      raised = parseFloat(raiseAmountPostInput) || 0;
-      preMoney = postMoney - raised;
-    }
+  const updateProjection = trpc.financialProjections.update.useMutation({
+    onSuccess: () => {
+      utils.financialProjections.list.invalidate();
+      toast.success("Assumptions saved");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
-    if (!preMoney || !raised || !postMoney || postMoney <= 0) return null;
+  const deleteProjection = trpc.financialProjections.delete.useMutation({
+    onSuccess: () => {
+      utils.financialProjections.list.invalidate();
+      setSelectedProjectionId(null);
+      toast.success("Projection deleted");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
-    // Price per share = pre-money / current fully diluted shares
-    const pricePerShare = totalFullyDiluted > 0 ? preMoney / totalFullyDiluted : 0;
-    // New shares issued = raise / price per share
-    const newShares = pricePerShare > 0 ? Math.round(raised / pricePerShare) : 0;
-    const totalAfter = totalFullyDiluted + newShares;
-
-    // New investor ownership
-    const newInvestorPct = totalAfter > 0 ? newShares / totalAfter : 0;
-
-    // Per-shareholder dilution
-    const shareholderBreakdown = (summary?.shareholders || []).map(sh => {
-      const currentPct = totalFullyDiluted > 0 ? sh.totalShares / totalFullyDiluted : 0;
-      const afterPct = totalAfter > 0 ? sh.totalShares / totalAfter : 0;
-      const dilutionDelta = currentPct - afterPct;
-      const valueBeforeNtd = preMoney * currentPct;
-      const valueAfterNtd = postMoney * afterPct;
-      return {
-        id: sh.id,
-        name: sh.name,
-        aka: sh.aka,
-        type: sh.type,
-        shares: sh.totalShares,
-        currentPct,
-        afterPct,
-        dilutionDelta,
-        valueBeforeNtd,
-        valueAfterNtd,
-        valueChangeNtd: valueAfterNtd - valueBeforeNtd,
-      };
-    }).sort((a, b) => b.shares - a.shares);
-
-    return {
-      name: newRoundName || "New Round",
-      preMoney,
-      postMoney,
-      raised,
-      pricePerShare,
-      newShares,
-      totalAfter,
-      newInvestorPct,
-      shareholderBreakdown,
-    };
-  }, [valuationMode, preMoneyInput, raiseAmountInput, postMoneyInput, raiseAmountPostInput, newRoundName, totalFullyDiluted, summary]);
-
-  const chartData = useMemo(() => {
-    const data: { name: string; value: number; type: "actual" | "projected" }[] = historicalData.map(d => ({
-      name: d.name,
-      value: currency === "USD" ? d.postMoney * exchangeRate / 1_000_000 : d.postMoney / 1_000_000,
-      type: "actual" as const,
-    }));
-    if (simulation) {
-      data.push({
-        name: simulation.name + " (proj.)",
-        value: currency === "USD" ? simulation.postMoney * exchangeRate / 1_000_000 : simulation.postMoney / 1_000_000,
-        type: "projected" as const,
-      });
-    }
-    return data;
-  }, [historicalData, simulation, currency, exchangeRate]);
+  function handleCreateDefault() {
+    const now = new Date();
+    createProjection.mutate({
+      name: "Base Case",
+      startYear: now.getFullYear(),
+      years: 5,
+      assumptions: DEFAULT_ASSUMPTIONS,
+    });
+  }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-end justify-between">
-        <div className="space-y-1">
-          <div className="h-px bg-foreground/20 w-16 mb-4" />
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            Dilution Simulator
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Model future rounds and see per-shareholder dilution impact
-          </p>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Projections & DCF</h1>
+        <p className="text-muted-foreground mt-1">
+          Build 5-year financial projections and run DCF valuations
+        </p>
+      </div>
+
+      <Tabs defaultValue="projection" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="projection" className="gap-2">
+            <BarChart3 className="h-4 w-4" /> 5-Year Projection
+          </TabsTrigger>
+          <TabsTrigger value="dcf" className="gap-2">
+            <DollarSign className="h-4 w-4" /> DCF Valuation
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            TAB 1: 5-Year Projection
+           ══════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="projection" className="space-y-6">
+          {/* Projection selector + New button */}
+          <div className="flex items-center gap-4">
+            {projections.length > 0 && (
+              <Select
+                value={activeProjectionId != null ? String(activeProjectionId) : ""}
+                onValueChange={(v) => setSelectedProjectionId(Number(v))}
+              >
+                <SelectTrigger className="w-60">
+                  <SelectValue placeholder="Select projection" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projections.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {canEdit && (
+              <Button
+                onClick={handleCreateDefault}
+                disabled={createProjection.isPending}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" /> New Projection
+              </Button>
+            )}
+          </div>
+
+          {/* Empty state */}
+          {!isLoading && projections.length === 0 && (
+            <Card>
+              <CardContent className="py-16 text-center">
+                <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
+                <p className="text-muted-foreground mb-4">No projections yet.</p>
+                {canEdit && (
+                  <Button onClick={handleCreateDefault} disabled={createProjection.isPending}>
+                    Create your first 5-year projection
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Assumptions + Table */}
+          {activeProjection && (
+            <ProjectionDetail
+              projection={activeProjection}
+              canEdit={canEdit}
+              onUpdate={(data) =>
+                updateProjection.mutate({ id: activeProjection.id, data })
+              }
+              onDelete={() => {
+                if (confirm(`Delete "${activeProjection.name}"?`))
+                  deleteProjection.mutate({ id: activeProjection.id });
+              }}
+              isPending={updateProjection.isPending}
+            />
+          )}
+        </TabsContent>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            TAB 2: DCF Valuation
+           ══════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="dcf" className="space-y-6">
+          <DCFTab projections={projections} canEdit={canEdit} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ─── Projection Detail (Assumptions + Table) ────────────────────────────────
+
+type ProjectionDetailProps = {
+  projection: {
+    id: number;
+    name: string;
+    startYear: number;
+    years: number;
+    assumptions: unknown;
+  };
+  canEdit: boolean;
+  onUpdate: (data: { name?: string; assumptions?: ProjectionAssumptions }) => void;
+  onDelete: () => void;
+  isPending: boolean;
+};
+
+function ProjectionDetail({ projection, canEdit, onUpdate, onDelete, isPending }: ProjectionDetailProps) {
+  const raw = projection.assumptions as ProjectionAssumptions | string;
+  const parsed: ProjectionAssumptions =
+    typeof raw === "string" ? JSON.parse(raw) : raw ?? DEFAULT_ASSUMPTIONS;
+
+  const [assumptions, setAssumptions] = useState<ProjectionAssumptions>(parsed);
+  const [projName, setProjName] = useState(projection.name);
+
+  // Recompute when projection changes
+  useMemo(() => {
+    const a = typeof projection.assumptions === "string"
+      ? JSON.parse(projection.assumptions as string)
+      : projection.assumptions ?? DEFAULT_ASSUMPTIONS;
+    setAssumptions(a);
+    setProjName(projection.name);
+  }, [projection.id, projection.assumptions, projection.name]);
+
+  const rows: YearlyPnL[] = useMemo(
+    () => buildProjection(projection.startYear, projection.years, assumptions),
+    [projection.startYear, projection.years, assumptions]
+  );
+
+  function handleSave() {
+    onUpdate({ name: projName, assumptions });
+  }
+
+  function exportCSV() {
+    const headers = [
+      "Year", "Revenue", "COGS", "Gross Profit",
+      "S&M", "R&D", "G&A", "EBITDA", "D&A", "EBIT",
+      "Tax", "Net Income", "CapEx", "Change NWC", "Free Cash Flow",
+    ];
+    const csvRows = rows.map((r) => [
+      r.year, r.revenue, r.cogs, r.grossProfit,
+      r.salesMarketing, r.rnd, r.gAndA, r.ebitda, r.depreciation, r.ebit,
+      r.tax, r.netIncome, r.capex, r.changeInNWC, r.freeCashFlow,
+    ]);
+    const csv = [headers, ...csvRows]
+      .map((row) => row.map((c) => `"${String(c)}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `projection-${projName}-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported");
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Name + actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {canEdit ? (
+            <Input
+              value={projName}
+              onChange={(e) => setProjName(e.target.value)}
+              className="text-lg font-semibold w-60"
+            />
+          ) : (
+            <h2 className="text-lg font-semibold">{projName}</h2>
+          )}
+          <span className="text-sm text-muted-foreground">
+            {projection.startYear} - {projection.startYear + projection.years - 1}
+          </span>
         </div>
-        <div className="flex border border-border rounded-sm overflow-hidden">
-          {(["NTD", "USD"] as const).map(c => (
-            <button key={c} onClick={() => setCurrency(c)}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${currency === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              {c}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2">
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          {canEdit && (
+            <>
+              <Button size="sm" onClick={handleSave} disabled={isPending}>
+                Save
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={onDelete}
+              >
+                Delete
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Current State Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: "Issued Shares", value: formatShares(currentShares), sub: "current" },
-          { label: "ESOP Pool", value: formatShares(esopPool), sub: "authorized" },
-          { label: "Fully Diluted", value: formatShares(totalFullyDiluted), sub: "total" },
-          {
-            label: "Latest Valuation",
-            value: formatValuation(rounds?.find(r => r.id === summary?.latestRound?.id)?.postMoneyValuationNtd, currency, exchangeRate),
-            sub: rounds?.find(r => r.id === summary?.latestRound?.id)?.name || "—",
-          },
-        ].map(card => (
-          <div key={card.label} className="bg-card border border-border rounded-sm p-5 space-y-2">
-            <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{card.label}</p>
-            <p className="text-xl font-bold tracking-tight tabular-nums" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{card.value}</p>
-            <p className="text-xs text-muted-foreground">{card.sub}</p>
+      {/* Assumptions Panel */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Assumptions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AssumptionsPanel
+            assumptions={assumptions}
+            years={projection.years}
+            onChange={setAssumptions}
+            disabled={!canEdit}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Projection Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">5-Year P&L Projection</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <ProjectionTable rows={rows} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Assumptions Panel ──────────────────────────────────────────────────────
+
+function AssumptionsPanel({
+  assumptions,
+  years,
+  onChange,
+  disabled,
+}: {
+  assumptions: ProjectionAssumptions;
+  years: number;
+  onChange: (a: ProjectionAssumptions) => void;
+  disabled: boolean;
+}) {
+  function set<K extends keyof ProjectionAssumptions>(key: K, value: ProjectionAssumptions[K]) {
+    onChange({ ...assumptions, [key]: value });
+  }
+
+  function setGrowth(idx: number, val: number) {
+    const next = [...assumptions.revenueGrowth];
+    next[idx] = val;
+    onChange({ ...assumptions, revenueGrowth: next });
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Revenue */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div>
+          <Label className="text-xs">Revenue Y1 ($)</Label>
+          <Input
+            type="number"
+            disabled={disabled}
+            value={assumptions.revenueYear1}
+            onChange={(e) => set("revenueYear1", Number(e.target.value) || 0)}
+          />
+        </div>
+        {Array.from({ length: years - 1 }).map((_, i) => (
+          <div key={i}>
+            <Label className="text-xs">Growth Y{i + 2} (%)</Label>
+            <Input
+              type="number"
+              disabled={disabled}
+              value={((assumptions.revenueGrowth[i] ?? 0) * 100).toFixed(0)}
+              onChange={(e) => setGrowth(i, (Number(e.target.value) || 0) / 100)}
+            />
           </div>
         ))}
       </div>
 
-      {/* Valuation Chart */}
-      {chartData.length > 0 && (
-        <div className="bg-card border border-border rounded-sm p-6 space-y-4">
-          <div className="space-y-0.5">
-            <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Valuation Trajectory</p>
-            <h3 className="text-base font-semibold tracking-tight">
-              Post-Money Valuation ({currency === "USD" ? "USD M" : "NT$ M"})
-            </h3>
+      {/* Margins & OpEx */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {([
+          ["grossMargin", "Gross Margin (%)"],
+          ["salesMarketing", "S&M (% Rev)"],
+          ["rnd", "R&D (% Rev)"],
+          ["gAndA", "G&A (% Rev)"],
+          ["depreciation", "D&A (% Rev)"],
+          ["capex", "CapEx (% Rev)"],
+          ["workingCapital", "NWC (% Rev)"],
+          ["taxRate", "Tax Rate (%)"],
+        ] as const).map(([key, label]) => (
+          <div key={key}>
+            <Label className="text-xs">{label}</Label>
+            <Input
+              type="number"
+              disabled={disabled}
+              value={((assumptions[key] ?? 0) * 100).toFixed(1)}
+              onChange={(e) => set(key, (Number(e.target.value) || 0) / 100)}
+            />
           </div>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barSize={32}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(1)}M`} />
-                <Tooltip
-                  formatter={(v: number) => [`${currency === "USD" ? "USD" : "NT$"} ${v.toFixed(2)}M`, "Post-Money"]}
-                  contentStyle={{ fontSize: "11px", border: "1px solid var(--border)", borderRadius: "2px" }}
-                />
-                <Bar dataKey="value" radius={[2, 2, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={index} fill={entry.type === "projected" ? "#b89a5a" : "var(--primary)"} fillOpacity={entry.type === "projected" ? 0.7 : 1} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      {/* Dilution Simulator */}
-      <div className="bg-card border border-border rounded-sm p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Calculator className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <h3 className="text-base font-semibold tracking-tight">Round Modeler</h3>
-              <p className="text-xs text-muted-foreground">Enter valuation parameters to simulate dilution</p>
-            </div>
-          </div>
-          {/* Valuation Mode Toggle */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Input mode:</span>
-            <div className="flex border border-border rounded-sm overflow-hidden">
-              {(["pre-money", "post-money"] as const).map(m => (
-                <button key={m} onClick={() => setValuationMode(m)}
-                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${valuationMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                  {m === "pre-money" ? "Pre-Money" : "Post-Money"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+// ─── Projection Table ───────────────────────────────────────────────────────
 
-        {/* Input Fields */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Round Name</label>
-            <input type="text" value={newRoundName} onChange={e => setNewRoundName(e.target.value)}
-              className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring" />
-          </div>
+const ROW_DEFS: { key: keyof YearlyPnL; label: string; bold?: boolean }[] = [
+  { key: "revenue", label: "Revenue" },
+  { key: "cogs", label: "COGS" },
+  { key: "grossProfit", label: "Gross Profit", bold: true },
+  { key: "salesMarketing", label: "S&M" },
+  { key: "rnd", label: "R&D" },
+  { key: "gAndA", label: "G&A" },
+  { key: "ebitda", label: "EBITDA", bold: true },
+  { key: "depreciation", label: "D&A" },
+  { key: "ebit", label: "EBIT", bold: true },
+  { key: "tax", label: "Tax" },
+  { key: "netIncome", label: "Net Income", bold: true },
+  { key: "capex", label: "CapEx" },
+  { key: "changeInNWC", label: "\u0394NWC" },
+  { key: "freeCashFlow", label: "Free Cash Flow", bold: true },
+];
 
-          {valuationMode === "pre-money" ? (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                  Pre-Money Valuation (NT$)
-                </label>
-                <input type="number" value={preMoneyInput} onChange={e => setPreMoneyInput(e.target.value)}
-                  className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="e.g. 300000000" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                  Capital Raise (NT$)
-                </label>
-                <input type="number" value={raiseAmountInput} onChange={e => setRaiseAmountInput(e.target.value)}
-                  className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="e.g. 50000000" />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                  Post-Money Valuation (NT$)
-                </label>
-                <input type="number" value={postMoneyInput} onChange={e => setPostMoneyInput(e.target.value)}
-                  className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="e.g. 350000000" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                  Capital Raise (NT$)
-                </label>
-                <input type="number" value={raiseAmountPostInput} onChange={e => setRaiseAmountPostInput(e.target.value)}
-                  className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="e.g. 50000000" />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Simulation Results */}
-        {simulation && (
-          <div className="space-y-5 border-t border-border pt-5">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-              {[
-                { label: "Pre-Money", value: formatValuation(simulation.preMoney, currency, exchangeRate) },
-                { label: "Capital Raised", value: formatValuation(simulation.raised, currency, exchangeRate) },
-                { label: "Post-Money", value: formatValuation(simulation.postMoney, currency, exchangeRate) },
-                { label: "Price / Share", value: `NT$ ${simulation.pricePerShare.toFixed(2)}` },
-                { label: "New Shares", value: formatShares(simulation.newShares) },
-              ].map(item => (
-                <div key={item.label} className="bg-secondary/40 rounded-sm p-3 space-y-1">
-                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{item.label}</p>
-                  <p className="text-sm font-bold tabular-nums">{item.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Ownership Bar */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Post-Round Ownership Structure</p>
-              <div className="flex h-5 rounded-sm overflow-hidden gap-px">
-                {simulation.shareholderBreakdown.map((sh, i) => (
-                  <div key={sh.id}
-                    style={{
-                      width: `${sh.afterPct * 100 * (1 - simulation.newInvestorPct)}%`,
-                      background: getRoundColor(sh.type || "other"),
-                      minWidth: sh.afterPct > 0.01 ? "2px" : "0",
-                    }}
-                    title={`${sh.name}: ${(sh.afterPct * 100).toFixed(2)}%`}
-                  />
-                ))}
-                <div
-                  style={{ width: `${simulation.newInvestorPct * 100}%`, background: "#b89a5a" }}
-                  title={`New investors: ${(simulation.newInvestorPct * 100).toFixed(2)}%`}
-                />
-              </div>
-              <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
-                <span>Existing: {((1 - simulation.newInvestorPct) * 100).toFixed(1)}%</span>
-                <span className="text-amber-600 font-medium">New investors: {(simulation.newInvestorPct * 100).toFixed(1)}%</span>
-              </div>
-            </div>
-
-            {/* Per-Shareholder Breakdown */}
-            <div>
-              <button
-                onClick={() => setShowPerShareholder(v => !v)}
-                className="flex items-center gap-2 text-sm font-semibold tracking-tight mb-3 hover:text-muted-foreground transition-colors"
+function ProjectionTable({ rows }: { rows: YearlyPnL[] }) {
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-border">
+          <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide">
+            Line Item
+          </th>
+          {rows.map((r) => (
+            <th
+              key={r.year}
+              className="text-right px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide"
+            >
+              {r.year}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {ROW_DEFS.map((def) => (
+          <tr
+            key={def.key}
+            className={`border-b border-border/50 ${def.bold ? "bg-secondary/20" : ""}`}
+          >
+            <td className={`px-3 py-2 ${def.bold ? "font-semibold" : ""}`}>
+              {def.label}
+            </td>
+            {rows.map((r) => (
+              <td
+                key={r.year}
+                className={`text-right px-3 py-2 tabular-nums ${def.bold ? "font-semibold" : ""}`}
               >
-                <Users className="h-4 w-4" />
-                Per-Shareholder Dilution Analysis
-                {showPerShareholder ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
+                {fmtCurrency(r[def.key] as number)}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
-              {showPerShareholder && (
-                <div className="border border-border rounded-sm overflow-hidden">
-                  <table className="cap-table w-full">
-                    <thead>
-                      <tr>
-                        <th>Shareholder</th>
-                        <th>Type</th>
-                        <th className="text-right">Shares</th>
-                        <th className="text-right">Before</th>
-                        <th className="text-right">After</th>
-                        <th className="text-right">Dilution</th>
-                        <th className="text-right">Value Before</th>
-                        <th className="text-right">Value After</th>
-                        <th className="text-right">Value Δ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {simulation.shareholderBreakdown.map(sh => (
-                        <tr key={sh.id}>
-                          <td>
-                            <div>
-                              <p className="font-medium">{sh.name}</p>
-                              {sh.aka && <p className="text-xs text-muted-foreground">{sh.aka}</p>}
-                            </div>
-                          </td>
-                          <td>
-                            <span className={`badge badge-${sh.type || "other"} text-xs px-2 py-0.5 rounded-full font-medium`}>
-                              {getRoundLabel(sh.type || "other")}
-                            </span>
-                          </td>
-                          <td className="text-right tabular-nums">{formatShares(sh.shares)}</td>
-                          <td className="text-right tabular-nums font-medium">{(sh.currentPct * 100).toFixed(3)}%</td>
-                          <td className="text-right tabular-nums font-medium text-primary">{(sh.afterPct * 100).toFixed(3)}%</td>
-                          <td className="text-right tabular-nums text-destructive">
-                            −{(sh.dilutionDelta * 100).toFixed(3)}%
-                          </td>
-                          <td className="text-right tabular-nums text-muted-foreground text-xs">
-                            {formatValuation(sh.valueBeforeNtd, currency, exchangeRate)}
-                          </td>
-                          <td className="text-right tabular-nums text-xs font-medium">
-                            {formatValuation(sh.valueAfterNtd, currency, exchangeRate)}
-                          </td>
-                          <td className={`text-right tabular-nums text-xs font-medium ${sh.valueChangeNtd >= 0 ? "text-green-600" : "text-destructive"}`}>
-                            {sh.valueChangeNtd >= 0 ? "+" : ""}{formatValuation(sh.valueChangeNtd, currency, exchangeRate)}
-                          </td>
-                        </tr>
-                      ))}
-                      {/* New Investors Row */}
-                      <tr className="bg-amber-50/50">
-                        <td><p className="font-medium text-amber-700">New Investors ({simulation.name})</p></td>
-                        <td><span className="badge text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">New</span></td>
-                        <td className="text-right tabular-nums">{formatShares(simulation.newShares)}</td>
-                        <td className="text-right tabular-nums text-muted-foreground">—</td>
-                        <td className="text-right tabular-nums font-medium text-amber-700">{(simulation.newInvestorPct * 100).toFixed(3)}%</td>
-                        <td className="text-right text-muted-foreground">—</td>
-                        <td className="text-right text-muted-foreground">—</td>
-                        <td className="text-right tabular-nums text-xs font-medium text-amber-700">
-                          {formatValuation(simulation.raised, currency, exchangeRate)}
-                        </td>
-                        <td className="text-right text-muted-foreground">—</td>
-                      </tr>
-                    </tbody>
-                    <tfoot>
-                      <tr className="total-row">
-                        <td colSpan={2} className="font-semibold">Total (Post-Round)</td>
-                        <td className="text-right tabular-nums font-semibold">{formatShares(simulation.totalAfter)}</td>
-                        <td className="text-right tabular-nums font-semibold">100.000%</td>
-                        <td className="text-right tabular-nums font-semibold">100.000%</td>
-                        <td colSpan={4} />
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-            </div>
+// ─── DCF Tab ────────────────────────────────────────────────────────────────
 
-            {/* Info note */}
-            <div className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/30 rounded-sm p-3">
-              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              <span>
-                Price per share is calculated as <strong>Pre-Money Valuation ÷ Fully Diluted Shares</strong> ({formatShares(totalFullyDiluted)} shares).
-                New shares issued = Capital Raise ÷ Price per Share. This model assumes standard dilution without anti-dilution adjustments.
-              </span>
-            </div>
+type DCFTabProps = {
+  projections: { id: number; name: string; startYear: number; years: number; assumptions: unknown }[];
+  canEdit: boolean;
+};
+
+function DCFTab({ projections, canEdit }: DCFTabProps) {
+  const utils = trpc.useUtils();
+  const [selectedProjId, setSelectedProjId] = useState<number | null>(null);
+  const activeProjId = selectedProjId ?? projections[0]?.id ?? null;
+  const activeProj = projections.find((p) => p.id === activeProjId) ?? null;
+
+  const { data: scenarios = [] } = trpc.dcf.listByProjection.useQuery(
+    { projectionId: activeProjId! },
+    { enabled: activeProjId != null }
+  );
+
+  const [selectedScenarioId, setSelectedScenarioId] = useState<number | null>(null);
+  const activeScenario = scenarios.find((s) => s.id === selectedScenarioId) ?? scenarios[0] ?? null;
+
+  // Local form state for DCF inputs
+  const [discountRate, setDiscountRate] = useState(0.12);
+  const [terminalGrowth, setTerminalGrowth] = useState(0.03);
+  const [netDebt, setNetDebt] = useState(0);
+  const [cash, setCash] = useState(0);
+  const [targetRaise, setTargetRaise] = useState<string>("");
+  const [targetPreMoney, setTargetPreMoney] = useState<string>("");
+
+  // Load scenario values when selection changes
+  useMemo(() => {
+    if (activeScenario) {
+      setDiscountRate(parseFloat(activeScenario.discountRate ?? "0.12") || 0.12);
+      setTerminalGrowth(parseFloat(activeScenario.terminalGrowth ?? "0.03") || 0.03);
+      setNetDebt(parseFloat(activeScenario.netDebt ?? "0") || 0);
+      setCash(parseFloat(activeScenario.cash ?? "0") || 0);
+      setTargetRaise(activeScenario.targetRaise ?? "");
+      setTargetPreMoney(activeScenario.targetPreMoney ?? "");
+    }
+  }, [activeScenario?.id]);
+
+  const createScenario = trpc.dcf.create.useMutation({
+    onSuccess: (created) => {
+      utils.dcf.listByProjection.invalidate({ projectionId: activeProjId! });
+      setSelectedScenarioId((created as any).id);
+      toast.success("DCF scenario created");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateScenario = trpc.dcf.update.useMutation({
+    onSuccess: () => {
+      utils.dcf.listByProjection.invalidate({ projectionId: activeProjId! });
+      toast.success("DCF scenario saved");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteScenario = trpc.dcf.delete.useMutation({
+    onSuccess: () => {
+      utils.dcf.listByProjection.invalidate({ projectionId: activeProjId! });
+      setSelectedScenarioId(null);
+      toast.success("DCF scenario deleted");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Build projection rows to get FCFs
+  const projectionRows = useMemo(() => {
+    if (!activeProj) return [];
+    const a: ProjectionAssumptions =
+      typeof activeProj.assumptions === "string"
+        ? JSON.parse(activeProj.assumptions as string)
+        : (activeProj.assumptions as ProjectionAssumptions) ?? DEFAULT_ASSUMPTIONS;
+    return buildProjection(activeProj.startYear, activeProj.years, a);
+  }, [activeProj]);
+
+  // Run DCF
+  const dcfResult: DCFResult | null = useMemo(() => {
+    if (projectionRows.length === 0) return null;
+    return runDCF({
+      fcfs: projectionRows.map((r) => r.freeCashFlow),
+      discountRate,
+      terminalGrowth,
+      netDebt,
+      cash,
+      targetRaise: targetRaise ? Number(targetRaise) : null,
+      targetPreMoney: targetPreMoney ? Number(targetPreMoney) : null,
+    });
+  }, [projectionRows, discountRate, terminalGrowth, netDebt, cash, targetRaise, targetPreMoney]);
+
+  function handleCreateScenario() {
+    if (!activeProjId) return;
+    createScenario.mutate({
+      projectionId: activeProjId,
+      name: "Base DCF",
+      discountRate,
+      terminalGrowth,
+      netDebt,
+      cash,
+      targetRaise: targetRaise ? Number(targetRaise) : null,
+      targetPreMoney: targetPreMoney ? Number(targetPreMoney) : null,
+    });
+  }
+
+  function handleSaveScenario() {
+    if (!activeScenario) return;
+    updateScenario.mutate({
+      id: activeScenario.id,
+      data: {
+        discountRate,
+        terminalGrowth,
+        netDebt,
+        cash,
+        targetRaise: targetRaise ? Number(targetRaise) : null,
+        targetPreMoney: targetPreMoney ? Number(targetPreMoney) : null,
+      },
+    });
+  }
+
+  if (projections.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-16 text-center">
+          <DollarSign className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
+          <p className="text-muted-foreground">
+            Create a 5-year projection first to run a DCF valuation.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Source projection selector */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div>
+          <Label className="text-xs mb-1 block">Source Projection</Label>
+          <Select
+            value={activeProjId != null ? String(activeProjId) : ""}
+            onValueChange={(v) => {
+              setSelectedProjId(Number(v));
+              setSelectedScenarioId(null);
+            }}
+          >
+            <SelectTrigger className="w-60">
+              <SelectValue placeholder="Select projection" />
+            </SelectTrigger>
+            <SelectContent>
+              {projections.map((p) => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {scenarios.length > 0 && (
+          <div>
+            <Label className="text-xs mb-1 block">DCF Scenario</Label>
+            <Select
+              value={activeScenario ? String(activeScenario.id) : ""}
+              onValueChange={(v) => setSelectedScenarioId(Number(v))}
+            >
+              <SelectTrigger className="w-60">
+                <SelectValue placeholder="Select scenario" />
+              </SelectTrigger>
+              <SelectContent>
+                {scenarios.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {canEdit && (
+          <div className="flex items-end gap-2">
+            <Button
+              onClick={handleCreateScenario}
+              disabled={createScenario.isPending || !activeProjId}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" /> New Scenario
+            </Button>
+            {activeScenario && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleSaveScenario}
+                  disabled={updateScenario.isPending}
+                >
+                  Save
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm(`Delete scenario "${activeScenario.name}"?`))
+                      deleteScenario.mutate({ id: activeScenario.id });
+                  }}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
 
-      {/* Historical Rounds Detail */}
-      {historicalData.length > 0 && (
-        <div className="bg-card border border-border rounded-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold tracking-tight">Historical Round Details</h3>
+      {/* DCF Inputs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">DCF Inputs</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div>
+              <Label className="text-xs">Discount Rate / WACC (%)</Label>
+              <Input
+                type="number"
+                value={(discountRate * 100).toFixed(1)}
+                onChange={(e) => setDiscountRate((Number(e.target.value) || 0) / 100)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Terminal Growth (%)</Label>
+              <Input
+                type="number"
+                value={(terminalGrowth * 100).toFixed(1)}
+                onChange={(e) => setTerminalGrowth((Number(e.target.value) || 0) / 100)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Net Debt ($)</Label>
+              <Input
+                type="number"
+                value={netDebt}
+                onChange={(e) => setNetDebt(Number(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Cash ($)</Label>
+              <Input
+                type="number"
+                value={cash}
+                onChange={(e) => setCash(Number(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Target Raise ($)</Label>
+              <Input
+                type="number"
+                value={targetRaise}
+                onChange={(e) => setTargetRaise(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Target Pre-Money ($)</Label>
+              <Input
+                type="number"
+                value={targetPreMoney}
+                onChange={(e) => setTargetPreMoney(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
           </div>
-          <table className="cap-table w-full">
-            <thead>
-              <tr>
-                <th>Round</th>
-                <th>Date</th>
-                <th className="text-right">Price / Share</th>
-                <th className="text-right">Raised</th>
-                <th className="text-right">Pre-Money</th>
-                <th className="text-right">Post-Money</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {historicalData.map((r, i) => (
-                <tr key={`hist-${i}-${r.name}`}>
-                  <td className="font-medium">{r.name}</td>
-                  <td className="text-muted-foreground">{r.date}</td>
-                  <td className="text-right tabular-nums">
-                    {r.price > 0
-                      ? currency === "USD"
-                        ? `$${(r.price * exchangeRate).toFixed(2)}`
-                        : `NT$ ${r.price.toLocaleString()}`
-                      : "—"}
-                  </td>
-                  <td className="text-right tabular-nums">{formatValuation(r.raised, currency, exchangeRate)}</td>
-                  <td className="text-right tabular-nums">{formatValuation(r.preMoney, currency, exchangeRate)}</td>
-                  <td className="text-right tabular-nums font-medium">{formatValuation(r.postMoney, currency, exchangeRate)}</td>
-                  <td>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      r.status === "completed" ? "bg-green-100 text-green-700" :
-                      r.status === "bridge" ? "bg-orange-100 text-orange-700" :
-                      "bg-blue-100 text-blue-700"
-                    }`}>
-                      {r.status}
+        </CardContent>
+      </Card>
+
+      {/* DCF Results */}
+      {dcfResult && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Valuation Results Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" /> Valuation Results
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {([
+                  ["Sum PV(FCF)", dcfResult.sumPVFCF],
+                  ["Terminal Value", dcfResult.terminalValue],
+                  ["PV of Terminal", dcfResult.pvOfTerminal],
+                  ["Enterprise Value", dcfResult.enterpriseValue],
+                  ["Equity Value = Implied Pre-money", dcfResult.equityValue],
+                ] as const).map(([label, val]) => (
+                  <div key={label} className="flex justify-between items-center py-1 border-b border-border/50 last:border-0">
+                    <span className="text-sm text-muted-foreground">{label}</span>
+                    <span className="text-sm font-semibold tabular-nums">{fmtCurrency(val)}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Valuation Gap Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <DollarSign className="h-4 w-4" /> Valuation Gap
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dcfResult.valuationGap !== null ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-sm text-muted-foreground">Implied Pre-money</span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {fmtCurrency(dcfResult.impliedPreMoney)}
                     </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-sm text-muted-foreground">Target Pre-money</span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {fmtCurrency(Number(targetPreMoney) || 0)}
+                    </span>
+                  </div>
+                  <div className="border-t border-border pt-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold">Gap</span>
+                      <span
+                        className={`text-lg font-bold tabular-nums ${
+                          dcfResult.valuationGap >= 0 ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {dcfResult.valuationGap >= 0 ? "+" : ""}
+                        {fmtCurrency(dcfResult.valuationGap)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {dcfResult.valuationGap >= 0
+                        ? "Implied value exceeds target - favorable"
+                        : "Implied value below target - unfavorable"}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  Enter a Target Pre-Money to see the valuation gap analysis.
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

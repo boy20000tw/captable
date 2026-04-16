@@ -37,6 +37,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 type Provision = {
   id: number;
+  companyId: number | null;
   shareholderId: number;
   fundingRoundId: number;
   provisionType: "full_ratchet" | "broad_based_wa" | "narrow_based_wa" | "none";
@@ -48,7 +49,6 @@ type Provision = {
   status: "active" | "triggered" | "waived" | "expired";
   notes: string | null;
   createdAt: Date;
-  updatedAt: Date;
 };
 
 function AntiDilutionContent() {

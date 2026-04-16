@@ -21,7 +21,10 @@ import {
   getAllInvitations, createInvitation, getInvitationByToken, updateInvitationStatus,
   createAuditLog, getAuditLogs, getAuditLogsByResource,
   truncateAllBusinessData,
+  getAllFinancialProjections, getFinancialProjectionById, createFinancialProjection, updateFinancialProjection, deleteFinancialProjection,
+  getDcfScenariosByProjection, createDcfScenario, updateDcfScenario, deleteDcfScenario,
 } from "./db";
+import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 
 // ─── Shareholders Router ──────────────────────────────────────────────────────
 const shareholdersRouter = router({
@@ -876,6 +879,91 @@ const auditLogRouter = router({
   })).query(({ input }) => getAuditLogsByResource(input.resourceType, input.resourceId)),
 });
 
+// ─── Financial Projections Router (5-Year) ──────────────────────────────────
+const financialProjectionsRouter = router({
+  list: protectedProcedure.query(() => getAllFinancialProjections()),
+  get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getFinancialProjectionById(input.id)),
+  create: editorProcedure.input(z.object({
+    name: z.string().min(1),
+    startYear: z.number(),
+    years: z.number().default(5),
+    assumptions: ProjectionAssumptionsSchema,
+  })).mutation(async ({ input, ctx }) => {
+    const result = await createFinancialProjection(input);
+    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "financial_projection", resourceName: input.name, changesAfter: JSON.stringify({ name: input.name, startYear: input.startYear }) });
+    return result;
+  }),
+  update: editorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      name: z.string().optional(),
+      assumptions: ProjectionAssumptionsSchema.optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    await updateFinancialProjection(input.id, input.data);
+    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "financial_projection", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+  }),
+  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteFinancialProjection(input.id);
+    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "financial_projection", resourceId: input.id });
+  }),
+});
+
+// ─── DCF Scenarios Router ───────────────────────────────────────────────────
+const dcfRouter = router({
+  listByProjection: protectedProcedure.input(z.object({ projectionId: z.number() }))
+    .query(({ input }) => getDcfScenariosByProjection(input.projectionId)),
+  create: editorProcedure.input(z.object({
+    projectionId: z.number(),
+    name: z.string().min(1),
+    discountRate: z.number(),
+    terminalGrowth: z.number(),
+    netDebt: z.number().default(0),
+    cash: z.number().default(0),
+    targetRaise: z.number().nullable().optional(),
+    targetPreMoney: z.number().nullable().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await createDcfScenario({
+      ...input,
+      discountRate: String(input.discountRate),
+      terminalGrowth: String(input.terminalGrowth),
+      netDebt: String(input.netDebt),
+      cash: String(input.cash),
+      targetRaise: input.targetRaise != null ? String(input.targetRaise) : null,
+      targetPreMoney: input.targetPreMoney != null ? String(input.targetPreMoney) : null,
+    });
+    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "dcf_scenario", resourceName: input.name });
+    return result;
+  }),
+  update: editorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      name: z.string().optional(),
+      discountRate: z.number().optional(),
+      terminalGrowth: z.number().optional(),
+      netDebt: z.number().optional(),
+      cash: z.number().optional(),
+      targetRaise: z.number().nullable().optional(),
+      targetPreMoney: z.number().nullable().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    const updateData: Record<string, unknown> = {};
+    if (input.data.name !== undefined) updateData.name = input.data.name;
+    if (input.data.discountRate !== undefined) updateData.discountRate = String(input.data.discountRate);
+    if (input.data.terminalGrowth !== undefined) updateData.terminalGrowth = String(input.data.terminalGrowth);
+    if (input.data.netDebt !== undefined) updateData.netDebt = String(input.data.netDebt);
+    if (input.data.cash !== undefined) updateData.cash = String(input.data.cash);
+    if (input.data.targetRaise !== undefined) updateData.targetRaise = input.data.targetRaise != null ? String(input.data.targetRaise) : null;
+    if (input.data.targetPreMoney !== undefined) updateData.targetPreMoney = input.data.targetPreMoney != null ? String(input.data.targetPreMoney) : null;
+    await updateDcfScenario(input.id, updateData as any);
+    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "dcf_scenario", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+  }),
+  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteDcfScenario(input.id);
+    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "dcf_scenario", resourceId: input.id });
+  }),
+});
+
 // ─── App Router ────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
@@ -899,6 +987,8 @@ export const appRouter = router({
   team: teamRouter,
   invitations: invitationsRouter,
   auditLog: auditLogRouter,
+  financialProjections: financialProjectionsRouter,
+  dcf: dcfRouter,
   admin: router({
     // ─── Danger Zone: Clear All Business Data ──────────────────────────────
     // Owner-only. Deletes shareholders, rounds, holdings, transactions, ESOP,

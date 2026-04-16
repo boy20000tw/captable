@@ -58,6 +58,31 @@ export const valuation409aMethodEnum = pgEnum("valuation_409a_method", ["dcf", "
 // Liquidation preferences enums
 export const liquidationPreferenceTypeEnum = pgEnum("liquidation_preference_type", ["non_participating", "participating", "capped_participating"]);
 
+// Company member role enum
+export const companyMemberRoleEnum = pgEnum("company_member_role", ["owner", "admin", "cfo", "lawyer", "investor", "viewer"]);
+
+// ─── Companies ──────────────────────────────────────────────────────────────
+export const companies = pgTable("companies", {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 100 }).unique(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type Company = typeof companies.$inferSelect;
+export type InsertCompany = typeof companies.$inferInsert;
+
+// ─── Company Members (many-to-many: users ↔ companies) ──────────────────────
+export const companyMembers = pgTable("company_members", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    userId: integer("userId").notNull(),
+    role: companyMemberRoleEnum("role").default("viewer").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CompanyMember = typeof companyMembers.$inferSelect;
+export type InsertCompanyMember = typeof companyMembers.$inferInsert;
+
 // ─── Users (auth) ────────────────────────────────────────────────────────────
 export const users = pgTable("users", {
     id: serial("id").primaryKey(),
@@ -76,6 +101,7 @@ export type InsertUser = typeof users.$inferInsert;
 // ─── User Invitations ─────────────────────────────────────────────────────────
 export const userInvitations = pgTable("user_invitations", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     token: varchar("token", { length: 128 }).notNull().unique(),
     email: varchar("email", { length: 320 }),
     appRole: invitationAppRoleEnum("appRole").default("viewer").notNull(),
@@ -92,6 +118,7 @@ export type InsertUserInvitation = typeof userInvitations.$inferInsert;
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
 export const auditLogs = pgTable("audit_logs", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     userId: integer("userId"),
     userName: varchar("userName", { length: 255 }),
     action: auditActionEnum("action").notNull(),
@@ -109,6 +136,7 @@ export type InsertAuditLog = typeof auditLogs.$inferInsert;
 // ─── Shareholders ─────────────────────────────────────────────────────────────
 export const shareholders = pgTable("shareholders", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     name: varchar("name", { length: 255 }).notNull(),
     aka: varchar("aka", { length: 255 }),
     type: shareholderTypeEnum("type").default("other").notNull(),
@@ -129,6 +157,7 @@ export type InsertShareholder = typeof shareholders.$inferInsert;
 // ─── Funding Rounds ───────────────────────────────────────────────────────────
 export const fundingRounds = pgTable("funding_rounds", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     name: varchar("name", { length: 100 }).notNull(),
     roundDate: date("roundDate"),
     pricePerShareNtd: decimal("pricePerShareNtd", { precision: 20, scale: 6 }),
@@ -149,6 +178,7 @@ export type InsertFundingRound = typeof fundingRounds.$inferInsert;
 // ─── Share Holdings (snapshot per round) ─────────────────────────────────────
 export const shareHoldings = pgTable("share_holdings", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     shareholderId: integer("shareholderId").notNull(),
     fundingRoundId: integer("fundingRoundId").notNull(),
     commonShares: bigint("commonShares", { mode: "number" }).default(0).notNull(),
@@ -170,6 +200,7 @@ export type InsertShareHolding = typeof shareHoldings.$inferInsert;
 // ─── Share Transactions (individual issuance/transfer events) ─────────────────
 export const shareTransactions = pgTable("share_transactions", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     shareholderId: integer("shareholderId").notNull(),
     fundingRoundId: integer("fundingRoundId"),
     transactionDate: timestamp("transactionDate").defaultNow(),
@@ -193,6 +224,7 @@ export type InsertShareTransaction = typeof shareTransactions.$inferInsert;
 // ─── ESOP Pool ────────────────────────────────────────────────────────────────
 export const esopPool = pgTable("esop_pool", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     fundingRoundId: integer("fundingRoundId"),
     poolName: varchar("poolName", { length: 100 }).default("ESOP Pool").notNull(),
     totalShares: bigint("totalShares", { mode: "number" }).notNull(),
@@ -211,6 +243,7 @@ export type InsertEsopPool = typeof esopPool.$inferInsert;
 // ─── ESOP Grants ──────────────────────────────────────────────────────────────
 export const esopGrants = pgTable("esop_grants", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     esopPoolId: integer("esopPoolId").notNull(),
     shareholderId: integer("shareholderId"),
     granteeName: varchar("granteeName", { length: 255 }),
@@ -235,6 +268,7 @@ export type InsertEsopGrant = typeof esopGrants.$inferInsert;
 // ─── Valuation Projections ────────────────────────────────────────────────────
 export const valuationProjections = pgTable("valuation_projections", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     name: varchar("name", { length: 100 }).notNull(),
     projectionDate: date("projectionDate"),
     pricePerShareNtd: decimal("pricePerShareNtd", { precision: 20, scale: 6 }),
@@ -254,6 +288,7 @@ export type InsertValuationProjection = typeof valuationProjections.$inferInsert
 // ─── Import Logs ──────────────────────────────────────────────────────────────
 export const importLogs = pgTable("import_logs", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     fileName: varchar("fileName", { length: 255 }).notNull(),
     fileUrl: text("fileUrl"),
     status: importLogStatusEnum("status").default("pending").notNull(),
@@ -268,6 +303,7 @@ export type InsertImportLog = typeof importLogs.$inferInsert;
 // ─── Cap Table Snapshots ──────────────────────────────────────────────────────
 export const capTableSnapshots = pgTable("cap_table_snapshots", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     name: varchar("name", { length: 255 }).notNull(),
     description: text("description"),
     snapshotDate: timestamp("snapshotDate").notNull(),
@@ -288,6 +324,7 @@ export type InsertCapTableSnapshot = typeof capTableSnapshots.$inferInsert;
 // ─── Anti-Dilution Provisions ─────────────────────────────────────────────────
 export const antiDilutionProvisions = pgTable("anti_dilution_provisions", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     shareholderId: integer("shareholderId").notNull(),
     fundingRoundId: integer("fundingRoundId").notNull(),
     provisionType: antiDilutionProvisionTypeEnum("provisionType").default("broad_based_wa").notNull(),
@@ -307,6 +344,7 @@ export type InsertAntiDilutionProvision = typeof antiDilutionProvisions.$inferIn
 // ─── Shareholder Documents ─────────────────────────────────────────────────────
 export const shareholderDocuments = pgTable("shareholder_documents", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     shareholderId: integer("shareholderId").notNull(),
     documentType: shareholderDocumentTypeEnum("documentType").notNull(),
     documentName: varchar("documentName", { length: 255 }).notNull(),
@@ -325,6 +363,7 @@ export type InsertShareholderDocument = typeof shareholderDocuments.$inferInsert
 // ─── 409A Valuations ──────────────────────────────────────────────────────────
 export const valuations409a = pgTable("valuations_409a", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     valuationDate: date("valuationDate").notNull(),
     fmvPerShareNtd: decimal("fmvPerShareNtd", { precision: 18, scale: 4 }),
     fmvPerShareUsd: decimal("fmvPerShareUsd", { precision: 18, scale: 6 }),
@@ -344,6 +383,7 @@ export type InsertValuation409a = typeof valuations409a.$inferInsert;
 // ─── Liquidation Preferences ──────────────────────────────────────────────────
 export const liquidationPreferences = pgTable("liquidation_preferences", {
     id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
     fundingRoundId: integer("fundingRoundId").notNull().unique(),
     preferenceType: liquidationPreferenceTypeEnum("preferenceType").default("non_participating").notNull(),
     liquidationMultiple: decimal("liquidationMultiple", { precision: 6, scale: 2 }).default("1.00").notNull(),
@@ -354,3 +394,36 @@ export const liquidationPreferences = pgTable("liquidation_preferences", {
 });
 export type LiquidationPreference = typeof liquidationPreferences.$inferSelect;
 export type InsertLiquidationPreference = typeof liquidationPreferences.$inferInsert;
+
+// ─── 5-Year Financial Projections ────────────────────────────────────────────
+import { jsonb } from "drizzle-orm/pg-core";
+
+export const financialProjections = pgTable("financial_projections", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
+    name: varchar("name", { length: 255 }).notNull(),
+    startYear: integer("startYear").notNull(),
+    years: integer("years").notNull().default(5),
+    assumptions: jsonb("assumptions").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type FinancialProjection = typeof financialProjections.$inferSelect;
+export type InsertFinancialProjection = typeof financialProjections.$inferInsert;
+
+// ─── DCF Scenarios ──────────────────────────────────────────────────────────
+export const dcfScenarios = pgTable("dcf_scenarios", {
+    id: serial("id").primaryKey(),
+    projectionId: integer("projectionId").notNull(),
+    companyId: integer("companyId"),
+    name: varchar("name", { length: 255 }).notNull(),
+    discountRate: decimal("discountRate", { precision: 8, scale: 4 }).notNull(),
+    terminalGrowth: decimal("terminalGrowth", { precision: 8, scale: 4 }).notNull(),
+    netDebt: decimal("netDebt", { precision: 20, scale: 2 }).notNull().default("0"),
+    cash: decimal("cash", { precision: 20, scale: 2 }).notNull().default("0"),
+    targetRaise: decimal("targetRaise", { precision: 20, scale: 2 }),
+    targetPreMoney: decimal("targetPreMoney", { precision: 20, scale: 2 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type DcfScenario = typeof dcfScenarios.$inferSelect;
+export type InsertDcfScenario = typeof dcfScenarios.$inferInsert;

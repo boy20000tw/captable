@@ -18,6 +18,8 @@ import {
   liquidationPreferences, InsertLiquidationPreference,
   userInvitations, InsertUserInvitation,
   auditLogs, InsertAuditLog,
+  financialProjections, InsertFinancialProjection,
+  dcfScenarios, InsertDcfScenario,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -697,6 +699,65 @@ export async function deleteUserById(userId: number): Promise<void> {
   await db.delete(users).where(eq(users.id, userId));
 }
 
+// ─── Financial Projections (5-Year) ─────────────────────────────────────────
+export async function getAllFinancialProjections() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(financialProjections).orderBy(desc(financialProjections.createdAt));
+}
+
+export async function getFinancialProjectionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(financialProjections).where(eq(financialProjections.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createFinancialProjection(data: InsertFinancialProjection) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(financialProjections).values(data).returning();
+  return result[0];
+}
+
+export async function updateFinancialProjection(id: number, data: Partial<InsertFinancialProjection>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(financialProjections).set({ ...data, updatedAt: new Date() }).where(eq(financialProjections.id, id));
+}
+
+export async function deleteFinancialProjection(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(financialProjections).where(eq(financialProjections.id, id));
+}
+
+// ─── DCF Scenarios ──────────────────────────────────────────────────────────
+export async function getDcfScenariosByProjection(projectionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dcfScenarios).where(eq(dcfScenarios.projectionId, projectionId));
+}
+
+export async function createDcfScenario(data: InsertDcfScenario) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(dcfScenarios).values(data).returning();
+  return result[0];
+}
+
+export async function updateDcfScenario(id: number, data: Partial<InsertDcfScenario>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(dcfScenarios).set(data).where(eq(dcfScenarios.id, id));
+}
+
+export async function deleteDcfScenario(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(dcfScenarios).where(eq(dcfScenarios.id, id));
+}
+
 // ─── Danger Zone ──────────────────────────────────────────────────────────────
 /**
  * Truncate all business-data tables. Preserves: users, user_invitations.
@@ -724,6 +785,8 @@ export async function truncateAllBusinessData(): Promise<Record<string, number>>
     ["valuations_409a", valuations409a],
     ["liquidation_preferences", liquidationPreferences],
     ["audit_logs", auditLogs],
+    ["financial_projections", financialProjections],
+    ["dcf_scenarios", dcfScenarios],
   ];
   for (const [name, table] of countable) {
     try {
@@ -749,7 +812,9 @@ export async function truncateAllBusinessData(): Promise<Record<string, number>>
     esop_pool,
     funding_rounds,
     cap_table_snapshots,
-    import_logs
+    import_logs,
+    financial_projections,
+    dcf_scenarios
     RESTART IDENTITY CASCADE`);
 
   return counts;

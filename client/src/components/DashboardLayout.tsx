@@ -37,9 +37,9 @@ import {
   Camera,
   Shield,
   Droplets,
-  BadgeDollarSign,
   UserCog,
   ClipboardList,
+  Calculator,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -66,7 +66,8 @@ const menuGroups = [
     label: "Records",
     items: [
       { icon: BookOpen, label: "Share Register", path: "/register" },
-      { icon: BarChart3, label: "Projections", path: "/projections" },
+      { icon: Calculator, label: "Estimated Valuation", path: "/estimated-valuation" },
+      { icon: TrendingUp, label: "Projections & DCF", path: "/projections" },
     ],
   },
   {
@@ -75,7 +76,6 @@ const menuGroups = [
       { icon: Camera, label: "Snapshots", path: "/snapshots" },
       { icon: Shield, label: "Anti-Dilution", path: "/anti-dilution" },
       { icon: Droplets, label: "Waterfall", path: "/waterfall" },
-      { icon: BadgeDollarSign, label: "FMV Valuations", path: "/valuations" },
     ],
   },
   {
