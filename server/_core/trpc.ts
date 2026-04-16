@@ -73,3 +73,57 @@ export const ownerProcedure = t.procedure.use(
     return next({ ctx: { ...ctx, user: ctx.user } });
   }),
 );
+
+// ─── Company-Scoped Procedures ──────────────────────────────────────────────
+// Require (1) user authenticated and (2) an active company resolved in context.
+// Active company comes from `x-company-id` header (validated for membership)
+// or falls back to the user's first membership.
+
+export const companyProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    if (!ctx.companyId || !ctx.companyRole) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "No active company. Create or select a company first." });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user, companyId: ctx.companyId, companyRole: ctx.companyRole } });
+  }),
+);
+
+const COMPANY_EDITOR_ROLES = ['owner', 'admin', 'cfo'] as const;
+
+export const companyEditorProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    if (!ctx.companyId || !ctx.companyRole) throw new TRPCError({ code: "FORBIDDEN", message: "No active company." });
+    if (!(COMPANY_EDITOR_ROLES as readonly string[]).includes(ctx.companyRole)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Only Owner, Admin, and CFO in this company can modify data." });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user, companyId: ctx.companyId, companyRole: ctx.companyRole } });
+  }),
+);
+
+export const companyOwnerAdminProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    if (!ctx.companyId || !ctx.companyRole) throw new TRPCError({ code: "FORBIDDEN", message: "No active company." });
+    if (!(['owner', 'admin'] as string[]).includes(ctx.companyRole)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Only Owner and Admin can manage team members." });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user, companyId: ctx.companyId, companyRole: ctx.companyRole } });
+  }),
+);
+
+export const companyOwnerProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+    if (!ctx.companyId || !ctx.companyRole) throw new TRPCError({ code: "FORBIDDEN", message: "No active company." });
+    if (ctx.companyRole !== 'owner') {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Only the Owner of this company can perform this action." });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user, companyId: ctx.companyId, companyRole: ctx.companyRole } });
+  }),
+);

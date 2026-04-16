@@ -8,7 +8,7 @@ import { createContext } from "./context";
 import multer from "multer";
 import { importExcelFile } from "../excel-import";
 import { storagePut } from "../storage";
-import { getUserByOpenId } from "../db";
+import { getUserByOpenId, getUserCompanyMemberships, resolveCompanyMembership } from "../db";
 
 async function startServer() {
   const app = express();
@@ -27,7 +27,22 @@ async function startServer() {
       const auth = (req as any).auth;
       if (!auth?.userId) { res.status(401).json({ error: "Unauthorized" }); return; }
       if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
-      const result = await importExcelFile(req.file.buffer, req.file.originalname);
+      const user = await getUserByOpenId(auth.userId);
+      if (!user) { res.status(401).json({ error: "User not found" }); return; }
+      // Resolve active company: x-company-id header (validated) OR first membership
+      const headerValue = (req.headers["x-company-id"] ?? req.headers["X-Company-Id"]) as string | undefined;
+      const requestedCompanyId = headerValue ? parseInt(String(headerValue), 10) : NaN;
+      let companyId: number | null = null;
+      if (!Number.isNaN(requestedCompanyId) && requestedCompanyId > 0) {
+        const m = await resolveCompanyMembership(user.id, requestedCompanyId);
+        if (m) companyId = m.companyId;
+      }
+      if (!companyId) {
+        const memberships = await getUserCompanyMemberships(user.id);
+        if (memberships.length > 0) companyId = memberships[0].companyId;
+      }
+      if (!companyId) { res.status(403).json({ error: "No active company" }); return; }
+      const result = await importExcelFile(req.file.buffer, req.file.originalname, companyId);
       res.json(result);
     } catch (error) {
       console.error("Import error:", error);

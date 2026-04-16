@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SignIn } from "@clerk/clerk-react";
+import { CompanySwitcher } from "./CompanySwitcher";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -206,8 +207,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
       <div className="relative" ref={sidebarRef}>
         <Sidebar collapsible="icon" className="border-r-0" disableTransition={isResizing}>
           {/* Sidebar Header */}
-          <SidebarHeader className="h-16 justify-center border-b border-sidebar-border">
-            <div className="flex items-center gap-2 px-3 w-full">
+          <SidebarHeader className="border-b border-sidebar-border">
+            <div className="h-16 flex items-center gap-2 px-3 w-full">
               <button
                 onClick={toggleSidebar}
                 className="h-8 w-8 flex items-center justify-center hover:bg-sidebar-accent rounded transition-colors focus:outline-none shrink-0"
@@ -231,6 +232,10 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   className="h-6 w-auto object-contain"
                 />
               )}
+            </div>
+            {/* Company Switcher */}
+            <div className={`${isCollapsed ? "px-2 pb-2 flex justify-center" : "px-2 pb-2"}`}>
+              <CompanySwitcher collapsed={isCollapsed} />
             </div>
           </SidebarHeader>
 

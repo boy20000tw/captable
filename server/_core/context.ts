@@ -1,18 +1,26 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
 import { clerkClient } from "@clerk/express";
-import { getUserByOpenId, upsertUser } from "../db";
+import { getUserByOpenId, upsertUser, getUserCompanyMemberships, resolveCompanyMembership } from "../db";
+
+export type CompanyMemberRole = "owner" | "admin" | "cfo" | "lawyer" | "investor" | "viewer";
 
 export type TrpcContext = {
     req: CreateExpressContextOptions["req"];
     res: CreateExpressContextOptions["res"];
     user: User | null;
+    // Active company context — set if user sent x-company-id header AND is a member,
+    // or defaults to user's first company membership. null if no membership.
+    companyId: number | null;
+    companyRole: CompanyMemberRole | null;
 };
 
 export async function createContext(
     opts: CreateExpressContextOptions
   ): Promise<TrpcContext> {
     let user: User | null = null;
+    let companyId: number | null = null;
+    let companyRole: CompanyMemberRole | null = null;
 
   try {
         // Clerk adds auth info to the request via middleware
@@ -49,5 +57,31 @@ export async function createContext(
         user = null;
   }
 
-  return { req: opts.req, res: opts.res, user };
+  // Resolve active company: x-company-id header (validated) OR user's first membership
+  if (user) {
+    try {
+      const headerValue = (opts.req.headers["x-company-id"] ?? opts.req.headers["X-Company-Id"]) as string | undefined;
+      const requestedCompanyId = headerValue ? parseInt(String(headerValue), 10) : NaN;
+
+      if (!Number.isNaN(requestedCompanyId) && requestedCompanyId > 0) {
+        const membership = await resolveCompanyMembership(user.id, requestedCompanyId);
+        if (membership) {
+          companyId = membership.companyId;
+          companyRole = membership.role as CompanyMemberRole;
+        }
+      }
+
+      if (!companyId) {
+        const memberships = await getUserCompanyMemberships(user.id);
+        if (memberships.length > 0) {
+          companyId = memberships[0].companyId;
+          companyRole = memberships[0].role as CompanyMemberRole;
+        }
+      }
+    } catch (error) {
+      console.error("[Context] Company resolution error:", error);
+    }
+  }
+
+  return { req: opts.req, res: opts.res, user, companyId, companyRole };
 }

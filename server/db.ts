@@ -3,6 +3,8 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import {
   InsertUser, users,
+  companies, InsertCompany, Company,
+  companyMembers, InsertCompanyMember, CompanyMember,
   shareholders, InsertShareholder,
   fundingRounds, InsertFundingRound,
   shareHoldings, InsertShareHolding,
@@ -35,6 +37,101 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+// ─── Companies ──────────────────────────────────────────────────────────────
+export async function getCompanyById(id: number): Promise<Company | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(companies).where(eq(companies.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function createCompany(data: InsertCompany): Promise<Company> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(companies).values(data).returning();
+  return result[0];
+}
+
+export async function updateCompany(id: number, data: Partial<InsertCompany>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(companies).set({ ...data, updatedAt: new Date() }).where(eq(companies.id, id));
+}
+
+// ─── Company Members ────────────────────────────────────────────────────────
+export async function getUserCompanyMemberships(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: companyMembers.id,
+    companyId: companyMembers.companyId,
+    userId: companyMembers.userId,
+    role: companyMembers.role,
+    createdAt: companyMembers.createdAt,
+    companyName: companies.name,
+    companySlug: companies.slug,
+  })
+    .from(companyMembers)
+    .leftJoin(companies, eq(companyMembers.companyId, companies.id))
+    .where(eq(companyMembers.userId, userId))
+    .orderBy(asc(companyMembers.createdAt));
+}
+
+export async function resolveCompanyMembership(userId: number, companyId: number): Promise<CompanyMember | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(companyMembers)
+    .where(and(eq(companyMembers.userId, userId), eq(companyMembers.companyId, companyId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listCompanyMembers(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: companyMembers.id,
+    companyId: companyMembers.companyId,
+    userId: companyMembers.userId,
+    role: companyMembers.role,
+    createdAt: companyMembers.createdAt,
+    userName: users.name,
+    userEmail: users.email,
+  })
+    .from(companyMembers)
+    .leftJoin(users, eq(companyMembers.userId, users.id))
+    .where(eq(companyMembers.companyId, companyId))
+    .orderBy(asc(companyMembers.createdAt));
+}
+
+export async function addCompanyMember(data: InsertCompanyMember): Promise<CompanyMember> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Avoid duplicate membership
+  const existing = await resolveCompanyMembership(data.userId, data.companyId);
+  if (existing) return existing;
+  const result = await db.insert(companyMembers).values(data).returning();
+  return result[0];
+}
+
+export async function updateCompanyMemberRole(
+  companyId: number,
+  userId: number,
+  role: "owner" | "admin" | "cfo" | "lawyer" | "investor" | "viewer"
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(companyMembers).set({ role })
+    .where(and(eq(companyMembers.companyId, companyId), eq(companyMembers.userId, userId)));
+}
+
+export async function removeCompanyMember(companyId: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(companyMembers)
+    .where(and(eq(companyMembers.companyId, companyId), eq(companyMembers.userId, userId)));
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -74,16 +171,20 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // ─── Shareholders ─────────────────────────────────────────────────────────────
-export async function getAllShareholders() {
+export async function getAllShareholders(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(shareholders).orderBy(asc(shareholders.id));
+  return db.select().from(shareholders)
+    .where(eq(shareholders.companyId, companyId))
+    .orderBy(asc(shareholders.id));
 }
 
-export async function getShareholderById(id: number) {
+export async function getShareholderById(companyId: number, id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(shareholders).where(eq(shareholders.id, id)).limit(1);
+  const result = await db.select().from(shareholders)
+    .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)))
+    .limit(1);
   return result[0];
 }
 
@@ -97,31 +198,35 @@ export async function createShareholder(data: InsertShareholder) {
   return rows[0];
 }
 
-export async function updateShareholder(id: number, data: Partial<InsertShareholder>) {
+export async function updateShareholder(companyId: number, id: number, data: Partial<InsertShareholder>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(shareholders).set(data).where(eq(shareholders.id, id));
+  return db.update(shareholders).set(data)
+    .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)));
 }
 
-export async function deleteShareholder(id: number) {
+export async function deleteShareholder(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(shareholders).where(eq(shareholders.id, id));
+  return db.delete(shareholders)
+    .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)));
 }
 
 // ─── Funding Rounds ───────────────────────────────────────────────────────────
-export async function getAllFundingRounds() {
+export async function getAllFundingRounds(companyId: number) {
   const db = await getDb();
   if (!db) return [];
 
-  // Get all rounds ordered by date
-  const rounds = await db.select().from(fundingRounds).orderBy(
-    asc(fundingRounds.roundDate),
-    asc(fundingRounds.sortOrder),
-    asc(fundingRounds.id)
-  );
+  // Get all rounds for this company, ordered by date
+  const rounds = await db.select().from(fundingRounds)
+    .where(eq(fundingRounds.companyId, companyId))
+    .orderBy(
+      asc(fundingRounds.roundDate),
+      asc(fundingRounds.sortOrder),
+      asc(fundingRounds.id)
+    );
 
-  // Aggregate shares issued per round from shareTransactions (issuance type only)
+  // Aggregate shares issued per round from shareTransactions (issuance type only) for this company
   const txAgg = await db
     .select({
       fundingRoundId: shareTransactions.fundingRoundId,
@@ -129,7 +234,10 @@ export async function getAllFundingRounds() {
       totalInvestedNtd: sql<string>`COALESCE(SUM(${shareTransactions.totalAmountNtd}), 0)`,
     })
     .from(shareTransactions)
-    .where(eq(shareTransactions.transactionType, "issuance"))
+    .where(and(
+      eq(shareTransactions.transactionType, "issuance"),
+      eq(shareTransactions.companyId, companyId),
+    ))
     .groupBy(shareTransactions.fundingRoundId);
 
   const txMap = new Map(txAgg.map(t => [t.fundingRoundId, t]));
@@ -180,10 +288,12 @@ export async function getAllFundingRounds() {
   });
 }
 
-export async function getFundingRoundById(id: number) {
+export async function getFundingRoundById(companyId: number, id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(fundingRounds).where(eq(fundingRounds.id, id)).limit(1);
+  const result = await db.select().from(fundingRounds)
+    .where(and(eq(fundingRounds.id, id), eq(fundingRounds.companyId, companyId)))
+    .limit(1);
   return result[0];
 }
 
@@ -193,29 +303,39 @@ export async function createFundingRound(data: InsertFundingRound) {
   return db.insert(fundingRounds).values(data);
 }
 
-export async function updateFundingRound(id: number, data: Partial<InsertFundingRound>) {
+export async function updateFundingRound(companyId: number, id: number, data: Partial<InsertFundingRound>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(fundingRounds).set(data).where(eq(fundingRounds.id, id));
+  return db.update(fundingRounds).set(data)
+    .where(and(eq(fundingRounds.id, id), eq(fundingRounds.companyId, companyId)));
 }
 
-export async function deleteFundingRound(id: number) {
+export async function deleteFundingRound(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(fundingRounds).where(eq(fundingRounds.id, id));
+  return db.delete(fundingRounds)
+    .where(and(eq(fundingRounds.id, id), eq(fundingRounds.companyId, companyId)));
 }
 
 // ─── Share Holdings ───────────────────────────────────────────────────────────
-export async function getShareHoldingsByRound(fundingRoundId: number) {
+export async function getShareHoldingsByRound(companyId: number, fundingRoundId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(shareHoldings).where(eq(shareHoldings.fundingRoundId, fundingRoundId));
+  return db.select().from(shareHoldings)
+    .where(and(
+      eq(shareHoldings.fundingRoundId, fundingRoundId),
+      eq(shareHoldings.companyId, companyId),
+    ));
 }
 
-export async function getShareHoldingsByShareholder(shareholderId: number) {
+export async function getShareHoldingsByShareholder(companyId: number, shareholderId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(shareHoldings).where(eq(shareHoldings.shareholderId, shareholderId));
+  return db.select().from(shareHoldings)
+    .where(and(
+      eq(shareHoldings.shareholderId, shareholderId),
+      eq(shareHoldings.companyId, companyId),
+    ));
 }
 
 export async function upsertShareHolding(data: InsertShareHolding) {
@@ -224,36 +344,44 @@ export async function upsertShareHolding(data: InsertShareHolding) {
   return db.insert(shareHoldings).values(data);
 }
 
-export async function updateShareHolding(id: number, data: Partial<InsertShareHolding>) {
+export async function updateShareHolding(companyId: number, id: number, data: Partial<InsertShareHolding>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(shareHoldings).set(data).where(eq(shareHoldings.id, id));
+  return db.update(shareHoldings).set(data)
+    .where(and(eq(shareHoldings.id, id), eq(shareHoldings.companyId, companyId)));
 }
 
-export async function deleteShareHolding(id: number) {
+export async function deleteShareHolding(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(shareHoldings).where(eq(shareHoldings.id, id));
+  return db.delete(shareHoldings)
+    .where(and(eq(shareHoldings.id, id), eq(shareHoldings.companyId, companyId)));
 }
 
-export async function getAllShareHoldings() {
+export async function getAllShareHoldings(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(shareHoldings);
+  return db.select().from(shareHoldings)
+    .where(eq(shareHoldings.companyId, companyId));
 }
 
 // ─── Share Transactions ───────────────────────────────────────────────────────
-export async function getAllTransactions() {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(shareTransactions).orderBy(desc(shareTransactions.transactionDate));
-}
-
-export async function getTransactionsByShareholder(shareholderId: number) {
+export async function getAllTransactions(companyId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(shareTransactions)
-    .where(eq(shareTransactions.shareholderId, shareholderId))
+    .where(eq(shareTransactions.companyId, companyId))
+    .orderBy(desc(shareTransactions.transactionDate));
+}
+
+export async function getTransactionsByShareholder(companyId: number, shareholderId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(shareTransactions)
+    .where(and(
+      eq(shareTransactions.shareholderId, shareholderId),
+      eq(shareTransactions.companyId, companyId),
+    ))
     .orderBy(desc(shareTransactions.transactionDate));
 }
 
@@ -263,23 +391,27 @@ export async function createTransaction(data: InsertShareTransaction) {
   return db.insert(shareTransactions).values(data);
 }
 
-export async function updateTransaction(id: number, data: Partial<InsertShareTransaction>) {
+export async function updateTransaction(companyId: number, id: number, data: Partial<InsertShareTransaction>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(shareTransactions).set(data).where(eq(shareTransactions.id, id));
+  return db.update(shareTransactions).set(data)
+    .where(and(eq(shareTransactions.id, id), eq(shareTransactions.companyId, companyId)));
 }
 
-export async function deleteTransaction(id: number) {
+export async function deleteTransaction(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(shareTransactions).where(eq(shareTransactions.id, id));
+  return db.delete(shareTransactions)
+    .where(and(eq(shareTransactions.id, id), eq(shareTransactions.companyId, companyId)));
 }
 
 // ─── ESOP Pool ────────────────────────────────────────────────────────────────
-export async function getAllEsopPools() {
+export async function getAllEsopPools(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(esopPool).orderBy(desc(esopPool.createdAt));
+  return db.select().from(esopPool)
+    .where(eq(esopPool.companyId, companyId))
+    .orderBy(desc(esopPool.createdAt));
 }
 
 export async function createEsopPool(data: InsertEsopPool) {
@@ -288,23 +420,30 @@ export async function createEsopPool(data: InsertEsopPool) {
   return db.insert(esopPool).values(data);
 }
 
-export async function updateEsopPool(id: number, data: Partial<InsertEsopPool>) {
+export async function updateEsopPool(companyId: number, id: number, data: Partial<InsertEsopPool>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(esopPool).set(data).where(eq(esopPool.id, id));
+  return db.update(esopPool).set(data)
+    .where(and(eq(esopPool.id, id), eq(esopPool.companyId, companyId)));
 }
 
 // ─── ESOP Grants ──────────────────────────────────────────────────────────────
-export async function getGrantsByPool(poolId: number) {
+export async function getGrantsByPool(companyId: number, poolId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(esopGrants).where(eq(esopGrants.esopPoolId, poolId));
+  return db.select().from(esopGrants)
+    .where(and(
+      eq(esopGrants.esopPoolId, poolId),
+      eq(esopGrants.companyId, companyId),
+    ));
 }
 
-export async function getAllGrants() {
+export async function getAllGrants(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(esopGrants).orderBy(desc(esopGrants.grantDate));
+  return db.select().from(esopGrants)
+    .where(eq(esopGrants.companyId, companyId))
+    .orderBy(desc(esopGrants.grantDate));
 }
 
 export async function createGrant(data: InsertEsopGrant) {
@@ -313,23 +452,27 @@ export async function createGrant(data: InsertEsopGrant) {
   return db.insert(esopGrants).values(data);
 }
 
-export async function updateGrant(id: number, data: Partial<InsertEsopGrant>) {
+export async function updateGrant(companyId: number, id: number, data: Partial<InsertEsopGrant>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(esopGrants).set(data).where(eq(esopGrants.id, id));
+  return db.update(esopGrants).set(data)
+    .where(and(eq(esopGrants.id, id), eq(esopGrants.companyId, companyId)));
 }
 
-export async function deleteGrant(id: number) {
+export async function deleteGrant(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(esopGrants).where(eq(esopGrants.id, id));
+  return db.delete(esopGrants)
+    .where(and(eq(esopGrants.id, id), eq(esopGrants.companyId, companyId)));
 }
 
 // ─── Valuation Projections ────────────────────────────────────────────────────
-export async function getAllProjections() {
+export async function getAllProjections(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(valuationProjections).orderBy(asc(valuationProjections.projectionDate));
+  return db.select().from(valuationProjections)
+    .where(eq(valuationProjections.companyId, companyId))
+    .orderBy(asc(valuationProjections.projectionDate));
 }
 
 export async function createProjection(data: InsertValuationProjection) {
@@ -338,16 +481,18 @@ export async function createProjection(data: InsertValuationProjection) {
   return db.insert(valuationProjections).values(data);
 }
 
-export async function updateProjection(id: number, data: Partial<InsertValuationProjection>) {
+export async function updateProjection(companyId: number, id: number, data: Partial<InsertValuationProjection>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(valuationProjections).set(data).where(eq(valuationProjections.id, id));
+  return db.update(valuationProjections).set(data)
+    .where(and(eq(valuationProjections.id, id), eq(valuationProjections.companyId, companyId)));
 }
 
-export async function deleteProjection(id: number) {
+export async function deleteProjection(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(valuationProjections).where(eq(valuationProjections.id, id));
+  return db.delete(valuationProjections)
+    .where(and(eq(valuationProjections.id, id), eq(valuationProjections.companyId, companyId)));
 }
 
 // ─── Import Logs ──────────────────────────────────────────────────────────────
@@ -358,29 +503,36 @@ export async function createImportLog(data: InsertImportLog) {
   return result;
 }
 
-export async function updateImportLog(id: number, data: Partial<InsertImportLog>) {
+export async function updateImportLog(companyId: number, id: number, data: Partial<InsertImportLog>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(importLogs).set(data).where(eq(importLogs.id, id));
+  return db.update(importLogs).set(data)
+    .where(and(eq(importLogs.id, id), eq(importLogs.companyId, companyId)));
 }
 
-export async function getAllImportLogs() {
+export async function getAllImportLogs(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(importLogs).orderBy(desc(importLogs.createdAt));
+  return db.select().from(importLogs)
+    .where(eq(importLogs.companyId, companyId))
+    .orderBy(desc(importLogs.createdAt));
 }
 
 // ─── Cap Table Snapshots ──────────────────────────────────────────────────────
-export async function getAllSnapshots() {
+export async function getAllSnapshots(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(capTableSnapshots).orderBy(desc(capTableSnapshots.snapshotDate));
+  return db.select().from(capTableSnapshots)
+    .where(eq(capTableSnapshots.companyId, companyId))
+    .orderBy(desc(capTableSnapshots.snapshotDate));
 }
 
-export async function getSnapshotById(id: number) {
+export async function getSnapshotById(companyId: number, id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(capTableSnapshots).where(eq(capTableSnapshots.id, id)).limit(1);
+  const result = await db.select().from(capTableSnapshots)
+    .where(and(eq(capTableSnapshots.id, id), eq(capTableSnapshots.companyId, companyId)))
+    .limit(1);
   return result[0];
 }
 
@@ -391,23 +543,30 @@ export async function createSnapshot(data: InsertCapTableSnapshot) {
   return result;
 }
 
-export async function deleteSnapshot(id: number) {
+export async function deleteSnapshot(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(capTableSnapshots).where(eq(capTableSnapshots.id, id));
+  return db.delete(capTableSnapshots)
+    .where(and(eq(capTableSnapshots.id, id), eq(capTableSnapshots.companyId, companyId)));
 }
 
 // ─── Anti-Dilution Provisions ─────────────────────────────────────────────────
-export async function getAllAntiDilutionProvisions() {
+export async function getAllAntiDilutionProvisions(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(antiDilutionProvisions).orderBy(desc(antiDilutionProvisions.createdAt));
+  return db.select().from(antiDilutionProvisions)
+    .where(eq(antiDilutionProvisions.companyId, companyId))
+    .orderBy(desc(antiDilutionProvisions.createdAt));
 }
 
-export async function getProvisionsByShareholder(shareholderId: number) {
+export async function getProvisionsByShareholder(companyId: number, shareholderId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(antiDilutionProvisions).where(eq(antiDilutionProvisions.shareholderId, shareholderId));
+  return db.select().from(antiDilutionProvisions)
+    .where(and(
+      eq(antiDilutionProvisions.shareholderId, shareholderId),
+      eq(antiDilutionProvisions.companyId, companyId),
+    ));
 }
 
 export async function createAntiDilutionProvision(data: InsertAntiDilutionProvision) {
@@ -416,29 +575,38 @@ export async function createAntiDilutionProvision(data: InsertAntiDilutionProvis
   return db.insert(antiDilutionProvisions).values(data);
 }
 
-export async function updateAntiDilutionProvision(id: number, data: Partial<InsertAntiDilutionProvision>) {
+export async function updateAntiDilutionProvision(companyId: number, id: number, data: Partial<InsertAntiDilutionProvision>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(antiDilutionProvisions).set(data).where(eq(antiDilutionProvisions.id, id));
+  return db.update(antiDilutionProvisions).set(data)
+    .where(and(eq(antiDilutionProvisions.id, id), eq(antiDilutionProvisions.companyId, companyId)));
 }
 
-export async function deleteAntiDilutionProvision(id: number) {
+export async function deleteAntiDilutionProvision(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(antiDilutionProvisions).where(eq(antiDilutionProvisions.id, id));
+  return db.delete(antiDilutionProvisions)
+    .where(and(eq(antiDilutionProvisions.id, id), eq(antiDilutionProvisions.companyId, companyId)));
 }
 
 // ─── Shareholder Documents ─────────────────────────────────────────────────────
-export async function getAllShareholderDocuments() {
+export async function getAllShareholderDocuments(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(shareholderDocuments).orderBy(asc(shareholderDocuments.shareholderId), asc(shareholderDocuments.documentType));
+  return db.select().from(shareholderDocuments)
+    .where(eq(shareholderDocuments.companyId, companyId))
+    .orderBy(asc(shareholderDocuments.shareholderId), asc(shareholderDocuments.documentType));
 }
 
-export async function getDocumentsByShareholder(shareholderId: number) {
+export async function getDocumentsByShareholder(companyId: number, shareholderId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(shareholderDocuments).where(eq(shareholderDocuments.shareholderId, shareholderId)).orderBy(asc(shareholderDocuments.documentType));
+  return db.select().from(shareholderDocuments)
+    .where(and(
+      eq(shareholderDocuments.shareholderId, shareholderId),
+      eq(shareholderDocuments.companyId, companyId),
+    ))
+    .orderBy(asc(shareholderDocuments.documentType));
 }
 
 export async function createShareholderDocument(data: InsertShareholderDocument) {
@@ -447,21 +615,23 @@ export async function createShareholderDocument(data: InsertShareholderDocument)
   return db.insert(shareholderDocuments).values(data);
 }
 
-export async function updateShareholderDocument(id: number, data: Partial<InsertShareholderDocument>) {
+export async function updateShareholderDocument(companyId: number, id: number, data: Partial<InsertShareholderDocument>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(shareholderDocuments).set(data).where(eq(shareholderDocuments.id, id));
+  return db.update(shareholderDocuments).set(data)
+    .where(and(eq(shareholderDocuments.id, id), eq(shareholderDocuments.companyId, companyId)));
 }
 
-export async function deleteShareholderDocument(id: number) {
+export async function deleteShareholderDocument(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.delete(shareholderDocuments).where(eq(shareholderDocuments.id, id));
+  return db.delete(shareholderDocuments)
+    .where(and(eq(shareholderDocuments.id, id), eq(shareholderDocuments.companyId, companyId)));
 }
 
 // ─── Compliance Queries ────────────────────────────────────────────────────────
 // Get all share transactions with lockUpEndDate in the future (for lock-up countdown)
-export async function getUpcomingLockupExpirations(daysAhead = 180) {
+export async function getUpcomingLockupExpirations(companyId: number, daysAhead = 180) {
   const db = await getDb();
   if (!db) return [];
   const cutoff = new Date();
@@ -471,6 +641,7 @@ export async function getUpcomingLockupExpirations(daysAhead = 180) {
   return db.select().from(shareTransactions)
     .where(
       and(
+        eq(shareTransactions.companyId, companyId),
         sql`${shareTransactions.lockUpEndDate} >= ${today}`,
         sql`${shareTransactions.lockUpEndDate} <= ${cutoffStr}`
       )
@@ -479,12 +650,13 @@ export async function getUpcomingLockupExpirations(daysAhead = 180) {
 }
 
 // Get all share transactions with taxDeductionYear set (for tax expiry tracking)
-export async function getTaxDeductionInfo() {
+export async function getTaxDeductionInfo(companyId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(shareTransactions)
     .where(
       and(
+        eq(shareTransactions.companyId, companyId),
         isNotNull(shareTransactions.taxDeductionYear),
         eq(shareTransactions.taxQualified, true)
       )
@@ -493,12 +665,12 @@ export async function getTaxDeductionInfo() {
 }
 
 // ─── 409A Valuations ─────────────────────────────────────────────────────────
-// (valuations409a, liquidationPreferences already imported above via schema)
-
-export async function getAll409aValuations() {
+export async function getAll409aValuations(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(valuations409a).orderBy(asc(valuations409a.valuationDate));
+  return db.select().from(valuations409a)
+    .where(eq(valuations409a.companyId, companyId))
+    .orderBy(asc(valuations409a.valuationDate));
 }
 
 export async function create409aValuation(data: InsertValuation409a) {
@@ -508,28 +680,35 @@ export async function create409aValuation(data: InsertValuation409a) {
   return result[0];
 }
 
-export async function update409aValuation(id: number, data: Partial<InsertValuation409a>) {
+export async function update409aValuation(companyId: number, id: number, data: Partial<InsertValuation409a>) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(valuations409a).set(data).where(eq(valuations409a.id, id));
+  await db.update(valuations409a).set(data)
+    .where(and(eq(valuations409a.id, id), eq(valuations409a.companyId, companyId)));
 }
 
-export async function delete409aValuation(id: number) {
+export async function delete409aValuation(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(valuations409a).where(eq(valuations409a.id, id));
+  await db.delete(valuations409a)
+    .where(and(eq(valuations409a.id, id), eq(valuations409a.companyId, companyId)));
 }
 
 // ─── Liquidation Preferences ─────────────────────────────────────────────────
-export async function getLiquidationPreferences() {
+export async function getLiquidationPreferences(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(liquidationPreferences).orderBy(asc(liquidationPreferences.seniorityRank));
+  return db.select().from(liquidationPreferences)
+    .where(eq(liquidationPreferences.companyId, companyId))
+    .orderBy(asc(liquidationPreferences.seniorityRank));
 }
 
 export async function upsertLiquidationPreference(data: InsertLiquidationPreference) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  // NOTE: The unique key is on fundingRoundId alone (table-level unique). Since
+  // each fundingRound is already scoped to a single company, this is fine —
+  // a fundingRoundId implicitly identifies the company.
   await db.insert(liquidationPreferences).values(data).onConflictDoUpdate({
     target: liquidationPreferences.fundingRoundId,
     set: {
@@ -543,15 +722,19 @@ export async function upsertLiquidationPreference(data: InsertLiquidationPrefere
 }
 
 // ─── Waterfall Calculation ────────────────────────────────────────────────────
-export async function computeWaterfall(exitValueNtd: number) {
+export async function computeWaterfall(companyId: number, exitValueNtd: number) {
   const db = await getDb();
   if (!db) return { tranches: [], common: [], totalDistributed: 0 };
 
-  // Get all funding rounds with their holdings and preferences
-  const rounds = await db.select().from(fundingRounds).orderBy(asc(fundingRounds.sortOrder));
-  const prefs = await getLiquidationPreferences();
-  const allHoldings = await db.select().from(shareHoldings);
-  const allShareholders = await db.select().from(shareholders);
+  // Get all funding rounds with their holdings and preferences (scoped to company)
+  const rounds = await db.select().from(fundingRounds)
+    .where(eq(fundingRounds.companyId, companyId))
+    .orderBy(asc(fundingRounds.sortOrder));
+  const prefs = await getLiquidationPreferences(companyId);
+  const allHoldings = await db.select().from(shareHoldings)
+    .where(eq(shareHoldings.companyId, companyId));
+  const allShareholders = await db.select().from(shareholders)
+    .where(eq(shareholders.companyId, companyId));
 
   const prefMap = new Map(prefs.map(p => [p.fundingRoundId, p]));
 
@@ -640,10 +823,12 @@ export async function updateUserAppRole(id: number, appRole: "owner" | "admin" |
 }
 
 // ─── User Invitations ─────────────────────────────────────────────────────────
-export async function getAllInvitations() {
+export async function getAllInvitations(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(userInvitations).orderBy(desc(userInvitations.createdAt));
+  return db.select().from(userInvitations)
+    .where(eq(userInvitations.companyId, companyId))
+    .orderBy(desc(userInvitations.createdAt));
 }
 
 export async function createInvitation(data: InsertUserInvitation) {
@@ -654,6 +839,8 @@ export async function createInvitation(data: InsertUserInvitation) {
   return rows[0];
 }
 
+// Token-based lookup is global (an invitation token is unique across the app
+// and the accept flow runs before the user is in any company context).
 export async function getInvitationByToken(token: string) {
   const db = await getDb();
   if (!db) return null;
@@ -661,6 +848,8 @@ export async function getInvitationByToken(token: string) {
   return rows[0] ?? null;
 }
 
+// Invitation status updates happen by id (also during accept flow before any
+// company context is established) — not scoped by companyId.
 export async function updateInvitationStatus(id: number, status: "pending" | "accepted" | "revoked" | "expired", acceptedByUserId?: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -679,17 +868,23 @@ export async function createAuditLog(data: InsertAuditLog) {
   await db.insert(auditLogs).values(data);
 }
 
-export async function getAuditLogs(limit = 100, offset = 0) {
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit).offset(offset);
-}
-
-export async function getAuditLogsByResource(resourceType: string, resourceId: number) {
+export async function getAuditLogs(companyId: number, limit = 100, offset = 0) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(auditLogs)
-    .where(and(eq(auditLogs.resourceType, resourceType), eq(auditLogs.resourceId, resourceId)))
+    .where(eq(auditLogs.companyId, companyId))
+    .orderBy(desc(auditLogs.createdAt)).limit(limit).offset(offset);
+}
+
+export async function getAuditLogsByResource(companyId: number, resourceType: string, resourceId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(auditLogs)
+    .where(and(
+      eq(auditLogs.companyId, companyId),
+      eq(auditLogs.resourceType, resourceType),
+      eq(auditLogs.resourceId, resourceId),
+    ))
     .orderBy(desc(auditLogs.createdAt));
 }
 
@@ -700,16 +895,20 @@ export async function deleteUserById(userId: number): Promise<void> {
 }
 
 // ─── Financial Projections (5-Year) ─────────────────────────────────────────
-export async function getAllFinancialProjections() {
+export async function getAllFinancialProjections(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(financialProjections).orderBy(desc(financialProjections.createdAt));
+  return db.select().from(financialProjections)
+    .where(eq(financialProjections.companyId, companyId))
+    .orderBy(desc(financialProjections.createdAt));
 }
 
-export async function getFinancialProjectionById(id: number) {
+export async function getFinancialProjectionById(companyId: number, id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(financialProjections).where(eq(financialProjections.id, id)).limit(1);
+  const result = await db.select().from(financialProjections)
+    .where(and(eq(financialProjections.id, id), eq(financialProjections.companyId, companyId)))
+    .limit(1);
   return result[0];
 }
 
@@ -720,23 +919,29 @@ export async function createFinancialProjection(data: InsertFinancialProjection)
   return result[0];
 }
 
-export async function updateFinancialProjection(id: number, data: Partial<InsertFinancialProjection>) {
+export async function updateFinancialProjection(companyId: number, id: number, data: Partial<InsertFinancialProjection>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(financialProjections).set({ ...data, updatedAt: new Date() }).where(eq(financialProjections.id, id));
+  await db.update(financialProjections).set({ ...data, updatedAt: new Date() })
+    .where(and(eq(financialProjections.id, id), eq(financialProjections.companyId, companyId)));
 }
 
-export async function deleteFinancialProjection(id: number) {
+export async function deleteFinancialProjection(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.delete(financialProjections).where(eq(financialProjections.id, id));
+  await db.delete(financialProjections)
+    .where(and(eq(financialProjections.id, id), eq(financialProjections.companyId, companyId)));
 }
 
 // ─── DCF Scenarios ──────────────────────────────────────────────────────────
-export async function getDcfScenariosByProjection(projectionId: number) {
+export async function getDcfScenariosByProjection(companyId: number, projectionId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(dcfScenarios).where(eq(dcfScenarios.projectionId, projectionId));
+  return db.select().from(dcfScenarios)
+    .where(and(
+      eq(dcfScenarios.projectionId, projectionId),
+      eq(dcfScenarios.companyId, companyId),
+    ));
 }
 
 export async function createDcfScenario(data: InsertDcfScenario) {
@@ -746,76 +951,80 @@ export async function createDcfScenario(data: InsertDcfScenario) {
   return result[0];
 }
 
-export async function updateDcfScenario(id: number, data: Partial<InsertDcfScenario>) {
+export async function updateDcfScenario(companyId: number, id: number, data: Partial<InsertDcfScenario>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(dcfScenarios).set(data).where(eq(dcfScenarios.id, id));
+  await db.update(dcfScenarios).set(data)
+    .where(and(eq(dcfScenarios.id, id), eq(dcfScenarios.companyId, companyId)));
 }
 
-export async function deleteDcfScenario(id: number) {
+export async function deleteDcfScenario(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.delete(dcfScenarios).where(eq(dcfScenarios.id, id));
+  await db.delete(dcfScenarios)
+    .where(and(eq(dcfScenarios.id, id), eq(dcfScenarios.companyId, companyId)));
 }
 
 // ─── Danger Zone ──────────────────────────────────────────────────────────────
 /**
- * Truncate all business-data tables. Preserves: users, user_invitations.
- * Resets auto-increment sequences. Cascades through FKs.
+ * Delete all business-data rows belonging to a single company. Preserves: users,
+ * companies, company_members. Token-based invitations to this company are also
+ * deleted. Uses scoped DELETE statements (TRUNCATE can't filter by companyId).
  * Returns table-name -> row count deleted (best effort).
  */
-export async function truncateAllBusinessData(): Promise<Record<string, number>> {
+export async function truncateAllBusinessData(companyId: number): Promise<Record<string, number>> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   // Gather counts first (for audit + response)
   const counts: Record<string, number> = {};
-  const countable: Array<[string, any]> = [
-    ["shareholders", shareholders],
-    ["funding_rounds", fundingRounds],
-    ["share_holdings", shareHoldings],
-    ["share_transactions", shareTransactions],
-    ["esop_pool", esopPool],
-    ["esop_grants", esopGrants],
-    ["valuation_projections", valuationProjections],
-    ["import_logs", importLogs],
-    ["cap_table_snapshots", capTableSnapshots],
-    ["anti_dilution_provisions", antiDilutionProvisions],
-    ["shareholder_documents", shareholderDocuments],
-    ["valuations_409a", valuations409a],
-    ["liquidation_preferences", liquidationPreferences],
-    ["audit_logs", auditLogs],
-    ["financial_projections", financialProjections],
-    ["dcf_scenarios", dcfScenarios],
+  const countable: Array<[string, any, any]> = [
+    ["shareholders", shareholders, shareholders.companyId],
+    ["funding_rounds", fundingRounds, fundingRounds.companyId],
+    ["share_holdings", shareHoldings, shareHoldings.companyId],
+    ["share_transactions", shareTransactions, shareTransactions.companyId],
+    ["esop_pool", esopPool, esopPool.companyId],
+    ["esop_grants", esopGrants, esopGrants.companyId],
+    ["valuation_projections", valuationProjections, valuationProjections.companyId],
+    ["import_logs", importLogs, importLogs.companyId],
+    ["cap_table_snapshots", capTableSnapshots, capTableSnapshots.companyId],
+    ["anti_dilution_provisions", antiDilutionProvisions, antiDilutionProvisions.companyId],
+    ["shareholder_documents", shareholderDocuments, shareholderDocuments.companyId],
+    ["valuations_409a", valuations409a, valuations409a.companyId],
+    ["liquidation_preferences", liquidationPreferences, liquidationPreferences.companyId],
+    ["audit_logs", auditLogs, auditLogs.companyId],
+    ["financial_projections", financialProjections, financialProjections.companyId],
+    ["dcf_scenarios", dcfScenarios, dcfScenarios.companyId],
+    ["user_invitations", userInvitations, userInvitations.companyId],
   ];
-  for (const [name, table] of countable) {
+  for (const [name, table, companyIdCol] of countable) {
     try {
-      const rows = await db.select().from(table);
+      const rows = await db.select().from(table).where(eq(companyIdCol, companyId));
       counts[name] = rows.length;
     } catch {
       counts[name] = -1;
     }
   }
 
-  // TRUNCATE — single statement, CASCADE handles FKs, RESTART IDENTITY resets sequences
-  await db.execute(sql`TRUNCATE TABLE
-    audit_logs,
-    share_transactions,
-    share_holdings,
-    shareholder_documents,
-    shareholders,
-    valuation_projections,
-    valuations_409a,
-    liquidation_preferences,
-    anti_dilution_provisions,
-    esop_grants,
-    esop_pool,
-    funding_rounds,
-    cap_table_snapshots,
-    import_logs,
-    financial_projections,
-    dcf_scenarios
-    RESTART IDENTITY CASCADE`);
+  // DELETE by companyId for each table — order matters so child rows go before parents.
+  // Tables without inter-table FKs can go in any order.
+  await db.delete(auditLogs).where(eq(auditLogs.companyId, companyId));
+  await db.delete(shareTransactions).where(eq(shareTransactions.companyId, companyId));
+  await db.delete(shareHoldings).where(eq(shareHoldings.companyId, companyId));
+  await db.delete(shareholderDocuments).where(eq(shareholderDocuments.companyId, companyId));
+  await db.delete(antiDilutionProvisions).where(eq(antiDilutionProvisions.companyId, companyId));
+  await db.delete(esopGrants).where(eq(esopGrants.companyId, companyId));
+  await db.delete(esopPool).where(eq(esopPool.companyId, companyId));
+  await db.delete(liquidationPreferences).where(eq(liquidationPreferences.companyId, companyId));
+  await db.delete(valuations409a).where(eq(valuations409a.companyId, companyId));
+  await db.delete(valuationProjections).where(eq(valuationProjections.companyId, companyId));
+  await db.delete(capTableSnapshots).where(eq(capTableSnapshots.companyId, companyId));
+  await db.delete(importLogs).where(eq(importLogs.companyId, companyId));
+  await db.delete(dcfScenarios).where(eq(dcfScenarios.companyId, companyId));
+  await db.delete(financialProjections).where(eq(financialProjections.companyId, companyId));
+  await db.delete(shareholders).where(eq(shareholders.companyId, companyId));
+  await db.delete(fundingRounds).where(eq(fundingRounds.companyId, companyId));
+  await db.delete(userInvitations).where(eq(userInvitations.companyId, companyId));
 
   return counts;
 }

@@ -1,4 +1,7 @@
-import { protectedProcedure, publicProcedure, router, editorProcedure, ownerAdminProcedure, ownerProcedure } from "./_core/trpc";
+import {
+  protectedProcedure, publicProcedure, router,
+  companyProcedure, companyEditorProcedure, companyOwnerAdminProcedure, companyOwnerProcedure,
+} from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
@@ -17,20 +20,23 @@ import {
   getAll409aValuations, create409aValuation, update409aValuation, delete409aValuation,
   getLiquidationPreferences, upsertLiquidationPreference,
   computeWaterfall,
-  getAllUsers, updateUserAppRole, deleteUserById,
   getAllInvitations, createInvitation, getInvitationByToken, updateInvitationStatus,
   createAuditLog, getAuditLogs, getAuditLogsByResource,
   truncateAllBusinessData,
   getAllFinancialProjections, getFinancialProjectionById, createFinancialProjection, updateFinancialProjection, deleteFinancialProjection,
   getDcfScenariosByProjection, createDcfScenario, updateDcfScenario, deleteDcfScenario,
+  // Company-related
+  getCompanyById, createCompany, updateCompany,
+  getUserCompanyMemberships, listCompanyMembers,
+  addCompanyMember, updateCompanyMemberRole, removeCompanyMember,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 
 // ─── Shareholders Router ──────────────────────────────────────────────────────
 const shareholdersRouter = router({
-  list: protectedProcedure.query(() => getAllShareholders()),
-  get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getShareholderById(input.id)),
-  create: editorProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAllShareholders(ctx.companyId)),
+  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) => getShareholderById(ctx.companyId, input.id)),
+  create: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
     aka: z.string().optional(),
     type: z.enum(["founder","angel","seed","seed_plus","pre_a","bridge","series_a","pre_b","series_b","pre_c","series_c","esop","other"]).default("other"),
@@ -42,11 +48,11 @@ const shareholdersRouter = router({
     lockupPeriod: z.string().optional(),
     taxBenefits: z.string().optional(),
   })).mutation(async ({ input, ctx }) => {
-    const result = await createShareholder(input);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "shareholder", resourceName: input.name, changesAfter: JSON.stringify(input) });
+    const result = await createShareholder({ ...input, companyId: ctx.companyId });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "shareholder", resourceName: input.name, changesAfter: JSON.stringify(input) });
     return result;
   }),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       name: z.string().min(1).optional(),
@@ -61,22 +67,22 @@ const shareholdersRouter = router({
       taxBenefits: z.string().optional(),
     }),
   })).mutation(async ({ input, ctx }) => {
-    const result = await updateShareholder(input.id, input.data);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "shareholder", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+    const result = await updateShareholder(ctx.companyId, input.id, input.data);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "shareholder", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
     return result;
   }),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
-    const result = await deleteShareholder(input.id);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "shareholder", resourceId: input.id });
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    const result = await deleteShareholder(ctx.companyId, input.id);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "shareholder", resourceId: input.id });
     return result;
   }),
 });
 
 // ─── Funding Rounds Router ────────────────────────────────────────────────────
 const fundingRoundsRouter = router({
-  list: protectedProcedure.query(() => getAllFundingRounds()),
-  get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getFundingRoundById(input.id)),
-  create: editorProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAllFundingRounds(ctx.companyId)),
+  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) => getFundingRoundById(ctx.companyId, input.id)),
+  create: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
     roundDate: z.string().optional(),
     pricePerShareNtd: z.string().optional(),
@@ -88,11 +94,11 @@ const fundingRoundsRouter = router({
     notes: z.string().optional(),
     sortOrder: z.number().default(0),
   })).mutation(async ({ input, ctx }) => {
-    const result = await createFundingRound({ ...input, roundDate: input.roundDate ?? undefined });
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "funding_round", resourceName: input.name, changesAfter: JSON.stringify(input) });
+    const result = await createFundingRound({ ...input, companyId: ctx.companyId, roundDate: input.roundDate ?? undefined });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "funding_round", resourceName: input.name, changesAfter: JSON.stringify(input) });
     return result;
   }),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       name: z.string().min(1).optional(),
@@ -107,23 +113,23 @@ const fundingRoundsRouter = router({
       sortOrder: z.number().optional(),
     }),
   })).mutation(async ({ input, ctx }) => {
-    const result = await updateFundingRound(input.id, { ...input.data, roundDate: input.data.roundDate ?? undefined });
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "funding_round", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+    const result = await updateFundingRound(ctx.companyId, input.id, { ...input.data, roundDate: input.data.roundDate ?? undefined });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "funding_round", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
     return result;
   }),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
-    const result = await deleteFundingRound(input.id);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "funding_round", resourceId: input.id });
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    const result = await deleteFundingRound(ctx.companyId, input.id);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "funding_round", resourceId: input.id });
     return result;
   }),
 });
 
 // ─── Share Holdings Router ────────────────────────────────────────────────────
 const holdingsRouter = router({
-  all: protectedProcedure.query(() => getAllShareHoldings()),
-  byRound: protectedProcedure.input(z.object({ fundingRoundId: z.number() })).query(({ input }) => getShareHoldingsByRound(input.fundingRoundId)),
-  byShareholder: protectedProcedure.input(z.object({ shareholderId: z.number() })).query(({ input }) => getShareHoldingsByShareholder(input.shareholderId)),
-  upsert: editorProcedure.input(z.object({
+  all: companyProcedure.query(({ ctx }) => getAllShareHoldings(ctx.companyId)),
+  byRound: companyProcedure.input(z.object({ fundingRoundId: z.number() })).query(({ input, ctx }) => getShareHoldingsByRound(ctx.companyId, input.fundingRoundId)),
+  byShareholder: companyProcedure.input(z.object({ shareholderId: z.number() })).query(({ input, ctx }) => getShareHoldingsByShareholder(ctx.companyId, input.shareholderId)),
+  upsert: companyEditorProcedure.input(z.object({
     shareholderId: z.number(),
     fundingRoundId: z.number(),
     commonShares: z.number().default(0),
@@ -137,15 +143,15 @@ const holdingsRouter = router({
     ownershipPct: z.string().optional(),
     paidInCapitalNtd: z.string().optional(),
     investmentDate: z.string().optional(),
-  })).mutation(({ input }) => {
-    const data: Parameters<typeof upsertShareHolding>[0] = { ...input } as any;
+  })).mutation(({ input, ctx }) => {
+    const data: Parameters<typeof upsertShareHolding>[0] = { ...input, companyId: ctx.companyId } as any;
     if (input.investmentDate) {
       // Keep as YYYY-MM-DD string for MySQL date column (do not convert to Date object)
       data.investmentDate = input.investmentDate.slice(0, 10) as any;
     }
     return upsertShareHolding(data);
   }),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     fundingRoundId: z.number().optional(),
     commonShares: z.number().optional(),
@@ -159,23 +165,23 @@ const holdingsRouter = router({
     ownershipPct: z.string().optional(),
     paidInCapitalNtd: z.string().optional(),
     investmentDate: z.string().optional(),
-  })).mutation(({ input }) => {
+  })).mutation(({ input, ctx }) => {
     const { id, ...rest } = input;
     const data: any = { ...rest };
     if (rest.investmentDate) {
       // Keep as YYYY-MM-DD string for MySQL date column (do not convert to Date object)
       data.investmentDate = rest.investmentDate.slice(0, 10);
     }
-    return updateShareHolding(id, data);
+    return updateShareHolding(ctx.companyId, id, data);
   }),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => deleteShareHolding(input.id)),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteShareHolding(ctx.companyId, input.id)),
 });
 
 // ─── Transactions Router ──────────────────────────────────────────────────────
 const transactionsRouter = router({
-  list: protectedProcedure.query(() => getAllTransactions()),
-  byShareholder: protectedProcedure.input(z.object({ shareholderId: z.number() })).query(({ input }) => getTransactionsByShareholder(input.shareholderId)),
-  create: editorProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAllTransactions(ctx.companyId)),
+  byShareholder: companyProcedure.input(z.object({ shareholderId: z.number() })).query(({ input, ctx }) => getTransactionsByShareholder(ctx.companyId, input.shareholderId)),
+  create: companyEditorProcedure.input(z.object({
     shareholderId: z.number(),
     fundingRoundId: z.number().optional(),
     transactionDate: z.string().optional(),
@@ -190,8 +196,8 @@ const transactionsRouter = router({
     taxDeductionYear: z.number().optional(),
     taxDeductionAmountNtd: z.string().optional(),
     notes: z.string().optional(),
-  })).mutation(({ input }) => {
-    const data: any = { ...input };
+  })).mutation(({ input, ctx }) => {
+    const data: any = { ...input, companyId: ctx.companyId };
     if (input.lockUpEndDate) {
       data.lockUpEndDate = input.lockUpEndDate;
     }
@@ -200,7 +206,7 @@ const transactionsRouter = router({
     }
     return createTransaction(data);
   }),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       transactionDate: z.string().optional(),
@@ -214,7 +220,7 @@ const transactionsRouter = router({
       taxDeductionAmountNtd: z.string().optional(),
       notes: z.string().optional(),
     }),
-  })).mutation(({ input }) => {
+  })).mutation(({ input, ctx }) => {
     const data: any = { ...input.data };
     if (input.data.lockUpEndDate) {
       data.lockUpEndDate = input.data.lockUpEndDate;
@@ -222,22 +228,22 @@ const transactionsRouter = router({
     if (input.data.transactionDate) {
       data.transactionDate = input.data.transactionDate as any;
     }
-    return updateTransaction(input.id, data);
+    return updateTransaction(ctx.companyId, input.id, data);
   }),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => deleteTransaction(input.id)),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteTransaction(ctx.companyId, input.id)),
 });
 
 // ─── ESOP Router ──────────────────────────────────────────────────────────────
 const esopRouter = router({
-  pools: protectedProcedure.query(() => getAllEsopPools()),
-  createPool: protectedProcedure.input(z.object({
+  pools: companyProcedure.query(({ ctx }) => getAllEsopPools(ctx.companyId)),
+  createPool: companyEditorProcedure.input(z.object({
     fundingRoundId: z.number().optional(),
     poolName: z.string().default("ESOP Pool"),
     totalShares: z.number(),
     allocatedShares: z.number().default(0),
     notes: z.string().optional(),
-  })).mutation(({ input }) => createEsopPool(input)),
-  updatePool: protectedProcedure.input(z.object({
+  })).mutation(({ input, ctx }) => createEsopPool({ ...input, companyId: ctx.companyId })),
+  updatePool: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       totalShares: z.number().optional(),
@@ -247,10 +253,10 @@ const esopRouter = router({
       cancelledShares: z.number().optional(),
       notes: z.string().optional(),
     }),
-  })).mutation(({ input }) => updateEsopPool(input.id, input.data)),
-  grants: protectedProcedure.query(() => getAllGrants()),
-  grantsByPool: protectedProcedure.input(z.object({ poolId: z.number() })).query(({ input }) => getGrantsByPool(input.poolId)),
-  createGrant: protectedProcedure.input(z.object({
+  })).mutation(({ input, ctx }) => updateEsopPool(ctx.companyId, input.id, input.data)),
+  grants: companyProcedure.query(({ ctx }) => getAllGrants(ctx.companyId)),
+  grantsByPool: companyProcedure.input(z.object({ poolId: z.number() })).query(({ input, ctx }) => getGrantsByPool(ctx.companyId, input.poolId)),
+  createGrant: companyEditorProcedure.input(z.object({
     esopPoolId: z.number(),
     shareholderId: z.number().optional(),
     granteeName: z.string().optional(),
@@ -263,11 +269,11 @@ const esopRouter = router({
     expiryDate: z.string().optional(),
     notes: z.string().optional(),
   })).mutation(async ({ input, ctx }) => {
-    const result = await createGrant({ ...input, grantDate: input.grantDate ?? undefined, vestingStartDate: input.vestingStartDate ?? undefined, expiryDate: input.expiryDate ?? undefined });
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "esop_grant", resourceName: input.granteeName ?? `Grant #${input.esopPoolId}`, changesAfter: JSON.stringify(input) });
+    const result = await createGrant({ ...input, companyId: ctx.companyId, grantDate: input.grantDate ?? undefined, vestingStartDate: input.vestingStartDate ?? undefined, expiryDate: input.expiryDate ?? undefined });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "esop_grant", resourceName: input.granteeName ?? `Grant #${input.esopPoolId}`, changesAfter: JSON.stringify(input) });
     return result;
   }),
-  updateGrant: protectedProcedure.input(z.object({
+  updateGrant: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       sharesVested: z.number().optional(),
@@ -278,19 +284,19 @@ const esopRouter = router({
       notes: z.string().optional(),
     }),
   })).mutation(async ({ input, ctx }) => {
-    const result = await updateGrant(input.id, { ...input.data, expiryDate: input.data.expiryDate ?? undefined });
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "esop_grant", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+    const result = await updateGrant(ctx.companyId, input.id, { ...input.data, expiryDate: input.data.expiryDate ?? undefined });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "esop_grant", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
     return result;
   }),
-  deleteGrant: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
-    const result = await deleteGrant(input.id);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "esop_grant", resourceId: input.id });
+  deleteGrant: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    const result = await deleteGrant(ctx.companyId, input.id);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "esop_grant", resourceId: input.id });
     return result;
   }),
 
   // Vesting schedule calculation
-  vestingSchedule: protectedProcedure.input(z.object({ grantId: z.number() })).query(async ({ input }) => {
-    const grants = await getAllGrants();
+  vestingSchedule: companyProcedure.input(z.object({ grantId: z.number() })).query(async ({ input, ctx }) => {
+    const grants = await getAllGrants(ctx.companyId);
     const grant = grants.find(g => g.id === input.grantId);
     if (!grant) throw new Error('Grant not found');
     const startDate = grant.vestingStartDate ? new Date(grant.vestingStartDate) : (grant.grantDate ? new Date(grant.grantDate) : new Date());
@@ -318,13 +324,13 @@ const esopRouter = router({
   }),
 
   // Exercise simulation
-  exerciseSimulation: protectedProcedure.input(z.object({
+  exerciseSimulation: companyProcedure.input(z.object({
     grantId: z.number(),
     sharesToExercise: z.number(),
     currentFmvNtd: z.string(),
     taxRate: z.number().default(0.2),
-  })).query(async ({ input }) => {
-    const grants = await getAllGrants();
+  })).query(async ({ input, ctx }) => {
+    const grants = await getAllGrants(ctx.companyId);
     const grant = grants.find(g => g.id === input.grantId);
     if (!grant) throw new Error('Grant not found');
     const exercisePrice = parseFloat(grant.exercisePriceNtd ?? '0');
@@ -351,10 +357,9 @@ const esopRouter = router({
   }),
 
   // Expiring grants (within N days)
-  expiringGrants: protectedProcedure.input(z.object({ withinDays: z.number().default(90) })).query(async ({ input }) => {
-    const grants = await getAllGrants();
+  expiringGrants: companyProcedure.input(z.object({ withinDays: z.number().default(90) })).query(async ({ input, ctx }) => {
+    const grants = await getAllGrants(ctx.companyId);
     const now = new Date();
-    const cutoff = new Date(now.getTime() + input.withinDays * 24 * 60 * 60 * 1000);
     return grants
       .filter(g => g.expiryDate && g.status === 'active')
       .map(g => ({
@@ -368,8 +373,8 @@ const esopRouter = router({
 
 // ─── Projections Router ───────────────────────────────────────────────────────
 const projectionsRouter = router({
-  list: protectedProcedure.query(() => getAllProjections()),
-  create: editorProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAllProjections(ctx.companyId)),
+  create: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
     projectionDate: z.string().optional(),
     pricePerShareNtd: z.string().optional(),
@@ -380,11 +385,12 @@ const projectionsRouter = router({
     exchangeRate: z.string().optional(),
     scenario: z.enum(["base","optimistic","conservative"]).default("base"),
     notes: z.string().optional(),
-  })).mutation(({ input }) => createProjection({
+  })).mutation(({ input, ctx }) => createProjection({
     ...input,
+    companyId: ctx.companyId,
     projectionDate: input.projectionDate ?? undefined,
   })),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       name: z.string().optional(),
@@ -396,15 +402,15 @@ const projectionsRouter = router({
       scenario: z.enum(["base","optimistic","conservative"]).optional(),
       notes: z.string().optional(),
     }),
-  })).mutation(({ input }) => updateProjection(input.id, input.data)),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => deleteProjection(input.id)),
+  })).mutation(({ input, ctx }) => updateProjection(ctx.companyId, input.id, input.data)),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteProjection(ctx.companyId, input.id)),
 });
 
 // ─── Snapshots Router ────────────────────────────────────────────────────────
 const snapshotsRouter = router({
-  list: protectedProcedure.query(() => getAllSnapshots()),
-  get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getSnapshotById(input.id)),
-  create: editorProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAllSnapshots(ctx.companyId)),
+  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) => getSnapshotById(ctx.companyId, input.id)),
+  create: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
     description: z.string().optional(),
     snapshotDate: z.string(),
@@ -416,23 +422,24 @@ const snapshotsRouter = router({
     esopAllocated: z.number().default(0),
     postMoneyValuationNtd: z.string().optional(),
     snapshotData: z.string().optional(),
-  })).mutation(({ input }) => createSnapshot({
+  })).mutation(({ input, ctx }) => createSnapshot({
     ...input,
+    companyId: ctx.companyId,
     snapshotDate: new Date(input.snapshotDate),
   })),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => deleteSnapshot(input.id)),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteSnapshot(ctx.companyId, input.id)),
   // Auto-snapshot: takes current cap table state and saves it
-  autoSnapshot: editorProcedure.input(z.object({
+  autoSnapshot: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
     description: z.string().optional(),
     triggerEvent: z.string().optional(),
     fundingRoundId: z.number().optional(),
-  })).mutation(async ({ input }) => {
+  })).mutation(async ({ input, ctx }) => {
     const [shareholders, rounds, holdings, esopPools] = await Promise.all([
-      (await import('./db')).getAllShareholders(),
-      (await import('./db')).getAllFundingRounds(),
-      (await import('./db')).getAllShareHoldings(),
-      (await import('./db')).getAllEsopPools(),
+      getAllShareholders(ctx.companyId),
+      getAllFundingRounds(ctx.companyId),
+      getAllShareHoldings(ctx.companyId),
+      getAllEsopPools(ctx.companyId),
     ]);
     const latestRound = rounds[rounds.length - 1];
     // Sum all holdings per shareholder across all rounds
@@ -454,6 +461,7 @@ const snapshotsRouter = router({
       };
     });
     return createSnapshot({
+      companyId: ctx.companyId,
       name: input.name,
       description: input.description,
       snapshotDate: new Date(),
@@ -471,17 +479,17 @@ const snapshotsRouter = router({
 
 // ─── Anti-Dilution Router ─────────────────────────────────────────────────────
 const antiDilutionRouter = router({
-  list: protectedProcedure.query(() => getAllAntiDilutionProvisions()),
-  byShareholder: protectedProcedure.input(z.object({ shareholderId: z.number() })).query(({ input }) => getProvisionsByShareholder(input.shareholderId)),
-  create: editorProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAllAntiDilutionProvisions(ctx.companyId)),
+  byShareholder: companyProcedure.input(z.object({ shareholderId: z.number() })).query(({ input, ctx }) => getProvisionsByShareholder(ctx.companyId, input.shareholderId)),
+  create: companyEditorProcedure.input(z.object({
     shareholderId: z.number(),
     fundingRoundId: z.number(),
     provisionType: z.enum(["full_ratchet", "broad_based_wa", "narrow_based_wa", "none"]).default("broad_based_wa"),
     originalPriceNtd: z.string(),
     originalShares: z.number(),
     notes: z.string().optional(),
-  })).mutation(({ input }) => createAntiDilutionProvision(input)),
-  update: editorProcedure.input(z.object({
+  })).mutation(({ input, ctx }) => createAntiDilutionProvision({ ...input, companyId: ctx.companyId })),
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       adjustedPriceNtd: z.string().optional(),
@@ -490,22 +498,22 @@ const antiDilutionRouter = router({
       status: z.enum(["active", "triggered", "waived", "expired"]).optional(),
       notes: z.string().optional(),
     }),
-  })).mutation(({ input }) => updateAntiDilutionProvision(input.id, input.data)),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => deleteAntiDilutionProvision(input.id)),
+  })).mutation(({ input, ctx }) => updateAntiDilutionProvision(ctx.companyId, input.id, input.data)),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteAntiDilutionProvision(ctx.companyId, input.id)),
 });
 
 // ─── Import Router ────────────────────────────────────────────────────────────
 const importRouter = router({
-  logs: protectedProcedure.query(() => getAllImportLogs()),
-  excel: editorProcedure
+  logs: companyProcedure.query(({ ctx }) => getAllImportLogs(ctx.companyId)),
+  excel: companyEditorProcedure
     .input(z.object({
       fileBase64: z.string(),
       fileName: z.string(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { importExcelFile } = await import("./excel-import");
       const buffer = Buffer.from(input.fileBase64, "base64");
-      return importExcelFile(buffer, input.fileName);
+      return importExcelFile(buffer, input.fileName, ctx.companyId);
     }),
 });
 
@@ -528,7 +536,7 @@ const analysisRouter = router({
       postMoneyValuationNtd: z.string().nullable(),
       scenario: z.string(),
     })).optional(),
-  })).mutation(async ({ input }) => {
+  })).mutation(async () => {
     // TODO: Integrate with OpenAI or Claude API for analysis
     return {
       analysis: "AI analysis feature coming soon. Please check back later.",
@@ -539,12 +547,12 @@ const analysisRouter = router({
 
 // ─── Cap Table Summary ────────────────────────────────────────────────────────
 const capTableRouter = router({
-   summary: protectedProcedure.query(async () => {
+   summary: companyProcedure.query(async ({ ctx }) => {
     const [shareholders, rounds, holdings, esopPools] = await Promise.all([
-      getAllShareholders(),
-      getAllFundingRounds(),
-      getAllShareHoldings(),
-      getAllEsopPools(),
+      getAllShareholders(ctx.companyId),
+      getAllFundingRounds(ctx.companyId),
+      getAllShareHoldings(ctx.companyId),
+      getAllEsopPools(ctx.companyId),
     ]);
      const latestRound = rounds[rounds.length - 1];
     // Sum all holdings per shareholder across all rounds (each row = new shares in that round)
@@ -625,11 +633,11 @@ const capTableRouter = router({
 
 // ─── Documents Router ───────────────────────────────────────────────────────────
 const documentsRouter = router({
-  list: protectedProcedure.query(() => getAllShareholderDocuments()),
-  listByShareholder: protectedProcedure
+  list: companyProcedure.query(({ ctx }) => getAllShareholderDocuments(ctx.companyId)),
+  listByShareholder: companyProcedure
     .input(z.object({ shareholderId: z.number() }))
-    .query(({ input }) => getDocumentsByShareholder(input.shareholderId)),
-  create: editorProcedure.input(z.object({
+    .query(({ input, ctx }) => getDocumentsByShareholder(ctx.companyId, input.shareholderId)),
+  create: companyEditorProcedure.input(z.object({
     shareholderId: z.number(),
     documentType: z.enum(["sha","subscription","nda","board_consent","side_letter","warrant","other"]),
     documentName: z.string().min(1),
@@ -639,13 +647,13 @@ const documentsRouter = router({
     fundingRoundId: z.number().optional(),
     fileUrl: z.string().optional(),
     notes: z.string().optional(),
-  })).mutation(({ input }) => {
-    const data: Record<string, unknown> = { ...input };
+  })).mutation(({ input, ctx }) => {
+    const data: Record<string, unknown> = { ...input, companyId: ctx.companyId };
     if (input.signedDate) data.signedDate = new Date(input.signedDate);
     if (input.expiryDate) data.expiryDate = new Date(input.expiryDate);
     return createShareholderDocument(data as Parameters<typeof createShareholderDocument>[0]);
   }),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       documentType: z.enum(["sha","subscription","nda","board_consent","side_letter","warrant","other"]).optional(),
@@ -657,26 +665,26 @@ const documentsRouter = router({
       fileUrl: z.string().optional(),
       notes: z.string().optional(),
     }),
-  })).mutation(({ input }) => {
+  })).mutation(({ input, ctx }) => {
     const data: Record<string, unknown> = { ...input.data };
     if (input.data.signedDate) data.signedDate = new Date(input.data.signedDate);
     if (input.data.expiryDate) data.expiryDate = new Date(input.data.expiryDate);
-    return updateShareholderDocument(input.id, data as Parameters<typeof updateShareholderDocument>[1]);
+    return updateShareholderDocument(ctx.companyId, input.id, data as Parameters<typeof updateShareholderDocument>[2]);
   }),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => deleteShareholderDocument(input.id)),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteShareholderDocument(ctx.companyId, input.id)),
 });
 
 // ─── Compliance Router ────────────────────────────────────────────────────────
 const complianceRouter = router({
-  upcomingLockups: protectedProcedure
+  upcomingLockups: companyProcedure
     .input(z.object({ daysAhead: z.number().default(180) }))
-    .query(({ input }) => getUpcomingLockupExpirations(input.daysAhead)),
-  taxDeductions: protectedProcedure.query(() => getTaxDeductionInfo()),
+    .query(({ input, ctx }) => getUpcomingLockupExpirations(ctx.companyId, input.daysAhead)),
+  taxDeductions: companyProcedure.query(({ ctx }) => getTaxDeductionInfo(ctx.companyId)),
 });
 // ─── 409A Valuations Router ─────────────────────────────────────────────────────────────
 const valuations409aRouter = router({
-  list: protectedProcedure.query(() => getAll409aValuations()),
-  create: editorProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAll409aValuations(ctx.companyId)),
+  create: companyEditorProcedure.input(z.object({
     valuationDate: z.string(),
     fmvPerShareNtd: z.string().optional(),
     fmvPerShareUsd: z.string().optional(),
@@ -688,12 +696,12 @@ const valuations409aRouter = router({
     method: z.enum(["dcf","market_comparable","asset_based","409a_safe_harbor","other"]).optional(),
     relatedRoundId: z.number().optional(),
     notes: z.string().optional(),
-  })).mutation(({ input }) => {
-    const data: Record<string, unknown> = { ...input };
+  })).mutation(({ input, ctx }) => {
+    const data: Record<string, unknown> = { ...input, companyId: ctx.companyId };
     data.valuationDate = new Date(input.valuationDate);
     return create409aValuation(data as Parameters<typeof create409aValuation>[0]);
   }),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       valuationDate: z.string().optional(),
@@ -708,37 +716,41 @@ const valuations409aRouter = router({
       relatedRoundId: z.number().optional(),
       notes: z.string().optional(),
     }),
-  })).mutation(({ input }) => {
+  })).mutation(({ input, ctx }) => {
     const data: Record<string, unknown> = { ...input.data };
     if (input.data.valuationDate) data.valuationDate = new Date(input.data.valuationDate);
-    return update409aValuation(input.id, data as Parameters<typeof update409aValuation>[1]);
+    return update409aValuation(ctx.companyId, input.id, data as Parameters<typeof update409aValuation>[2]);
   }),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => delete409aValuation(input.id)),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => delete409aValuation(ctx.companyId, input.id)),
 });
 // ─── Waterfall Router ───────────────────────────────────────────────────────────────────────
 const waterfallRouter = router({
-  compute: protectedProcedure
+  compute: companyProcedure
     .input(z.object({ exitValueNtd: z.number().positive() }))
-    .query(({ input }) => computeWaterfall(input.exitValueNtd)),
-  getLiquidationPreferences: protectedProcedure.query(() => getLiquidationPreferences()),
-  upsertLiquidationPreference: protectedProcedure.input(z.object({
+    .query(({ input, ctx }) => computeWaterfall(ctx.companyId, input.exitValueNtd)),
+  getLiquidationPreferences: companyProcedure.query(({ ctx }) => getLiquidationPreferences(ctx.companyId)),
+  upsertLiquidationPreference: companyEditorProcedure.input(z.object({
     fundingRoundId: z.number(),
     preferenceType: z.enum(["non_participating","participating","capped_participating"]).default("non_participating"),
     liquidationMultiple: z.string().default("1.00"),
     participationCap: z.string().optional(),
     seniorityRank: z.number().default(1),
     notes: z.string().optional(),
-  })).mutation(({ input }) => upsertLiquidationPreference(input as Parameters<typeof upsertLiquidationPreference>[0])),
+  })).mutation(({ input, ctx }) => upsertLiquidationPreference({ ...input, companyId: ctx.companyId } as Parameters<typeof upsertLiquidationPreference>[0])),
 });
 // ─── Team / User Management Router ─────────────────────────────────────────
 const teamRouter = router({
-  members: protectedProcedure.query(() => getAllUsers()),
-  updateRole: ownerAdminProcedure.input(z.object({
+  // List members of the active company
+  members: companyProcedure.query(({ ctx }) => listCompanyMembers(ctx.companyId)),
+
+  // Update a member's role within the active company
+  updateRole: companyOwnerAdminProcedure.input(z.object({
     userId: z.number(),
     appRole: z.enum(["owner", "admin", "cfo", "lawyer", "investor", "viewer"]),
   })).mutation(async ({ input, ctx }) => {
-    const updated = await updateUserAppRole(input.userId, input.appRole);
+    await updateCompanyMemberRole(ctx.companyId, input.userId, input.appRole);
     await createAuditLog({
+      companyId: ctx.companyId,
       userId: ctx.user!.id,
       userName: ctx.user!.name ?? undefined,
       action: "update",
@@ -747,56 +759,58 @@ const teamRouter = router({
       resourceName: `User #${input.userId}`,
       changesAfter: JSON.stringify({ appRole: input.appRole }),
     });
-    return updated;
+    return { success: true };
   }),
-  removeMember: ownerAdminProcedure.input(z.object({
+
+  // Remove a member from the active company
+  removeMember: companyOwnerAdminProcedure.input(z.object({
     userId: z.number(),
   })).mutation(async ({ input, ctx }) => {
     const currentUser = ctx.user!;
-    // Can't delete yourself
+    // Can't remove yourself
     if (input.userId === currentUser.id) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "You cannot remove yourself from the team. Use Transfer Ownership or have another Owner remove you." });
     }
-    // Look up the target user
-    const allUsers = await getAllUsers();
-    const target = allUsers.find(u => u.id === input.userId);
+    // Look up the target's membership in this company
+    const members = await listCompanyMembers(ctx.companyId);
+    const target = members.find(m => m.userId === input.userId);
     if (!target) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Team member not found." });
     }
     // Owner cannot be removed (must transfer ownership first)
-    if (target.appRole === "owner") {
+    if (target.role === "owner") {
       throw new TRPCError({ code: "FORBIDDEN", message: "The Owner cannot be removed. Transfer ownership first." });
     }
     // Admins cannot remove other admins (only owner can)
-    if (target.appRole === "admin" && currentUser.appRole !== "owner") {
+    if (target.role === "admin" && ctx.companyRole !== "owner") {
       throw new TRPCError({ code: "FORBIDDEN", message: "Only the Owner can remove Admin members." });
     }
-    // Log BEFORE deletion (so the record of the action persists even if the user row is gone)
+    // Log BEFORE removal so the record persists
     await createAuditLog({
+      companyId: ctx.companyId,
       userId: currentUser.id,
       userName: currentUser.name ?? undefined,
       action: "delete",
       resourceType: "user",
-      resourceId: target.id,
-      resourceName: target.email ?? target.name ?? `User #${target.id}`,
-      changesBefore: JSON.stringify({ email: target.email, name: target.name, appRole: target.appRole }),
+      resourceId: target.userId,
+      resourceName: target.userEmail ?? target.userName ?? `User #${target.userId}`,
+      changesBefore: JSON.stringify({ email: target.userEmail, name: target.userName, role: target.role }),
     });
-    await deleteUserById(target.id);
-    return { success: true, removedId: target.id };
+    await removeCompanyMember(ctx.companyId, target.userId);
+    return { success: true, removedId: target.userId };
   }),
-  transferOwnership: ownerAdminProcedure.input(z.object({
+
+  // Transfer ownership of the active company to another member
+  transferOwnership: companyOwnerProcedure.input(z.object({
     newOwnerId: z.number(),
   })).mutation(async ({ input, ctx }) => {
     const currentUser = ctx.user!;
-    // Verify current user is owner
-    if (currentUser.appRole !== "owner") {
-      throw new TRPCError({ code: "FORBIDDEN", message: "Only the current owner can transfer ownership" });
-    }
-    // Demote current owner to admin
-    await updateUserAppRole(currentUser.id, "admin");
-    // Promote new owner
-    await updateUserAppRole(input.newOwnerId, "owner");
+    // Demote current owner to admin in this company
+    await updateCompanyMemberRole(ctx.companyId, currentUser.id, "admin");
+    // Promote new user to owner
+    await updateCompanyMemberRole(ctx.companyId, input.newOwnerId, "owner");
     await createAuditLog({
+      companyId: ctx.companyId,
       userId: currentUser.id,
       userName: currentUser.name ?? undefined,
       action: "update",
@@ -811,8 +825,8 @@ const teamRouter = router({
 
 // ─── Invitations Router ───────────────────────────────────────────────────────
 const invitationsRouter = router({
-  list: protectedProcedure.query(() => getAllInvitations()),
-  create: ownerAdminProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAllInvitations(ctx.companyId)),
+  create: companyOwnerAdminProcedure.input(z.object({
     email: z.string().email().optional(),
     appRole: z.enum(["admin", "cfo", "lawyer", "investor", "viewer"]).default("viewer"),
     notes: z.string().optional(),
@@ -822,6 +836,7 @@ const invitationsRouter = router({
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
     const invitation = await createInvitation({
+      companyId: ctx.companyId,
       token,
       email: input.email,
       appRole: input.appRole,
@@ -831,6 +846,7 @@ const invitationsRouter = router({
       notes: input.notes,
     });
     await createAuditLog({
+      companyId: ctx.companyId,
       userId: ctx.user!.id,
       userName: ctx.user!.name ?? undefined,
       action: "invite",
@@ -842,9 +858,15 @@ const invitationsRouter = router({
     const inviteUrl = `${input.origin}/join?token=${token}`;
     return { invitation, inviteUrl };
   }),
-  revoke: ownerAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+  revoke: companyOwnerAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    // Verify the invitation belongs to this company before revoking
+    const invitations = await getAllInvitations(ctx.companyId);
+    if (!invitations.find(i => i.id === input.id)) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Invitation not found in this company." });
+    }
     const result = await updateInvitationStatus(input.id, "revoked");
     await createAuditLog({
+      companyId: ctx.companyId,
       userId: ctx.user!.id,
       userName: ctx.user!.name ?? undefined,
       action: "update",
@@ -855,65 +877,97 @@ const invitationsRouter = router({
     });
     return result;
   }),
+  // Public — token holders can view; mutation for actually accepting requires auth.
   accept: publicProcedure.input(z.object({ token: z.string() })).query(async ({ input }) => {
     const inv = await getInvitationByToken(input.token);
-    if (!inv) return { valid: false, reason: "not_found" };
-    if (inv.status !== "pending") return { valid: false, reason: inv.status };
+    if (!inv) return { valid: false, reason: "not_found" as const };
+    if (inv.status !== "pending") return { valid: false, reason: inv.status as "accepted" | "revoked" | "expired" };
     if (new Date() > new Date(inv.expiresAt)) {
       await updateInvitationStatus(inv.id, "expired");
-      return { valid: false, reason: "expired" };
+      return { valid: false, reason: "expired" as const };
     }
-    return { valid: true, invitation: inv };
+    return { valid: true as const, invitation: inv };
+  }),
+  // Authenticated user accepts an invitation: marks accepted + adds them to the company
+  acceptInvitation: protectedProcedure.input(z.object({ token: z.string() })).mutation(async ({ input, ctx }) => {
+    const inv = await getInvitationByToken(input.token);
+    if (!inv) throw new TRPCError({ code: "NOT_FOUND", message: "Invitation not found." });
+    if (inv.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: `Invitation is ${inv.status}.` });
+    if (new Date() > new Date(inv.expiresAt)) {
+      await updateInvitationStatus(inv.id, "expired");
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Invitation has expired." });
+    }
+    if (!inv.companyId) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Invitation is not linked to a company." });
+    }
+    // Add the accepting user as a member of the inviting company
+    await addCompanyMember({
+      companyId: inv.companyId,
+      userId: ctx.user!.id,
+      role: inv.appRole,
+    });
+    await updateInvitationStatus(inv.id, "accepted", ctx.user!.id);
+    await createAuditLog({
+      companyId: inv.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "invite",
+      resourceType: "invitation",
+      resourceId: inv.id,
+      resourceName: `Accepted by User #${ctx.user!.id}`,
+      changesAfter: JSON.stringify({ status: "accepted", role: inv.appRole }),
+    });
+    return { success: true, companyId: inv.companyId };
   }),
 });
 
 // ─── Audit Log Router ─────────────────────────────────────────────────────────
 const auditLogRouter = router({
-  list: protectedProcedure.input(z.object({
+  list: companyProcedure.input(z.object({
     limit: z.number().default(100),
     offset: z.number().default(0),
-  })).query(({ input }) => getAuditLogs(input.limit, input.offset)),
-  byResource: protectedProcedure.input(z.object({
+  })).query(({ input, ctx }) => getAuditLogs(ctx.companyId, input.limit, input.offset)),
+  byResource: companyProcedure.input(z.object({
     resourceType: z.string(),
     resourceId: z.number(),
-  })).query(({ input }) => getAuditLogsByResource(input.resourceType, input.resourceId)),
+  })).query(({ input, ctx }) => getAuditLogsByResource(ctx.companyId, input.resourceType, input.resourceId)),
 });
 
 // ─── Financial Projections Router (5-Year) ──────────────────────────────────
 const financialProjectionsRouter = router({
-  list: protectedProcedure.query(() => getAllFinancialProjections()),
-  get: protectedProcedure.input(z.object({ id: z.number() })).query(({ input }) => getFinancialProjectionById(input.id)),
-  create: editorProcedure.input(z.object({
+  list: companyProcedure.query(({ ctx }) => getAllFinancialProjections(ctx.companyId)),
+  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) => getFinancialProjectionById(ctx.companyId, input.id)),
+  create: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
     startYear: z.number(),
     years: z.number().default(5),
     assumptions: ProjectionAssumptionsSchema,
   })).mutation(async ({ input, ctx }) => {
-    const result = await createFinancialProjection(input);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "financial_projection", resourceName: input.name, changesAfter: JSON.stringify({ name: input.name, startYear: input.startYear }) });
+    const result = await createFinancialProjection({ ...input, companyId: ctx.companyId });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "financial_projection", resourceName: input.name, changesAfter: JSON.stringify({ name: input.name, startYear: input.startYear }) });
     return result;
   }),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       name: z.string().optional(),
       assumptions: ProjectionAssumptionsSchema.optional(),
     }),
   })).mutation(async ({ input, ctx }) => {
-    await updateFinancialProjection(input.id, input.data);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "financial_projection", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+    await updateFinancialProjection(ctx.companyId, input.id, input.data);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "financial_projection", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
   }),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
-    await deleteFinancialProjection(input.id);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "financial_projection", resourceId: input.id });
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteFinancialProjection(ctx.companyId, input.id);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "financial_projection", resourceId: input.id });
   }),
 });
 
 // ─── DCF Scenarios Router ───────────────────────────────────────────────────
 const dcfRouter = router({
-  listByProjection: protectedProcedure.input(z.object({ projectionId: z.number() }))
-    .query(({ input }) => getDcfScenariosByProjection(input.projectionId)),
-  create: editorProcedure.input(z.object({
+  listByProjection: companyProcedure.input(z.object({ projectionId: z.number() }))
+    .query(({ input, ctx }) => getDcfScenariosByProjection(ctx.companyId, input.projectionId)),
+  create: companyEditorProcedure.input(z.object({
     projectionId: z.number(),
     name: z.string().min(1),
     discountRate: z.number(),
@@ -925,6 +979,7 @@ const dcfRouter = router({
   })).mutation(async ({ input, ctx }) => {
     const result = await createDcfScenario({
       ...input,
+      companyId: ctx.companyId,
       discountRate: String(input.discountRate),
       terminalGrowth: String(input.terminalGrowth),
       netDebt: String(input.netDebt),
@@ -932,10 +987,10 @@ const dcfRouter = router({
       targetRaise: input.targetRaise != null ? String(input.targetRaise) : null,
       targetPreMoney: input.targetPreMoney != null ? String(input.targetPreMoney) : null,
     });
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "dcf_scenario", resourceName: input.name });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "dcf_scenario", resourceName: input.name });
     return result;
   }),
-  update: editorProcedure.input(z.object({
+  update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
       name: z.string().optional(),
@@ -955,20 +1010,75 @@ const dcfRouter = router({
     if (input.data.cash !== undefined) updateData.cash = String(input.data.cash);
     if (input.data.targetRaise !== undefined) updateData.targetRaise = input.data.targetRaise != null ? String(input.data.targetRaise) : null;
     if (input.data.targetPreMoney !== undefined) updateData.targetPreMoney = input.data.targetPreMoney != null ? String(input.data.targetPreMoney) : null;
-    await updateDcfScenario(input.id, updateData as any);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "dcf_scenario", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+    await updateDcfScenario(ctx.companyId, input.id, updateData as any);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "dcf_scenario", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
   }),
-  delete: editorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
-    await deleteDcfScenario(input.id);
-    await createAuditLog({ userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "dcf_scenario", resourceId: input.id });
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteDcfScenario(ctx.companyId, input.id);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "dcf_scenario", resourceId: input.id });
+  }),
+});
+
+// ─── Companies Router ───────────────────────────────────────────────────────
+const companiesRouter = router({
+  // List companies the current user is a member of
+  myCompanies: protectedProcedure.query(({ ctx }) => getUserCompanyMemberships(ctx.user!.id)),
+
+  // Get the currently active company
+  active: companyProcedure.query(async ({ ctx }) => {
+    const company = await getCompanyById(ctx.companyId);
+    return { company, role: ctx.companyRole };
+  }),
+
+  // Create a new company; caller becomes the owner
+  create: protectedProcedure.input(z.object({
+    name: z.string().min(1).max(255),
+    slug: z.string().max(100).optional(),
+  })).mutation(async ({ ctx, input }) => {
+    const company = await createCompany(input);
+    await addCompanyMember({ companyId: company.id, userId: ctx.user!.id, role: "owner" });
+    await createAuditLog({
+      companyId: company.id,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "create",
+      resourceType: "company",
+      resourceId: company.id,
+      resourceName: company.name,
+      changesAfter: JSON.stringify(input),
+    });
+    return company;
+  }),
+
+  // Rename current company
+  rename: companyOwnerProcedure.input(z.object({
+    name: z.string().min(1).max(255),
+  })).mutation(async ({ ctx, input }) => {
+    await updateCompany(ctx.companyId, { name: input.name });
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "update",
+      resourceType: "company",
+      resourceId: ctx.companyId,
+      resourceName: input.name,
+    });
   }),
 });
 
 // ─── App Router ────────────────────────────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(async (opts) => {
+      if (!opts.ctx.user) return null;
+      const memberships = await getUserCompanyMemberships(opts.ctx.user.id);
+      // Spread user fields so existing frontend code (me.id, me.name, me.email, me.appRole)
+      // keeps working; add `companies` for the company switcher.
+      return { ...opts.ctx.user, companies: memberships };
+    }),
   }),
+  companies: companiesRouter,
   shareholders: shareholdersRouter,
   fundingRounds: fundingRoundsRouter,
   holdings: holdingsRouter,
@@ -990,12 +1100,10 @@ export const appRouter = router({
   financialProjections: financialProjectionsRouter,
   dcf: dcfRouter,
   admin: router({
-    // ─── Danger Zone: Clear All Business Data ──────────────────────────────
-    // Owner-only. Deletes shareholders, rounds, holdings, transactions, ESOP,
-    // valuations, projections, snapshots, documents, anti-dilution provisions,
-    // liquidation preferences, audit logs, import logs.
-    // Preserves: users, user_invitations.
-    clearAllData: ownerProcedure
+    // ─── Danger Zone: Clear All Business Data for the active company ──────
+    // Owner-only. Deletes all rows scoped to ctx.companyId across business tables.
+    // Preserves: users, companies, company_members.
+    clearAllData: companyOwnerProcedure
       .input(z.object({
         confirmationPhrase: z.string(),
       }))
@@ -1007,9 +1115,10 @@ export const appRouter = router({
             message: "Confirmation phrase does not match. Type exactly: CLEAR ALL DATA",
           });
         }
-        const counts = await truncateAllBusinessData();
-        // Re-create an audit log of this action (audit_logs was just truncated)
+        const counts = await truncateAllBusinessData(ctx.companyId);
+        // Re-create an audit log of this action (audit_logs was just truncated for this company)
         await createAuditLog({
+          companyId: ctx.companyId,
           userId: ctx.user!.id,
           userName: ctx.user!.name ?? undefined,
           action: "delete",

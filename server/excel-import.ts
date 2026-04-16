@@ -30,14 +30,18 @@ function mapRoundToType(roundName: string): "founder" | "angel" | "seed" | "seed
 }
 
 // Parse the Register of Shareholders sheet
-async function importRegisterSheet(ws: XLSX.WorkSheet, errors: string[]): Promise<{ shareholderMap: Map<string, number>, count: number }> {
+async function importRegisterSheet(
+  ws: XLSX.WorkSheet,
+  errors: string[],
+  companyId: number,
+): Promise<{ shareholderMap: Map<string, number>, count: number }> {
   const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
   const shareholderMap = new Map<string, number>(); // name -> db id
   let count = 0;
 
   // Find the header row - look for rows with shareholder data
   // Register sheet structure: rows 1-14 are shareholder list, rows 17+ are transaction details
-  const existingShareholders = await getAllShareholders();
+  const existingShareholders = await getAllShareholders(companyId);
   for (const sh of existingShareholders) {
     shareholderMap.set(sh.name, sh.id);
     if (sh.aka) shareholderMap.set(sh.aka, sh.id);
@@ -54,9 +58,9 @@ async function importRegisterSheet(ws: XLSX.WorkSheet, errors: string[]): Promis
     if (!shareholderMap.has(name)) {
       try {
         const isEntity = name.includes("股份有限公司") || name.includes("國際") || name.includes("實業");
-        await createShareholder({ name, aka, type: "other", isEntity });
+        await createShareholder({ companyId, name, aka, type: "other", isEntity });
         // Re-fetch to get ID
-        const updated = await getAllShareholders();
+        const updated = await getAllShareholders(companyId);
         const found = updated.find(s => s.name === name);
         if (found) {
           shareholderMap.set(name, found.id);
@@ -70,8 +74,9 @@ async function importRegisterSheet(ws: XLSX.WorkSheet, errors: string[]): Promis
   }
 
   // Parse transaction rows (rows 17+ in the sheet)
-  const fundingRoundsDb = await getAllFundingRounds();
+  const fundingRoundsDb = await getAllFundingRounds(companyId);
   const roundMap = new Map(fundingRoundsDb.map(r => [r.name, r.id]));
+  void roundMap; // available for future use
 
   for (let i = 17; i < data.length; i++) {
     const row = data[i] as unknown[] | undefined;
@@ -102,6 +107,7 @@ async function importRegisterSheet(ws: XLSX.WorkSheet, errors: string[]): Promis
 
     try {
       const txData: any = {
+        companyId,
         shareholderId,
         transactionType: "issuance",
         shareClass: "common",
@@ -127,7 +133,8 @@ async function importCapTableSheet(
   ws: XLSX.WorkSheet,
   withEsop: boolean,
   shareholderMap: Map<string, number>,
-  errors: string[]
+  errors: string[],
+  companyId: number,
 ): Promise<number> {
   const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
   let count = 0;
@@ -153,7 +160,7 @@ async function importCapTableSheet(
   }
 
   // Ensure funding rounds exist in DB
-  const existingRounds = await getAllFundingRounds();
+  const existingRounds = await getAllFundingRounds(companyId);
   const roundDbMap = new Map(existingRounds.map(r => [r.name, r]));
 
   const roundLabelRow = (data[0] as unknown[] | undefined) || [];
@@ -178,6 +185,7 @@ async function importCapTableSheet(
     if (!roundDbMap.has(roundLabel)) {
       try {
         await createFundingRound({
+          companyId,
           name: roundLabel,
           roundDate: roundDate ?? undefined,
           pricePerShareNtd: price ? String(price) : undefined,
@@ -187,7 +195,7 @@ async function importCapTableSheet(
           sortOrder: ri,
           exchangeRate: "0.0312793",
         });
-        const updated = await getAllFundingRounds();
+        const updated = await getAllFundingRounds(companyId);
         const found = updated.find(r => r.name === roundLabel);
         if (found) { roundDbMap.set(roundLabel, found); roundColToId.set(col, found.id); count++; }
       } catch (e) {
@@ -215,8 +223,8 @@ async function importCapTableSheet(
     if (!shareholderId) {
       try {
         const isEntity = name.includes("股份有限公司") || name.includes("國際") || name.includes("實業");
-        await createShareholder({ name, aka, type: shType, isEntity });
-        const updated = await getAllShareholders();
+        await createShareholder({ companyId, name, aka, type: shType, isEntity });
+        const updated = await getAllShareholders(companyId);
         const found = updated.find(s => s.name === name);
         if (found) {
           shareholderId = found.id;
@@ -239,6 +247,7 @@ async function importCapTableSheet(
     if (totalShares > 0) {
       try {
         await upsertShareHolding({
+          companyId,
           shareholderId,
           fundingRoundId: lastRoundId,
           totalShares,
@@ -270,9 +279,10 @@ async function importCapTableSheet(
       const esopShares = Number(esopRow[lastRoundCol + 2]) || 0;
       if (esopShares > 0) {
         try {
-          const existingPools = await getAllFundingRounds();
+          const existingPools = await getAllFundingRounds(companyId);
           const lastRound = existingPools[existingPools.length - 1];
           await createEsopPool({
+            companyId,
             totalShares: esopShares,
             allocatedShares: 0,
             poolName: "ESOP Pool",
@@ -288,7 +298,11 @@ async function importCapTableSheet(
 }
 
 // Parse Projection sheet
-async function importProjectionSheet(ws: XLSX.WorkSheet, errors: string[]): Promise<number> {
+async function importProjectionSheet(
+  ws: XLSX.WorkSheet,
+  errors: string[],
+  companyId: number,
+): Promise<number> {
   const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
   let count = 0;
 
@@ -313,6 +327,7 @@ async function importProjectionSheet(ws: XLSX.WorkSheet, errors: string[]): Prom
         try {
           const { createProjection } = await import("./db");
           await createProjection({
+            companyId,
             name,
             projectionDate: dateStr ?? undefined,
             pricePerShareNtd: price ? String(price) : undefined,
@@ -333,51 +348,53 @@ async function importProjectionSheet(ws: XLSX.WorkSheet, errors: string[]): Prom
 }
 
 // Main import function
-export async function importExcelFile(buffer: Buffer, fileName: string): Promise<ImportResult> {
+export async function importExcelFile(buffer: Buffer, fileName: string, companyId: number): Promise<ImportResult> {
   const errors: string[] = [];
   let totalImported = 0;
 
   // Create import log
   let logId: number | undefined;
   try {
-    const result = await createImportLog({ fileName, status: "processing" });
-    logId = Number((result as { insertId?: unknown }).insertId);
+    const result = await createImportLog({ companyId, fileName, status: "processing" });
+    // createImportLog returns an array of { id }
+    if (Array.isArray(result) && result[0]?.id != null) {
+      logId = Number(result[0].id);
+    }
   } catch { /* ignore */ }
 
   try {
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
-    const sheetNames = workbook.SheetNames;
 
     // 1. Import Register of Shareholders
     const registerSheet = workbook.Sheets["Register of shareholders"];
     if (registerSheet) {
-      const { shareholderMap, count } = await importRegisterSheet(registerSheet, errors);
+      const { shareholderMap, count } = await importRegisterSheet(registerSheet, errors, companyId);
       totalImported += count;
 
       // 2. Import Cap Table (without ESOP)
       const capTableSheet = workbook.Sheets["Cap Table"];
       if (capTableSheet) {
-        const c = await importCapTableSheet(capTableSheet, false, shareholderMap, errors);
+        const c = await importCapTableSheet(capTableSheet, false, shareholderMap, errors, companyId);
         totalImported += c;
       }
 
       // 3. Import Cap Table with ESOP
       const capTableEsopSheet = workbook.Sheets["Cap Table w ESOP"];
       if (capTableEsopSheet) {
-        const c = await importCapTableSheet(capTableEsopSheet, true, shareholderMap, errors);
+        const c = await importCapTableSheet(capTableEsopSheet, true, shareholderMap, errors, companyId);
         totalImported += c;
       }
 
       // 4. Import Projections
       const projectionSheet = workbook.Sheets["Projection Bridge"];
       if (projectionSheet) {
-        const c = await importProjectionSheet(projectionSheet, errors);
+        const c = await importProjectionSheet(projectionSheet, errors, companyId);
         totalImported += c;
       }
     }
 
     if (logId) {
-      await updateImportLog(logId, { status: "completed", recordsImported: totalImported });
+      await updateImportLog(companyId, logId, { status: "completed", recordsImported: totalImported });
     }
 
     return { success: true, recordsImported: totalImported, errors };
@@ -385,7 +402,7 @@ export async function importExcelFile(buffer: Buffer, fileName: string): Promise
     const msg = error instanceof Error ? error.message : String(error);
     errors.push(`Import failed: ${msg}`);
     if (logId) {
-      await updateImportLog(logId, { status: "failed", errorMessage: msg });
+      await updateImportLog(companyId, logId, { status: "failed", errorMessage: msg });
     }
     return { success: false, recordsImported: totalImported, errors };
   }
