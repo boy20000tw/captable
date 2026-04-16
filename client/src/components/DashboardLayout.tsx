@@ -73,7 +73,7 @@ const menuGroups = [
   {
     label: "Analysis",
     items: [
-      { icon: Calculator, label: "Valuation & Scenario Modeling", path: "/valuation" },
+      { icon: Calculator, label: "Scenario Modeling", path: "/valuation" },
       { icon: TrendingUp, label: "Projections & DCF",             path: "/projections" },
       { icon: Droplets,   label: "Waterfall",                     path: "/waterfall" },
     ],
@@ -123,8 +123,8 @@ export default function DashboardLayout({
           {/* Logo / Title */}
           <div className="flex flex-col items-center gap-4 text-center">
             <img
-              src="https://d2xsxph8kpxj0f.cloudfront.net/310519663127579225/e6XqXb63CXnyMCkEwndRiv/symptomtrace-logo_f9c91a8e.png"
-              alt="Symptom Trace"
+              src="/caploom-logo.png"
+              alt="Caploom"
               className="h-12 w-auto object-contain"
             />
             <div className="flex flex-col items-center gap-1">
@@ -214,16 +214,16 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               {!isCollapsed && (
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <img
-                    src="https://d2xsxph8kpxj0f.cloudfront.net/310519663127579225/e6XqXb63CXnyMCkEwndRiv/symptomtrace-logo_f9c91a8e.png"
-                    alt="Symptom Trace"
+                    src="/caploom-logo.png"
+                    alt="Caploom"
                     className="h-7 w-auto object-contain"
                   />
                 </div>
               )}
               {isCollapsed && (
                 <img
-                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663127579225/e6XqXb63CXnyMCkEwndRiv/symptomtrace-logo_f9c91a8e.png"
-                  alt="ST"
+                  src="/caploom-logo.png"
+                  alt="Caploom"
                   className="h-6 w-auto object-contain"
                 />
               )}
