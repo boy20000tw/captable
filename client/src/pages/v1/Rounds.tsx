@@ -244,7 +244,7 @@ function V1RoundsContent() {
                   <TableRow
                     key={r.id}
                     className="cursor-pointer hover:bg-secondary/30"
-                    onClick={() => setLocation(`/v1/rounds/${r.id}`)}
+                    onClick={() => setLocation(`/funding-rounds/${r.id}`)}
                   >
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell className="text-muted-foreground text-xs">
@@ -292,7 +292,7 @@ function V1RoundsContent() {
                           variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setLocation(`/v1/rounds/${r.id}`);
+                            setLocation(`/funding-rounds/${r.id}`);
                           }}
                           title="View"
                         >

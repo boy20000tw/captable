@@ -17,7 +17,7 @@ export default function EstimatedValuationPage() {
 
 type ValuationMode = "pre-money" | "post-money";
 
-function EstimatedValuationContent() {
+export function EstimatedValuationContent() {
   const [currency, setCurrency] = useState<"NTD" | "USD">("NTD");
   const [valuationMode, setValuationMode] = useState<ValuationMode>("pre-money");
   const [newRoundName, setNewRoundName] = useState("Series A");

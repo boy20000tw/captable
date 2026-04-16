@@ -105,7 +105,10 @@ function StatusStepper({ status }: { status: AllocationStatus }) {
 }
 
 function V1RoundDetailContent() {
-  const [, params] = useRoute<{ id: string }>("/v1/rounds/:id");
+  // Match either path — both map to this component (see App.tsx).
+  const [matchNew, paramsNew] = useRoute<{ id: string }>("/funding-rounds/:id");
+  const [, paramsLegacy] = useRoute<{ id: string }>("/v1/rounds/:id");
+  const params = matchNew ? paramsNew : paramsLegacy;
   const [, setLocation] = useLocation();
   const { canEdit, canDelete } = usePermissions();
   const utils = trpc.useUtils();
@@ -203,7 +206,7 @@ function V1RoundDetailContent() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setLocation("/v1/rounds")}
+          onClick={() => setLocation("/funding-rounds")}
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to rounds
         </Button>
@@ -221,7 +224,7 @@ function V1RoundDetailContent() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setLocation("/v1/rounds")}
+        onClick={() => setLocation("/funding-rounds")}
       >
         <ArrowLeft className="h-4 w-4 mr-1" /> Back to rounds
       </Button>

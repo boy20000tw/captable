@@ -29,9 +29,6 @@ import {
   Users,
   TrendingUp,
   PieChart,
-  FileSpreadsheet,
-  History,
-  BarChart3,
   Upload,
   Sparkles,
   BookOpen,
@@ -42,6 +39,7 @@ import {
   ClipboardList,
   Calculator,
   Rocket,
+  Wrench,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -53,50 +51,40 @@ const menuGroups = [
     label: "Overview",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-      { icon: PieChart, label: "Cap Table", path: "/cap-table" },
     ],
   },
   {
-    label: "Management",
+    label: "Ownership",
     items: [
-      { icon: TrendingUp, label: "Funding Rounds", path: "/funding-rounds" },
-      { icon: Users, label: "Investors", path: "/investors" },
-      { icon: Sparkles, label: "ESOP", path: "/esop" },
+      { icon: PieChart,  label: "Cap Table",      path: "/cap-table" },
+      { icon: BookOpen,  label: "Share Register", path: "/register" },
+      { icon: Sparkles,  label: "ESOP",           path: "/esop" },
     ],
   },
   {
-    label: "Records",
+    label: "Fundraising",
     items: [
-      { icon: BookOpen, label: "Share Register", path: "/register" },
-      { icon: Calculator, label: "Estimated Valuation", path: "/estimated-valuation" },
-      { icon: TrendingUp, label: "Projections & DCF", path: "/projections" },
+      { icon: Rocket,    label: "Funding Rounds", path: "/funding-rounds" },
+      { icon: Users,     label: "Investors",      path: "/investors" },
+      { icon: Shield,    label: "Anti-Dilution",  path: "/anti-dilution" },
+      { icon: Wrench,    label: "Instruments",    path: "/instruments" },
     ],
   },
   {
-    label: "Governance",
+    label: "Analysis",
     items: [
-      { icon: Camera, label: "Snapshots", path: "/snapshots" },
-      { icon: Shield, label: "Anti-Dilution", path: "/anti-dilution" },
-      { icon: Droplets, label: "Waterfall", path: "/waterfall" },
+      { icon: Calculator, label: "Valuation & Scenario Modeling", path: "/valuation" },
+      { icon: TrendingUp, label: "Projections & DCF",             path: "/projections" },
+      { icon: Droplets,   label: "Waterfall",                     path: "/waterfall" },
     ],
   },
   {
-    label: "Tools",
+    label: "System",
     items: [
-      { icon: Upload, label: "Import & Analysis", path: "/import" },
-    ],
-  },
-  {
-    label: "V1 (MVP)",
-    items: [
-      { icon: Rocket, label: "Rounds & Allocations", path: "/v1/rounds" },
-    ],
-  },
-  {
-    label: "Admin",
-    items: [
-      { icon: UserCog, label: "Team", path: "/team" },
-      { icon: ClipboardList, label: "Audit Log", path: "/audit-log" },
+      { icon: Camera,        label: "Snapshots",         path: "/snapshots" },
+      { icon: ClipboardList, label: "Audit Log",         path: "/audit-log" },
+      { icon: Upload,        label: "Import & Analysis", path: "/import" },
+      { icon: UserCog,       label: "Team",              path: "/team" },
     ],
   },
 ];

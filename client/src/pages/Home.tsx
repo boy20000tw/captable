@@ -116,7 +116,7 @@ function DashboardContent() {
                 { icon: TrendingUp, title: "Track funding rounds", desc: "Record price, raise, pre/post-money for each round.",              href: "/funding-rounds" },
                 { icon: Briefcase,  title: "Run ESOP",             desc: "Create option pools, issue grants, track vesting + exercise.",    href: "/esop" },
                 { icon: PieIcon,    title: "Visualise cap table",  desc: "Ownership breakdown by round, export to CSV or PDF.",             href: "/cap-table" },
-                { icon: Calculator, title: "Estimated Valuation",   desc: "Simulate future rounds and per-shareholder dilution impact.",     href: "/estimated-valuation" },
+                { icon: Calculator, title: "Valuation & Scenario Modeling",   desc: "Simulate future rounds and per-shareholder dilution impact.",     href: "/valuation" },
                 { icon: TrendingUp, title: "Projections & DCF",   desc: "5-year financial forecast → DCF → implied pre-money valuation.", href: "/projections" },
                 { icon: Shield,     title: "Anti-dilution & waterfall", desc: "Track investor protection clauses and simulate exit distributions.", href: "/anti-dilution" },
                 { icon: Camera,     title: "Snapshots",            desc: "Save point-in-time records for compliance and board reporting.",  href: "/snapshots" },
