@@ -231,16 +231,20 @@ function V1RoundsContent() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Pre-Money</TableHead>
-                  <TableHead className="text-right">Post-Money</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Price / Share</TableHead>
                   <TableHead className="text-right">Raised</TableHead>
+                  <TableHead className="text-right">Pre-Money</TableHead>
+                  <TableHead className="text-right font-semibold">Post-Money</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="w-[120px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.map((r) => (
+                {sorted.map((r) => {
+                  const postMoney = (r as any).postMoneyCalc ?? parseFloat(r.postMoneyValuationNtd || "0");
+                  const raised = parseFloat(r.moneyRaisedNtd || "0");
+                  const preMoney = postMoney > 0 && raised > 0 ? postMoney - raised : parseFloat(r.preMoneyValuationNtd || "0");
+                  return (
                   <TableRow
                     key={r.id}
                     className="cursor-pointer hover:bg-secondary/30"
@@ -250,13 +254,6 @@ function V1RoundsContent() {
                     <TableCell className="text-muted-foreground text-xs">
                       {formatDate(r.roundDate)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatValuation(r.preMoneyValuationNtd)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold">
-                      {formatValuation(String((r as any).postMoneyCalc ?? r.postMoneyValuationNtd ?? ""))}
-                    </TableCell>
-                    <TableCell>{statusBadge(r.status as RoundStatus)}</TableCell>
                     <TableCell className="text-right tabular-nums text-xs font-mono">
                       {r.pricePerShareNtd
                         ? `NT$ ${Number(r.pricePerShareNtd).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
@@ -265,6 +262,13 @@ function V1RoundsContent() {
                     <TableCell className="text-right tabular-nums">
                       {formatValuation(r.moneyRaisedNtd)}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {preMoney > 0 ? formatValuation(String(preMoney)) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold">
+                      {postMoney > 0 ? formatValuation(String(postMoney)) : "—"}
+                    </TableCell>
+                    <TableCell>{statusBadge(r.status as RoundStatus)}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
                         {canEdit && (
@@ -301,7 +305,8 @@ function V1RoundsContent() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
