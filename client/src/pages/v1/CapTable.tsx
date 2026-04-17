@@ -53,7 +53,7 @@ function fmtNum(n: number) {
 function V1CapTableContent() {
   const [, setLocation] = useLocation();
   const { data, isLoading } = trpc.v1.capTable.current.useQuery();
-  const [includeEsop, setIncludeEsop] = useState(true);
+  const [includeEsop, setIncludeEsop] = useState(false);
 
   const isEmpty =
     !isLoading && (!data || (data.holdings?.length ?? 0) === 0);

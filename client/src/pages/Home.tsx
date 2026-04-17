@@ -47,7 +47,7 @@ function DashboardContent() {
     register.isLoading || esopSummary.isLoading || rounds.isLoading;
 
   // ── Derived metrics ─────────────────────────────────────────────────────
-  const totalShares = capTable.data?.totalShares ?? 0;
+  const totalShares = capTable.data?.totalIssuedShares ?? capTable.data?.totalShares ?? 0;
   const holdings = capTable.data?.holdings ?? [];
   const investorCount = investors.data?.length ?? 0;
   const investedCount = (investors.data ?? []).filter(i => i.status === "invested").length;
@@ -83,7 +83,7 @@ function DashboardContent() {
   // huge numbers if represented oddly.
   const pieData = useMemo(() => {
     const sorted = holdings
-      .filter(h => h.totalShares > 0)
+      .filter(h => h.totalShares > 0 && !h.investorName?.includes('ESOP'))
       .slice()
       .sort((a, b) => b.totalShares - a.totalShares);
     const top = sorted.slice(0, 8);
