@@ -158,7 +158,7 @@ function DashboardContent() {
           <div className="h-px bg-foreground/20 w-16 mb-4" />
           <h1
             className="text-3xl font-bold tracking-tight"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
           >
             Equity Dashboard
           </h1>
@@ -509,7 +509,7 @@ function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
         <div className="space-y-2">
           <p
             className="text-2xl font-bold"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
           >
             Begin Your Cap Table
           </p>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BookOpen, Pencil } from "lucide-react";
+import { BookOpen, Pencil, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -128,6 +128,17 @@ function V1ShareRegisterContent() {
 
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showIssuanceDialog, setShowIssuanceDialog] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+
+  const updateEntry = trpc.v1.register.update.useMutation({
+    onSuccess: () => {
+      utils.v1.register.list.invalidate();
+      utils.v1.capTable.current.invalidate();
+      toast.success("Entry updated");
+      setEditingEntryId(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const writeRegister = trpc.v1.register.write.useMutation({
     onSuccess: (_, variables) => {
@@ -268,6 +279,7 @@ function V1ShareRegisterContent() {
                       <TableHead className="text-right">Price / Share</TableHead>
                       <TableHead className="text-right">Total Amount</TableHead>
                       <TableHead>Source</TableHead>
+                      {canEdit && <TableHead className="w-[80px]"></TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -288,18 +300,7 @@ function V1ShareRegisterContent() {
                             {formatDate(r.effectiveDate)}
                           </TableCell>
                           <TableCell className="font-medium">
-                            <span className="inline-flex items-center gap-1.5">
-                              {investorName(r.investorId)}
-                              {canEdit && (
-                                <button
-                                  onClick={() => setEditingInvestorId(r.investorId)}
-                                  className="text-muted-foreground hover:text-foreground transition-colors"
-                                  title="Edit investor"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </span>
+                            {investorName(r.investorId)}
                           </TableCell>
                           <TableCell>
                             {eventTypeBadge(r.eventType as RegisterEventType)}
@@ -328,6 +329,28 @@ function V1ShareRegisterContent() {
                               "—"
                             )}
                           </TableCell>
+                          {canEdit && (
+                            <TableCell>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setEditingEntryId(r.id)}
+                                  title="Edit entry"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setEditingInvestorId(r.investorId)}
+                                  title="Edit investor"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
@@ -475,6 +498,18 @@ function V1ShareRegisterContent() {
           onOpenChange={setDialogOpen}
           roundId={editing.fundingRoundId}
           allocation={editing}
+        />
+      )}
+
+      {/* Entry edit dialog */}
+      {editingEntryId != null && (
+        <EntryEditDialog
+          entryId={editingEntryId}
+          entries={entries ?? []}
+          open={editingEntryId != null}
+          onOpenChange={(open) => { if (!open) setEditingEntryId(null); }}
+          onSave={(id, data) => updateEntry.mutate({ id, data })}
+          saving={updateEntry.isPending}
         />
       )}
 
@@ -906,6 +941,138 @@ function RegisterWriteDialog({
               disabled={saving || !investorId || !shares || (isTransfer && !toInvestorId)}
             >
               {saving ? "Recording..." : isTransfer ? "Transfer" : "Issue Shares"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Entry Edit Dialog ───────────────────────────────────────────────────────
+
+const EVENT_TYPES = ["issuance", "transfer_in", "transfer_out", "cancellation", "reversal"] as const;
+
+type EntryUpdateData = {
+  effectiveDate?: string;
+  eventType?: (typeof EVENT_TYPES)[number];
+  shareClass?: (typeof SHARE_CLASSES)[number];
+  shares?: number;
+  pricePerShare?: string | null;
+  currency?: string;
+  totalAmount?: string | null;
+  notes?: string | null;
+};
+
+function EntryEditDialog({
+  entryId,
+  entries,
+  open,
+  onOpenChange,
+  onSave,
+  saving,
+}: {
+  entryId: number;
+  entries: { id: number; effectiveDate: string; eventType: string; shareClass: string; shares: number | null; pricePerShare: string | null; currency: string | null; totalAmount: string | null; notes: string | null }[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (id: number, data: EntryUpdateData) => void;
+  saving: boolean;
+}) {
+  const entry = entries.find((e) => e.id === entryId);
+
+  const [effectiveDate, setEffectiveDate] = useState(entry?.effectiveDate ?? "");
+  const [eventType, setEventType] = useState(entry?.eventType ?? "issuance");
+  const [shareClass, setShareClass] = useState(entry?.shareClass ?? "common");
+  const [shares, setShares] = useState(String(Math.abs(Number(entry?.shares ?? 0))));
+  const [pricePerShare, setPricePerShare] = useState(entry?.pricePerShare ?? "");
+  const [notes, setNotes] = useState(entry?.notes ?? "");
+
+  if (!entry) return null;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const sharesNum = parseInt(shares, 10);
+    if (!sharesNum) return;
+    onSave(entryId, {
+      effectiveDate: effectiveDate || undefined,
+      eventType: eventType as EntryUpdateData["eventType"],
+      shareClass: shareClass as EntryUpdateData["shareClass"],
+      shares: sharesNum,
+      pricePerShare: pricePerShare || null,
+      totalAmount: pricePerShare && sharesNum ? String(Number(pricePerShare) * sharesNum) : null,
+      notes: notes || null,
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit Register Entry</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Effective Date *</Label>
+              <Input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Event Type *</Label>
+              <Select value={eventType} onValueChange={setEventType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EVENT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Share Class *</Label>
+              <Select value={shareClass} onValueChange={setShareClass}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SHARE_CLASSES.map((sc) => (
+                    <SelectItem key={sc} value={sc}>{sc.replace(/_/g, " ")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Shares *</Label>
+              <Input type="number" min={1} value={shares} onChange={(e) => setShares(e.target.value)} required />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Price / Share</Label>
+              <Input type="number" step="0.0001" min={0} value={pricePerShare} onChange={(e) => setPricePerShare(e.target.value)} placeholder="Optional" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Total Amount</Label>
+              <Input
+                type="text"
+                readOnly
+                value={pricePerShare && shares ? `${(Number(pricePerShare) * parseInt(shares, 10)).toLocaleString()}` : "—"}
+                className="bg-muted"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={saving || !shares}>
+              {saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </form>

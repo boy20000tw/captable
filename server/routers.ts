@@ -701,6 +701,37 @@ const v1RegisterRouter = router({
     });
     return result;
   }),
+  // Update an existing register entry (for corrections)
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      effectiveDate: z.string().optional(),
+      eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal"]).optional(),
+      shareClass: z.enum(["common", "seed", "seed_plus", "pre_a", "bridge", "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop"]).optional(),
+      shares: z.number().int().optional(),
+      pricePerShare: z.string().optional().nullable(),
+      currency: z.string().optional(),
+      totalAmount: z.string().optional().nullable(),
+      notes: z.string().optional().nullable(),
+    }),
+  })).mutation(async ({ ctx, input }) => {
+    const { getDb } = await import("./db");
+    const { shareRegisterEntries } = await import("../drizzle/schema");
+    const { eq, and } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+    const [updated] = await db.update(shareRegisterEntries)
+      .set(input.data)
+      .where(and(eq(shareRegisterEntries.id, input.id), eq(shareRegisterEntries.companyId, ctx.companyId)))
+      .returning();
+    if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Register entry not found" });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "register_entry", resourceId: input.id,
+      changesAfter: JSON.stringify(input.data),
+    });
+    return updated;
+  }),
 });
 
 // ─── V1 Cap Table Router (derived view) ─────────────────────────────────────
