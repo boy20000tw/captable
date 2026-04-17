@@ -147,7 +147,7 @@ function ImportContent() {
       {/* Header */}
       <div className="space-y-1">
         <div className="h-px bg-foreground/20 w-16 mb-4" />
-        <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+        <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>
           Import & Analysis
         </h1>
         <p className="text-sm text-muted-foreground">

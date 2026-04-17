@@ -349,13 +349,13 @@ function V1InvestorsContent() {
                     </TableCell>
                     <TableCell>{entityBadge(inv.entityKind as EntityKind)}</TableCell>
                     <TableCell>{statusBadge(inv.status as InvestorStatus)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {inv.email ?? "—"}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {inv.phone ?? "—"}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {inv.lastContactAt ? formatDate(inv.lastContactAt) : "—"}
                     </TableCell>
                     <TableCell>

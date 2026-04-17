@@ -155,7 +155,7 @@ function AntiDilutionContent() {
       <div className="flex items-end justify-between">
         <div className="space-y-1">
           <div className="h-px bg-foreground/20 w-16 mb-4" />
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>
             Anti-Dilution Provisions
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -176,17 +176,17 @@ function AntiDilutionContent() {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-card border border-border rounded-sm p-5 space-y-2">
           <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Total Provisions</p>
-          <p className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{provisions?.length || 0}</p>
+          <p className="text-2xl font-bold" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>{provisions?.length || 0}</p>
           <p className="text-xs text-muted-foreground">across all rounds</p>
         </div>
         <div className="bg-card border border-border rounded-sm p-5 space-y-2">
           <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Active</p>
-          <p className="text-2xl font-bold text-green-700" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{activeCount}</p>
+          <p className="text-2xl font-bold text-green-700" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>{activeCount}</p>
           <p className="text-xs text-muted-foreground">provisions in effect</p>
         </div>
         <div className="bg-card border border-border rounded-sm p-5 space-y-2">
           <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Triggered</p>
-          <p className="text-2xl font-bold text-yellow-700" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>{triggeredCount}</p>
+          <p className="text-2xl font-bold text-yellow-700" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>{triggeredCount}</p>
           <p className="text-xs text-muted-foreground">require adjustment</p>
         </div>
       </div>

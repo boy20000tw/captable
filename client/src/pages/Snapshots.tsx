@@ -121,7 +121,7 @@ function SnapshotsContent() {
           <div className="h-px bg-foreground/20 w-16 mb-4" />
           <h1
             className="text-3xl font-bold tracking-tight"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
           >
             Cap Table Snapshots
           </h1>
@@ -192,7 +192,7 @@ function SnapshotsContent() {
               <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{card.label}</p>
               <p
                 className="text-xl font-bold tabular-nums"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
               >
                 {card.value}
               </p>

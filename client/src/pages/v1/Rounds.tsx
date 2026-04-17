@@ -257,10 +257,10 @@ function V1RoundsContent() {
                     onClick={() => setLocation(`/funding-rounds/${r.id}`)}
                   >
                     <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
+                    <TableCell className="text-muted-foreground ">
                       {formatDate(r.roundDate)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-xs font-mono">
+                    <TableCell className="text-right tabular-nums font-mono">
                       {r.pricePerShareNtd
                         ? `NT$ ${Number(r.pricePerShareNtd).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
                         : "—"}

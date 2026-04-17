@@ -171,7 +171,7 @@ function V1CapTableContent() {
                     <TableCell className="font-medium">
                       {h.investorName}
                     </TableCell>
-                    <TableCell className="capitalize text-xs">
+                    <TableCell className="capitalize ">
                       {h.entityKind}
                     </TableCell>
                     <TableCell>
@@ -185,7 +185,7 @@ function V1CapTableContent() {
                     <TableCell className="text-right tabular-nums">
                       {calcOwnership(h.totalShares)}%
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {Object.entries(h.byShareClass)
                         .filter(([, v]) => v > 0)
                         .map(
@@ -203,7 +203,7 @@ function V1CapTableContent() {
                     <TableCell className="font-medium text-muted-foreground">
                       ESOP Pool (Unallocated)
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       —
                     </TableCell>
                     <TableCell>
@@ -220,7 +220,7 @@ function V1CapTableContent() {
                     <TableCell className="text-right tabular-nums">
                       {esopUnallocatedPct}%
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       esop pool
                     </TableCell>
                   </TableRow>

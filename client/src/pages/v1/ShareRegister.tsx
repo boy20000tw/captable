@@ -296,7 +296,7 @@ function V1ShareRegisterContent() {
                           key={r.id}
                           className="hover:bg-secondary/30"
                         >
-                          <TableCell className="text-xs text-muted-foreground">
+                          <TableCell className="text-muted-foreground">
                             {formatDate(r.effectiveDate)}
                           </TableCell>
                           <TableCell className="font-medium">
@@ -305,7 +305,7 @@ function V1ShareRegisterContent() {
                           <TableCell>
                             {eventTypeBadge(r.eventType as RegisterEventType)}
                           </TableCell>
-                          <TableCell className="capitalize text-xs">
+                          <TableCell className="capitalize ">
                             {String(r.shareClass).replace(/_/g, " ")}
                           </TableCell>
                           <TableCell
@@ -314,13 +314,13 @@ function V1ShareRegisterContent() {
                             {sharesNum > 0 ? "+" : ""}
                             {sharesNum.toLocaleString()}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-xs font-mono">
+                          <TableCell className="text-right tabular-nums font-mono">
                             {formatPrice(r.pricePerShare)}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
                             {formatAmount(r.totalAmount)}
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
+                          <TableCell className="text-muted-foreground">
                             {r.fundingRoundId != null ? (
                               <span>Round: {roundName(r.fundingRoundId)}</span>
                             ) : r.allocationId != null ? (
@@ -443,13 +443,13 @@ function V1ShareRegisterContent() {
                           className="cursor-pointer hover:bg-secondary/30"
                           onClick={() => openEdit(a)}
                         >
-                          <TableCell className="text-xs text-muted-foreground">
+                          <TableCell className="text-muted-foreground">
                             {roundName(a.fundingRoundId)}
                           </TableCell>
                           <TableCell className="font-medium">
                             {investorName(a.investorId)}
                           </TableCell>
-                          <TableCell className="capitalize text-xs">
+                          <TableCell className="capitalize ">
                             {a.shareClass.replace(/_/g, " ")}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
@@ -464,7 +464,7 @@ function V1ShareRegisterContent() {
                               ? a.sharesAllocated.toLocaleString()
                               : "—"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-xs font-mono">
+                          <TableCell className="text-right tabular-nums font-mono">
                             {a.pricePerShare
                               ? `${a.currency} ${Number(
                                   a.pricePerShare
@@ -476,7 +476,7 @@ function V1ShareRegisterContent() {
                           <TableCell>
                             {allocationStatusBadge(a.status)}
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
+                          <TableCell className="text-muted-foreground">
                             {(a as any).updatedAt
                               ? formatDate((a as any).updatedAt)
                               : "—"}
