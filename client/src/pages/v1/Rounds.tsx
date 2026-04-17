@@ -254,7 +254,7 @@ function V1RoundsContent() {
                       {formatValuation(r.preMoneyValuationNtd)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-semibold">
-                      {formatValuation(r.postMoneyValuationNtd)}
+                      {formatValuation(String((r as any).postMoneyCalc ?? r.postMoneyValuationNtd ?? ""))}
                     </TableCell>
                     <TableCell>{statusBadge(r.status as RoundStatus)}</TableCell>
                     <TableCell className="text-right tabular-nums text-xs font-mono">

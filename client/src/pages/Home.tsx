@@ -109,7 +109,7 @@ function DashboardContent() {
         const preMoney = parseFloat(r.preMoneyValuationNtd || "0");
         const raised = parseFloat(r.moneyRaisedNtd || "0");
         const fallback = preMoney > 0 && raised > 0 ? preMoney + raised : 0;
-        const post = stored || calc || fallback;
+        const post = calc || stored || fallback;
         return { name: r.name, valuation: post / 1_000_000 };
       })
       .filter(r => r.valuation > 0);
@@ -242,7 +242,10 @@ function DashboardContent() {
                           outerRadius={84}
                           paddingAngle={2}
                           dataKey="value"
-                          isAnimationActive={false}
+                          isAnimationActive={true}
+                          animationBegin={0}
+                          animationDuration={800}
+                          animationEasing="ease-out"
                         >
                           {pieData.map((_, i) => (
                             <Cell key={i} fill={ROUND_CHART_COLORS[i % ROUND_CHART_COLORS.length]} />
