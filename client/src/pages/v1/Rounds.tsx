@@ -4,8 +4,10 @@ import { toast } from "sonner";
 import { Plus, Edit2, Trash2, Rocket, ArrowRight } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { formatDate, formatValuation } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
 import {
   Card,
   CardContent,
@@ -84,6 +86,7 @@ function statusBadge(status: RoundStatus) {
 function V1RoundsContent() {
   const [, setLocation] = useLocation();
   const { canEdit, canDelete } = usePermissions();
+  const { formatAmount } = useCurrency();
   const utils = trpc.useUtils();
   const { data: rounds, isLoading } = trpc.fundingRounds.list.useQuery();
 
@@ -189,11 +192,14 @@ function V1RoundsContent() {
             Plan and track each capital raise.
           </p>
         </div>
-        {canEdit && (
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" /> New Round
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <CurrencyToggle />
+          {canEdit && (
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-1" /> New Round
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main Table */}
@@ -260,13 +266,13 @@ function V1RoundsContent() {
                         : "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatValuation(r.moneyRaisedNtd)}
+                      {formatAmount(r.moneyRaisedNtd)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {preMoney > 0 ? formatValuation(String(preMoney)) : "—"}
+                      {preMoney > 0 ? formatAmount(preMoney) : "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-semibold">
-                      {postMoney > 0 ? formatValuation(String(postMoney)) : "—"}
+                      {postMoney > 0 ? formatAmount(postMoney) : "—"}
                     </TableCell>
                     <TableCell>{statusBadge(r.status as RoundStatus)}</TableCell>
                     <TableCell>

@@ -4,6 +4,7 @@ import { PieChart, ArrowRight } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Switch } from "@/components/ui/switch";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
 import {
   Card,
   CardContent,
@@ -88,6 +89,7 @@ function V1CapTableContent() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <CurrencyToggle />
           <div className="flex items-center gap-2">
             <label htmlFor="esop-toggle" className="text-sm text-muted-foreground whitespace-nowrap">
               Include ESOP

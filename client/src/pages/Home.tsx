@@ -1,6 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { formatShares, formatValuation, formatDate, ROUND_CHART_COLORS } from "@/lib/utils";
+import { formatShares, formatDate, ROUND_CHART_COLORS } from "@/lib/utils";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -34,6 +36,7 @@ export default function Home() {
 
 function DashboardContent() {
   const [, setLocation] = useLocation();
+  const { formatAmount } = useCurrency();
 
   const capTable = trpc.v1.capTable.current.useQuery();
   const investors = trpc.v1.investors.list.useQuery();
@@ -149,24 +152,27 @@ function DashboardContent() {
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10">
       {/* Header */}
-      <div className="space-y-1">
-        <div className="h-px bg-foreground/20 w-16 mb-4" />
-        <h1
-          className="text-3xl font-bold tracking-tight"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-        >
-          Equity Dashboard
-        </h1>
-        <p
-          className="text-sm text-muted-foreground"
-          style={{ letterSpacing: "0.05em" }}
-        >
-          {hasData
-            ? activeRound
-              ? `Active round · ${activeRound.name}${activeRound.roundDate ? ` · ${formatDate(activeRound.roundDate)}` : ""}`
-              : "Overview"
-            : "No data yet — create your first funding round to get started"}
-        </p>
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <div className="h-px bg-foreground/20 w-16 mb-4" />
+          <h1
+            className="text-3xl font-bold tracking-tight"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            Equity Dashboard
+          </h1>
+          <p
+            className="text-sm text-muted-foreground"
+            style={{ letterSpacing: "0.05em" }}
+          >
+            {hasData
+              ? activeRound
+                ? `Active round · ${activeRound.name}${activeRound.roundDate ? ` · ${formatDate(activeRound.roundDate)}` : ""}`
+                : "Overview"
+              : "No data yet — create your first funding round to get started"}
+          </p>
+        </div>
+        {hasData && <CurrencyToggle />}
       </div>
 
       {!hasData ? (
@@ -462,10 +468,10 @@ function DashboardContent() {
                           : "—"}
                       </td>
                       <td className="text-right tabular-nums">
-                        {formatValuation(r.moneyRaisedNtd)}
+                        {formatAmount(r.moneyRaisedNtd)}
                       </td>
                       <td className="text-right tabular-nums">
-                        {formatValuation(
+                        {formatAmount(
                           String((r as any).postMoneyCalc ?? r.postMoneyValuationNtd ?? "")
                         )}
                       </td>

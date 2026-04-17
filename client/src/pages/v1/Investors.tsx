@@ -220,6 +220,8 @@ function V1InvestorsContent() {
     const list = investors ?? [];
     const q = search.trim().toLowerCase();
     return list.filter((inv) => {
+      // Exclude ESOP pool entries — they belong on Cap Table, not Investors
+      if (inv.name?.toUpperCase().includes('ESOP')) return false;
       if (statusFilter !== "all" && inv.status !== statusFilter) return false;
       if (kindFilter !== "all" && inv.entityKind !== kindFilter) return false;
       if (q && !inv.name.toLowerCase().includes(q)) return false;
