@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BookOpen, Pencil, Edit2 } from "lucide-react";
+import { BookOpen, UserPen, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -300,7 +300,20 @@ function V1ShareRegisterContent() {
                             {formatDate(r.effectiveDate)}
                           </TableCell>
                           <TableCell className="font-medium">
-                            {investorName(r.investorId)}
+                            <div className="flex items-center gap-1">
+                              <span>{investorName(r.investorId)}</span>
+                              {canEdit && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                  onClick={() => setEditingInvestorId(r.investorId)}
+                                  title="Edit investor"
+                                >
+                                  <UserPen className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {eventTypeBadge(r.eventType as RegisterEventType)}
@@ -331,24 +344,14 @@ function V1ShareRegisterContent() {
                           </TableCell>
                           {canEdit && (
                             <TableCell>
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => setEditingEntryId(r.id)}
-                                  title="Edit entry"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => setEditingInvestorId(r.investorId)}
-                                  title="Edit investor"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setEditingEntryId(r.id)}
+                                title="Edit register entry"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
                             </TableCell>
                           )}
                         </TableRow>
