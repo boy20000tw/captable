@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { PieChart, ArrowRight } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -51,14 +53,26 @@ function fmtNum(n: number) {
 function V1CapTableContent() {
   const [, setLocation] = useLocation();
   const { data, isLoading } = trpc.v1.capTable.current.useQuery();
+  const [includeEsop, setIncludeEsop] = useState(true);
 
   const isEmpty =
     !isLoading && (!data || (data.holdings?.length ?? 0) === 0);
 
+  // Denominator for ownership calculation
+  const displayTotal = data
+    ? includeEsop
+      ? data.totalShares
+      : data.totalIssuedShares
+    : 0;
+
   const esopUnallocatedPct =
-    data && data.totalShares > 0
-      ? ((data.esopPoolUnallocated / data.totalShares) * 100).toFixed(4)
+    data && displayTotal > 0
+      ? ((data.esopPoolUnallocated / displayTotal) * 100).toFixed(4)
       : "0";
+
+  // Recalculate ownership % based on toggle
+  const calcOwnership = (shares: number) =>
+    displayTotal > 0 ? ((shares / displayTotal) * 100).toFixed(4) : "0";
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
@@ -73,11 +87,19 @@ function V1CapTableContent() {
             Derived from share register. Not editable.
           </p>
         </div>
-        {data?.generatedAt && (
-          <p className="text-xs text-muted-foreground">
-            As of {new Date(data.generatedAt).toLocaleString()}
-          </p>
-        )}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="esop-toggle" className="text-sm text-muted-foreground whitespace-nowrap">
+              Include ESOP
+            </label>
+            <Switch id="esop-toggle" checked={includeEsop} onCheckedChange={setIncludeEsop} />
+          </div>
+          {data?.generatedAt && (
+            <p className="text-xs text-muted-foreground">
+              As of {new Date(data.generatedAt).toLocaleString()}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* KPI metrics */}
@@ -85,8 +107,8 @@ function V1CapTableContent() {
         <CardContent className="pt-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             <Metric
-              label="Total Shares (Fully Diluted)"
-              value={data ? fmtNum(data.totalShares) : "—"}
+              label={includeEsop ? "Total Shares (Fully Diluted)" : "Issued Shares (Excl. ESOP)"}
+              value={data ? fmtNum(displayTotal) : "—"}
             />
             <Metric
               label="Issued Shares"
@@ -161,7 +183,7 @@ function V1CapTableContent() {
                       {fmtNum(h.totalShares)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {h.ownershipPct}%
+                      {calcOwnership(h.totalShares)}%
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {Object.entries(h.byShareClass)
@@ -176,7 +198,7 @@ function V1CapTableContent() {
                 ))}
               </TableBody>
               <TableFooter>
-                {data!.esopPoolUnallocated > 0 && (
+                {includeEsop && data!.esopPoolUnallocated > 0 && (
                   <TableRow>
                     <TableCell className="font-medium text-muted-foreground">
                       ESOP Pool (Unallocated)
@@ -205,10 +227,10 @@ function V1CapTableContent() {
                 )}
                 <TableRow>
                   <TableCell colSpan={3} className="font-semibold">
-                    Total (Fully Diluted)
+                    {includeEsop ? "Total (Fully Diluted)" : "Total (Excl. ESOP)"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">
-                    {fmtNum(data!.totalShares)}
+                    {fmtNum(displayTotal)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">
                     100.0000%

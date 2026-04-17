@@ -672,11 +672,35 @@ const v1AllocationsRouter = router({
   }),
 });
 
-// ─── V1 Register Router (read-only; writes go via allocation advance) ──────
+// ─── V1 Register Router ────────────────────────────────────────────────────
 const v1RegisterRouter = router({
   list: companyProcedure.input(z.object({ investorId: z.number().optional() }).optional()).query(
     ({ ctx, input }) => getAllRegisterEntries(ctx.companyId, input)
   ),
+  // Direct register write — for manual issuances, transfers, cancellations
+  write: companyEditorProcedure.input(z.object({
+    investorId: z.number(),
+    eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal"]),
+    shareClass: z.enum(["common", "seed", "seed_plus", "pre_a", "bridge", "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop"]),
+    shares: z.number().int().positive(),
+    effectiveDate: z.string(),
+    fundingRoundId: z.number().optional(),
+    pricePerShare: z.string().optional(),
+    currency: z.string().default("NTD"),
+    fxToNtd: z.string().default("1"),
+    totalAmount: z.string().optional(),
+    reversedEntryId: z.number().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ ctx, input }) => {
+    const result = await writeRegisterEntry(ctx.companyId, ctx.user!.id, input);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "create", resourceType: "register_entry", resourceId: result.entry.id,
+      resourceName: `${input.eventType} — ${input.shares} ${input.shareClass}`,
+      changesAfter: JSON.stringify(input),
+    });
+    return result;
+  }),
 });
 
 // ─── V1 Cap Table Router (derived view) ─────────────────────────────────────

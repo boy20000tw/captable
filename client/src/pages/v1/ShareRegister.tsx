@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   Card,
   CardContent,
@@ -11,6 +13,17 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Tabs,
   TabsContent,
@@ -89,6 +102,8 @@ function V1ShareRegisterContent() {
     trpc.v1.allocations.list.useQuery({});
   const { data: investors } = trpc.v1.investors.list.useQuery();
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
+  const { canEdit } = usePermissions();
+  const utils = trpc.useUtils();
 
   const [investorFilter, setInvestorFilter] = useState<string>("all");
   const [roundFilter, setRoundFilter] = useState<string>("all");
@@ -96,6 +111,33 @@ function V1ShareRegisterContent() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AllocationRow | null>(null);
+  const [editingInvestorId, setEditingInvestorId] = useState<number | null>(null);
+
+  const updateInvestor = trpc.v1.investors.update.useMutation({
+    onSuccess: () => {
+      utils.v1.investors.list.invalidate();
+      utils.v1.capTable.current.invalidate();
+      toast.success("Investor updated");
+      setEditingInvestorId(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [showIssuanceDialog, setShowIssuanceDialog] = useState(false);
+
+  const writeRegister = trpc.v1.register.write.useMutation({
+    onSuccess: (_, variables) => {
+      utils.v1.register.list.invalidate();
+      utils.v1.capTable.current.invalidate();
+      utils.v1.snapshots.list.invalidate();
+      const verb = variables.eventType === "issuance" ? "Issuance" : "Transfer";
+      toast.success(`${verb} recorded successfully`);
+      setShowTransferDialog(false);
+      setShowIssuanceDialog(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const investorName = useMemo(() => {
     const m = new Map<number, string>();
@@ -147,6 +189,16 @@ function V1ShareRegisterContent() {
             Append-only ledger of issued shares, plus the full allocations pipeline.
           </p>
         </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowTransferDialog(true)}>
+              Transfer Shares
+            </Button>
+            <Button size="sm" onClick={() => setShowIssuanceDialog(true)}>
+              New Issuance
+            </Button>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="register" className="space-y-6">
@@ -230,7 +282,18 @@ function V1ShareRegisterContent() {
                             {formatDate(r.effectiveDate)}
                           </TableCell>
                           <TableCell className="font-medium">
-                            {investorName(r.investorId)}
+                            <span className="inline-flex items-center gap-1.5">
+                              {investorName(r.investorId)}
+                              {canEdit && (
+                                <button
+                                  onClick={() => setEditingInvestorId(r.investorId)}
+                                  className="text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Edit investor"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </span>
                           </TableCell>
                           <TableCell>
                             {eventTypeBadge(r.eventType as RegisterEventType)}
@@ -418,6 +481,439 @@ function V1ShareRegisterContent() {
           allocation={editing}
         />
       )}
+
+      {/* Investor edit dialog */}
+      {editingInvestorId != null && (
+        <InvestorEditDialog
+          investorId={editingInvestorId}
+          investors={investors ?? []}
+          open={editingInvestorId != null}
+          onOpenChange={(open) => { if (!open) setEditingInvestorId(null); }}
+          onSave={(id, data) => updateInvestor.mutate({ id, data })}
+          saving={updateInvestor.isPending}
+        />
+      )}
+
+      {/* Transfer dialog */}
+      <RegisterWriteDialog
+        mode="transfer"
+        open={showTransferDialog}
+        onOpenChange={setShowTransferDialog}
+        investors={investors ?? []}
+        rounds={rounds ?? []}
+        onSubmit={(data) => writeRegister.mutate(data)}
+        saving={writeRegister.isPending}
+      />
+
+      {/* New Issuance dialog */}
+      <RegisterWriteDialog
+        mode="issuance"
+        open={showIssuanceDialog}
+        onOpenChange={setShowIssuanceDialog}
+        investors={investors ?? []}
+        rounds={rounds ?? []}
+        onSubmit={(data) => writeRegister.mutate(data)}
+        saving={writeRegister.isPending}
+      />
     </div>
+  );
+}
+
+// ─── Investor Edit Dialog ────────────────────────────────────────────────────
+
+type InvestorRow = {
+  id: number;
+  name: string;
+  entityKind: string;
+  email: string | null;
+  phone: string | null;
+  nationality: string | null;
+  aka: string | null;
+  website: string | null;
+  linkedinUrl: string | null;
+  notes: string | null;
+};
+
+type InvestorUpdateData = {
+  name?: string;
+  entityKind?: "individual" | "entity";
+  email?: string | null;
+  phone?: string | null;
+  nationality?: string | null;
+  aka?: string | null;
+  website?: string | null;
+  linkedinUrl?: string | null;
+  notes?: string | null;
+};
+
+function InvestorEditDialog({
+  investorId,
+  investors,
+  open,
+  onOpenChange,
+  onSave,
+  saving,
+}: {
+  investorId: number;
+  investors: InvestorRow[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (id: number, data: InvestorUpdateData) => void;
+  saving: boolean;
+}) {
+  const investor = investors.find((i) => i.id === investorId);
+
+  const [name, setName] = useState(investor?.name ?? "");
+  const [aka, setAka] = useState(investor?.aka ?? "");
+  const [entityKind, setEntityKind] = useState<"individual" | "entity">(
+    (investor?.entityKind as "individual" | "entity") ?? "individual"
+  );
+  const [email, setEmail] = useState(investor?.email ?? "");
+  const [phone, setPhone] = useState(investor?.phone ?? "");
+  const [nationality, setNationality] = useState(investor?.nationality ?? "");
+  const [website, setWebsite] = useState(investor?.website ?? "");
+  const [linkedinUrl, setLinkedinUrl] = useState(investor?.linkedinUrl ?? "");
+  const [notes, setNotes] = useState(investor?.notes ?? "");
+
+  if (!investor) return null;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSave(investorId, {
+      name: name.trim(),
+      entityKind,
+      aka: aka.trim() || null,
+      email: email.trim() || null,
+      phone: phone.trim() || null,
+      nationality: nationality.trim() || null,
+      website: website.trim() || null,
+      linkedinUrl: linkedinUrl.trim() || null,
+      notes: notes.trim() || null,
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit Investor</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-name">Name *</Label>
+              <Input id="inv-name" value={name} onChange={(e) => setName(e.target.value)} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-aka">Alias / English Name</Label>
+              <Input id="inv-aka" value={aka} onChange={(e) => setAka(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-kind">Entity Type</Label>
+              <Select value={entityKind} onValueChange={(v) => setEntityKind(v as "individual" | "entity")}>
+                <SelectTrigger id="inv-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="individual">Individual</SelectItem>
+                  <SelectItem value="entity">Entity</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-nationality">Nationality</Label>
+              <Input id="inv-nationality" value={nationality} onChange={(e) => setNationality(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-email">Email</Label>
+              <Input id="inv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-phone">Phone</Label>
+              <Input id="inv-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-website">Website</Label>
+              <Input id="inv-website" value={website} onChange={(e) => setWebsite(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-linkedin">LinkedIn</Label>
+              <Input id="inv-linkedin" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="inv-notes">Notes</Label>
+            <Textarea id="inv-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving || !name.trim()}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Register Write Dialog (Transfer / Issuance) ─────────────────────────────
+
+const SHARE_CLASSES = [
+  "common", "seed", "seed_plus", "pre_a", "bridge",
+  "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop",
+] as const;
+
+type RegisterWriteInput = {
+  investorId: number;
+  eventType: "issuance" | "transfer_in" | "transfer_out" | "cancellation" | "reversal";
+  shareClass: (typeof SHARE_CLASSES)[number];
+  shares: number;
+  effectiveDate: string;
+  fundingRoundId?: number;
+  pricePerShare?: string;
+  currency?: string;
+  totalAmount?: string;
+  notes?: string;
+};
+
+function RegisterWriteDialog({
+  mode,
+  open,
+  onOpenChange,
+  investors,
+  rounds,
+  onSubmit,
+  saving,
+}: {
+  mode: "transfer" | "issuance";
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  investors: { id: number; name: string }[];
+  rounds: { id: number; name: string }[];
+  onSubmit: (data: RegisterWriteInput) => void;
+  saving: boolean;
+}) {
+  const [investorId, setInvestorId] = useState("");
+  const [toInvestorId, setToInvestorId] = useState("");
+  const [shareClass, setShareClass] = useState<string>("common");
+  const [shares, setShares] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [roundId, setRoundId] = useState("");
+  const [pricePerShare, setPricePerShare] = useState("");
+  const [currency, setCurrency] = useState("NTD");
+  const [notes, setNotes] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const sharesNum = parseInt(shares, 10);
+    if (!investorId || !sharesNum) return;
+
+    const base = {
+      shareClass: shareClass as RegisterWriteInput["shareClass"],
+      shares: sharesNum,
+      effectiveDate,
+      fundingRoundId: roundId && roundId !== "none" ? parseInt(roundId, 10) : undefined,
+      pricePerShare: pricePerShare || undefined,
+      currency: currency || "NTD",
+      totalAmount:
+        pricePerShare && sharesNum
+          ? String(Number(pricePerShare) * sharesNum)
+          : undefined,
+      notes: notes || undefined,
+    };
+
+    if (mode === "issuance") {
+      onSubmit({
+        ...base,
+        investorId: parseInt(investorId, 10),
+        eventType: "issuance",
+      });
+    } else {
+      // Transfer: write transfer_out from source, then transfer_in to target
+      // We submit transfer_out first; on success the caller can submit transfer_in
+      // For simplicity, we create two entries via two calls
+      onSubmit({
+        ...base,
+        investorId: parseInt(investorId, 10),
+        eventType: "transfer_out",
+      });
+      if (toInvestorId) {
+        // Queue the transfer_in after a tick so the first completes
+        setTimeout(() => {
+          onSubmit({
+            ...base,
+            investorId: parseInt(toInvestorId, 10),
+            eventType: "transfer_in",
+          });
+        }, 500);
+      }
+    }
+  }
+
+  const isTransfer = mode === "transfer";
+  const title = isTransfer ? "Transfer Shares" : "New Issuance";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className={isTransfer ? "grid grid-cols-2 gap-4" : ""}>
+            <div className="space-y-1.5">
+              <Label>{isTransfer ? "From Investor *" : "Investor *"}</Label>
+              <Select value={investorId} onValueChange={setInvestorId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select investor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {investors.map((inv) => (
+                    <SelectItem key={inv.id} value={String(inv.id)}>
+                      {inv.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {isTransfer && (
+              <div className="space-y-1.5">
+                <Label>To Investor *</Label>
+                <Select value={toInvestorId} onValueChange={setToInvestorId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select investor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {investors
+                      .filter((inv) => String(inv.id) !== investorId)
+                      .map((inv) => (
+                        <SelectItem key={inv.id} value={String(inv.id)}>
+                          {inv.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Share Class *</Label>
+              <Select value={shareClass} onValueChange={setShareClass}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHARE_CLASSES.map((sc) => (
+                    <SelectItem key={sc} value={sc}>
+                      {sc.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Shares *</Label>
+              <Input
+                type="number"
+                min={1}
+                value={shares}
+                onChange={(e) => setShares(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Effective Date *</Label>
+              <Input
+                type="date"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Funding Round</Label>
+              <Select value={roundId} onValueChange={setRoundId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Optional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {rounds.map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Price / Share</Label>
+              <Input
+                type="number"
+                step="0.0001"
+                min={0}
+                value={pricePerShare}
+                onChange={(e) => setPricePerShare(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Currency</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NTD">NTD</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Notes</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving || !investorId || !shares || (isTransfer && !toInvestorId)}
+            >
+              {saving ? "Recording..." : isTransfer ? "Transfer" : "Issue Shares"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
