@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Building2, Upload, Save, Pen } from "lucide-react";
+import { Building2, Upload, Save } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -111,16 +111,12 @@ function CompanySettingsContent() {
     onError: (e) => toast.error(e.message),
   });
 
-  const uploadSignatureMut = trpc.companies.uploadSignature.useMutation({
-    onSuccess: () => {
-      utils.companies.get.invalidate();
-      toast.success("Signature uploaded");
-    },
-    onError: (e) => toast.error(e.message),
-  });
+  // Signature upload is deferred to Phase 2 (DocuSeal eSignature integration).
+  // The backend `trpc.companies.uploadSignature` mutation and the
+  // `companies.signatureUrl` DB column are still in place so that work can
+  // plug in without another migration — the UI is just intentionally absent.
 
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const sigInputRef = useRef<HTMLInputElement>(null);
 
   function handleChange<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -145,7 +141,7 @@ function CompanySettingsContent() {
     });
   }
 
-  async function handleFileUpload(file: File, kind: "logo" | "signature") {
+  async function handleLogoUpload(file: File) {
     if (!file.type.startsWith("image/")) {
       toast.error("Please choose an image file");
       return;
@@ -158,12 +154,7 @@ function CompanySettingsContent() {
     reader.onload = () => {
       const raw = String(reader.result ?? "");
       const base64 = raw.includes(",") ? raw.split(",")[1] : raw;
-      const payload = { fileName: file.name, fileBase64: base64, contentType: file.type };
-      if (kind === "logo") {
-        uploadLogoMut.mutate(payload);
-      } else {
-        uploadSignatureMut.mutate(payload);
-      }
+      uploadLogoMut.mutate({ fileName: file.name, fileBase64: base64, contentType: file.type });
     };
     reader.readAsDataURL(file);
   }
@@ -324,8 +315,7 @@ function CompanySettingsContent() {
               <CardHeader>
                 <CardTitle>Representative / Authorized Signatory</CardTitle>
                 <CardDescription>
-                  The person who signs contracts on behalf of the company. Used for eSignature
-                  auto-sign in Phase 2.
+                  The person authorized to sign contracts on behalf of the company.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -351,55 +341,12 @@ function CompanySettingsContent() {
                     />
                   </div>
                 </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label>Representative Signature (for auto-sign)</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Upload a signature image (PNG with transparent background recommended). This
-                    will be used to auto-sign the company's side of contracts via DocuSeal.
-                  </p>
-                  <div className="flex items-center gap-4">
-                    {company?.signatureUrl ? (
-                      <div className="border rounded-md p-3 bg-white">
-                        <img
-                          src={company.signatureUrl}
-                          alt="Signature"
-                          className="h-16 object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="border rounded-md p-3 bg-muted h-[88px] w-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                        No signature uploaded
-                      </div>
-                    )}
-                    {canEdit && (
-                      <div>
-                        <input
-                          ref={sigInputRef}
-                          type="file"
-                          accept="image/png,image/jpeg,image/svg+xml"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) handleFileUpload(f, "signature");
-                            e.target.value = "";
-                          }}
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => sigInputRef.current?.click()}
-                          disabled={uploadSignatureMut.isPending}
-                        >
-                          <Pen className="h-4 w-4 mr-2" />
-                          {company?.signatureUrl ? "Replace" : "Upload"} Signature
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/*
+                  Signature image upload (for auto-sign) is deferred to Phase 2
+                  when the DocuSeal eSignature integration lands. The backend
+                  schema (companies.signatureUrl) and uploadSignature mutation
+                  are already in place — only the UI is intentionally absent.
+                */}
               </CardContent>
             </Card>
           </div>
@@ -438,7 +385,7 @@ function CompanySettingsContent() {
                         className="hidden"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
-                          if (f) handleFileUpload(f, "logo");
+                          if (f) handleLogoUpload(f);
                           e.target.value = "";
                         }}
                       />
