@@ -1,9 +1,21 @@
 import * as XLSX from "xlsx";
+import { eq, and } from "drizzle-orm";
 import {
+  // Legacy (kept for any remaining consumers — writes are harmless)
   createShareholder, createFundingRound, upsertShareHolding,
-  createTransaction, createEsopPool, getAllShareholders,
-  getAllFundingRounds, updateImportLog, createImportLog
+  createTransaction, getAllShareholders,
+  getAllFundingRounds, updateImportLog, createImportLog,
+  createProjection,
+  // V1 (what Cap Table / Dashboard actually read)
+  createInvestor, getAllInvestors,
+  createEsopPoolV1,
+  getDb,
 } from "./db";
+import {
+  shareRegisterEntries,
+  snapshots as snapshotsV1,
+} from "../drizzle/schema";
+import { deriveCapTable } from "./v1/capTable";
 
 export interface ImportResult {
   success: boolean;
@@ -11,7 +23,7 @@ export interface ImportResult {
   errors: string[];
 }
 
-// Map round name to type
+// Map round name to type (legacy shareholder_type enum)
 function mapRoundToType(roundName: string): "founder" | "angel" | "seed" | "seed_plus" | "pre_a" | "bridge" | "series_a" | "pre_b" | "series_b" | "pre_c" | "series_c" | "esop" | "other" {
   const n = roundName.toLowerCase();
   if (n.includes("founder")) return "founder";
@@ -29,42 +41,93 @@ function mapRoundToType(roundName: string): "founder" | "angel" | "seed" | "seed
   return "other";
 }
 
-// Parse the Register of Shareholders sheet
-async function importRegisterSheet(
+// Entity-name heuristic shared across sheets
+function looksLikeEntity(name: string): boolean {
+  return name.includes("股份有限公司") || name.includes("國際") || name.includes("實業")
+    || /\b(Inc|Ltd|LLC|Corp|Co\.?|Company)\b/i.test(name);
+}
+
+// ─── Import helpers for V1 investors ────────────────────────────────────────
+
+type NameMap = Map<string, number>;                       // name / aka → V1 investors.id
+
+async function ensureV1Investor(
+  companyId: number,
+  name: string,
+  aka: string | undefined,
+  investorMap: NameMap,
+): Promise<number | null> {
+  // IMPORTANT: we key the map by **name only**. Several distinct shareholders
+  // can legitimately share the same aka (e.g. two "XX股份有限公司" entities
+  // both abbreviated "XX"), so aka-based lookup would merge them.
+  const hit = investorMap.get(name);
+  if (hit) return hit;
+
+  try {
+    const created = await createInvestor({
+      companyId,
+      name,
+      aka: aka ?? null,
+      entityKind: looksLikeEntity(name) ? "entity" : "individual",
+      status: "invested",
+    });
+    investorMap.set(name, created.id);
+    return created.id;
+  } catch {
+    // Fallback: re-scan after a (possibly concurrent) create
+    const all = await getAllInvestors(companyId);
+    const found = all.find(i => i.name === name);
+    if (found) {
+      investorMap.set(name, found.id);
+      return found.id;
+    }
+    return null;
+  }
+}
+
+async function seedV1InvestorMap(companyId: number): Promise<NameMap> {
+  const existing = await getAllInvestors(companyId);
+  const m: NameMap = new Map();
+  for (const inv of existing) m.set(inv.name, inv.id);
+  return m;
+}
+
+// ─── Register sheet — directory pass ────────────────────────────────────────
+// Creates V1 investors + legacy shareholders from rows 1-13. Does NOT write
+// register entries — those are written in a separate pass after funding
+// rounds exist (so entries can be linked to the right round).
+async function seedDirectoryFromRegisterSheet(
   ws: XLSX.WorkSheet,
   errors: string[],
   companyId: number,
-): Promise<{ shareholderMap: Map<string, number>, count: number }> {
+): Promise<{ shareholderMap: Map<string, number>, investorMap: NameMap, count: number }> {
   const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
-  const shareholderMap = new Map<string, number>(); // name -> db id
+  const shareholderMap = new Map<string, number>();
+  const investorMap = await seedV1InvestorMap(companyId);
   let count = 0;
 
-  // Find the header row - look for rows with shareholder data
-  // Register sheet structure: rows 1-14 are shareholder list, rows 17+ are transaction details
   const existingShareholders = await getAllShareholders(companyId);
   for (const sh of existingShareholders) {
     shareholderMap.set(sh.name, sh.id);
-    if (sh.aka) shareholderMap.set(sh.aka, sh.id);
   }
 
-  // Parse shareholder rows (rows 1-13 in the sheet, 0-indexed)
   for (let i = 1; i <= 13; i++) {
-    const row = data[i] as unknown[];
+    const row = data[i] as unknown[] | undefined;
     if (!row || !row[1]) continue;
     const name = String(row[1]).trim();
     const aka = row[2] ? String(row[2]).trim() : undefined;
     if (!name || name === "Total") continue;
 
+    await ensureV1Investor(companyId, name, aka, investorMap);
+
     if (!shareholderMap.has(name)) {
       try {
-        const isEntity = name.includes("股份有限公司") || name.includes("國際") || name.includes("實業");
+        const isEntity = looksLikeEntity(name);
         await createShareholder({ companyId, name, aka, type: "other", isEntity });
-        // Re-fetch to get ID
         const updated = await getAllShareholders(companyId);
         const found = updated.find(s => s.name === name);
         if (found) {
           shareholderMap.set(name, found.id);
-          if (aka) shareholderMap.set(aka, found.id);
           count++;
         }
       } catch (e) {
@@ -73,10 +136,33 @@ async function importRegisterSheet(
     }
   }
 
-  // Parse transaction rows (rows 17+ in the sheet)
-  const fundingRoundsDb = await getAllFundingRounds(companyId);
-  const roundMap = new Map(fundingRoundsDb.map(r => [r.name, r.id]));
-  void roundMap; // available for future use
+  return { shareholderMap, investorMap, count };
+}
+
+// ─── Register sheet — transaction pass ──────────────────────────────────────
+// Reads rows 17+ and writes one V1 share_register_entries row per transaction.
+// Links each entry to its funding round (looked up by col-1 name). Also writes
+// a legacy share_transactions row for backwards compat.
+async function writeRegisterEntriesFromSheet(
+  ws: XLSX.WorkSheet,
+  errors: string[],
+  companyId: number,
+  investorMap: NameMap,
+  shareholderMap: Map<string, number>,
+): Promise<number> {
+  const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
+  let count = 0;
+
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Build round lookup by normalized name
+  const rounds = await getAllFundingRounds(companyId);
+  const normalizeRoundName = (s: string) => s.toLowerCase().trim().replace(/[\s-_]+/g, "");
+  const roundLookup = new Map<string, { id: number; roundDate: string | null }>();
+  for (const r of rounds) {
+    roundLookup.set(normalizeRoundName(r.name), { id: r.id, roundDate: r.roundDate ?? null });
+  }
 
   for (let i = 17; i < data.length; i++) {
     const row = data[i] as unknown[] | undefined;
@@ -85,72 +171,108 @@ async function importRegisterSheet(
     const aka = row[3] ? String(row[3]).trim() : undefined;
     if (!name) continue;
 
+    const roundLabelRaw = row[1] ? String(row[1]).trim() : "";
     const sharesAmount = Number(row[4]) || 0;
     const paidIn = Number(row[5]) || 0;
     const lockUpRaw = row[7];
-    const lockUpStr = lockUpRaw instanceof Date ? lockUpRaw.toISOString() : (lockUpRaw ? String(lockUpRaw) : null);
+    const lockUpStr = lockUpRaw instanceof Date
+      ? lockUpRaw.toISOString()
+      : (lockUpRaw ? String(lockUpRaw) : null);
     const taxYear = row[9] ? Number(row[9]) : null;
     const taxAmount = row[10] ? Number(row[10]) : null;
     const taxCapStr = row[6] ? String(row[6]) : null;
     const taxQualified = taxCapStr ? !taxCapStr.includes("不適用") : false;
 
-    let lockUpEndDate: string | undefined = undefined;
+    let lockUpEndDate: string | undefined;
     if (lockUpStr) {
       try {
         const d = new Date(lockUpStr);
-        if (!isNaN(d.getTime())) lockUpEndDate = d.toISOString().split('T')[0];
+        if (!isNaN(d.getTime())) lockUpEndDate = d.toISOString().split("T")[0];
       } catch { /* ignore */ }
     }
 
-    const shareholderId = shareholderMap.get(name) || shareholderMap.get(aka || "");
-    if (!shareholderId || !sharesAmount) continue;
+    // Investors created in the directory pass may be missing for transactions
+    // that reference a grantee not listed in rows 1-13; create on the fly.
+    const investorId = await ensureV1Investor(companyId, name, aka, investorMap);
+    if (!investorId || !sharesAmount) continue;
 
+    // Match round by name (case-/whitespace-insensitive). Fallback = null.
+    const roundMatch = roundLabelRaw
+      ? roundLookup.get(normalizeRoundName(roundLabelRaw))
+      : undefined;
+    const effectiveDate = roundMatch?.roundDate
+      ?? new Date().toISOString().slice(0, 10);
+
+    // ── V1: share_register_entries ─────────────────────────────────────
     try {
-      const txData: any = {
+      const pricePerShare = sharesAmount > 0 && paidIn > 0
+        ? (paidIn / sharesAmount).toFixed(6)
+        : null;
+      await db.insert(shareRegisterEntries).values({
         companyId,
-        shareholderId,
-        transactionType: "issuance",
+        investorId,
+        eventType: "issuance",
         shareClass: "common",
-        sharesAmount,
-        totalAmountNtd: String(paidIn),
-        taxQualified,
-        taxDeductionYear: taxYear || undefined,
-        taxDeductionAmountNtd: taxAmount ? String(taxAmount) : undefined,
-      };
-      if (lockUpEndDate) txData.lockUpEndDate = lockUpEndDate;
-      await createTransaction(txData);
+        shares: sharesAmount,
+        pricePerShare,
+        currency: "NTD",
+        fxToNtd: "1",
+        totalAmount: paidIn > 0 ? String(paidIn) : null,
+        effectiveDate,
+        allocationId: null,
+        fundingRoundId: roundMatch?.id ?? null,
+        reversedEntryId: null,
+        notes: `[imported from Excel Register sheet row ${i + 1}${roundLabelRaw ? " · " + roundLabelRaw : ""}]`,
+      });
       count++;
     } catch (e) {
-      errors.push(`Failed to create transaction for ${name}: ${e}`);
+      errors.push(`Failed to write register entry for ${name}: ${e}`);
+    }
+
+    // ── Legacy: share_transactions (backwards compat, harmless) ────────
+    const legacyShareholderId = shareholderMap.get(name);
+    if (legacyShareholderId) {
+      try {
+        const txData: any = {
+          companyId,
+          shareholderId: legacyShareholderId,
+          transactionType: "issuance",
+          shareClass: "common",
+          sharesAmount,
+          totalAmountNtd: String(paidIn),
+          taxQualified,
+          taxDeductionYear: taxYear || undefined,
+          taxDeductionAmountNtd: taxAmount ? String(taxAmount) : undefined,
+        };
+        if (lockUpEndDate) txData.lockUpEndDate = lockUpEndDate;
+        await createTransaction(txData);
+      } catch { /* silent */ }
     }
   }
 
-  return { shareholderMap, count };
+  return count;
 }
 
-// Parse Cap Table sheet (with or without ESOP)
+// ─── Cap Table sheet (with or without ESOP) ────────────────────────────────
+// This sheet is used to seed funding_rounds and to build the ESOP pool. We no
+// longer write upsertShareHolding (legacy) because V1 reads from register
+// entries. But we still create rounds + any missing investors/shareholders so
+// the rest of the app (Rounds page, legacy tables) stays consistent.
 async function importCapTableSheet(
   ws: XLSX.WorkSheet,
   withEsop: boolean,
   shareholderMap: Map<string, number>,
+  investorMap: NameMap,
   errors: string[],
   companyId: number,
 ): Promise<number> {
   const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
   let count = 0;
 
-  // Row 0: round dates/names
-  // Row 1: column headers
-  // Row 3: price per share
-  // Row 4: money raised
-  // Row 5: post-money valuation
-  // Rows 6+: shareholder data
-
   const headerRow = (data[0] as unknown[] | undefined) || [];
   const roundNames: string[] = [];
   const roundColIndices: number[] = [];
 
-  // Find round columns (every 6 columns starting from col 3)
   for (let c = 3; c < (headerRow?.length || 0); c++) {
     const val = headerRow[c];
     if (val && String(val).match(/\d{4}\.\d{2}\.\d{2}/)) {
@@ -159,7 +281,6 @@ async function importCapTableSheet(
     }
   }
 
-  // Ensure funding rounds exist in DB
   const existingRounds = await getAllFundingRounds(companyId);
   const roundDbMap = new Map(existingRounds.map(r => [r.name, r]));
 
@@ -168,12 +289,11 @@ async function importCapTableSheet(
   const moneyRow = (data[4] as unknown[] | undefined) || [];
   const postMoneyRow = (data[5] as unknown[] | undefined) || [];
 
-  // Create funding rounds if they don't exist
+  // Create funding rounds if they don't exist (shared table — kept)
   const roundColToId = new Map<number, number>();
   for (let ri = 0; ri < roundColIndices.length; ri++) {
     const col = roundColIndices[ri];
     const rawName = String(roundLabelRow[col] || "");
-    // Extract round label like "2023.7.31 - Angel"
     const parts = rawName.split(" - ");
     const roundLabel = parts.length > 1 ? parts[1] : rawName;
     const roundDate = parts[0] ? parts[0].replace(/\./g, "-") : null;
@@ -197,7 +317,11 @@ async function importCapTableSheet(
         });
         const updated = await getAllFundingRounds(companyId);
         const found = updated.find(r => r.name === roundLabel);
-        if (found) { roundDbMap.set(roundLabel, found); roundColToId.set(col, found.id); count++; }
+        if (found) {
+          roundDbMap.set(roundLabel, found);
+          roundColToId.set(col, found.id);
+          count++;
+        }
       } catch (e) {
         errors.push(`Failed to create round ${roundLabel}: ${e}`);
       }
@@ -207,68 +331,36 @@ async function importCapTableSheet(
     }
   }
 
-  // Parse shareholder rows (rows 6 to ~15)
+  // Shareholder/investor rows: make sure they exist in BOTH legacy + V1.
+  // NOTE: intentionally no upsertShareHolding anymore — the V1 register
+  // entries (written in importRegisterSheet) are the single source of truth
+  // for holdings. This sheet is for rounds/ESOP metadata only.
   for (let i = 6; i < Math.min(data.length, 20); i++) {
-    const row = (data[i] as unknown[] | undefined);
+    const row = data[i] as unknown[] | undefined;
     if (!row || !row[1]) continue;
     const name = String(row[1]).trim();
     const aka = row[2] ? String(row[2]).trim() : undefined;
     if (!name || name === "Total" || name === "") continue;
 
-    // Update shareholder type based on round column
     const roundTypeStr = row[0] ? String(row[0]).trim() : "";
     const shType = mapRoundToType(roundTypeStr || name);
 
-    let shareholderId = shareholderMap.get(name) || shareholderMap.get(aka || "");
-    if (!shareholderId) {
+    // V1
+    await ensureV1Investor(companyId, name, aka, investorMap);
+
+    // Legacy shareholders (kept for backwards compat)
+    if (!shareholderMap.has(name)) {
       try {
-        const isEntity = name.includes("股份有限公司") || name.includes("國際") || name.includes("實業");
+        const isEntity = looksLikeEntity(name);
         await createShareholder({ companyId, name, aka, type: shType, isEntity });
         const updated = await getAllShareholders(companyId);
         const found = updated.find(s => s.name === name);
-        if (found) {
-          shareholderId = found.id;
-          shareholderMap.set(name, found.id);
-          if (aka) shareholderMap.set(aka, found.id);
-        }
+        if (found) shareholderMap.set(name, found.id);
       } catch { /* already exists */ }
-    }
-    if (!shareholderId) continue;
-
-    // For the last round column, record the holdings
-    const lastRoundCol = roundColIndices[roundColIndices.length - 1];
-    const lastRoundId = roundColToId.get(lastRoundCol);
-    if (!lastRoundId) continue;
-
-    const totalShares = Number(row[lastRoundCol + 2]) || 0;
-    const ownershipPct = Number(row[lastRoundCol + 3]) || 0;
-    const paidIn = Number(row[lastRoundCol + 1]) || 0;
-
-    if (totalShares > 0) {
-      try {
-        await upsertShareHolding({
-          companyId,
-          shareholderId,
-          fundingRoundId: lastRoundId,
-          totalShares,
-          ownershipPct: String(ownershipPct),
-          paidInCapitalNtd: paidIn ? String(paidIn) : undefined,
-          commonShares: Number(row[3]) || 0,
-          seedShares: 0,
-          seedPlusShares: 0,
-          preAShares: 0,
-          bridgeShares: 0,
-          seriesAShares: 0,
-          esopShares: name === "ESOP" ? totalShares : 0,
-        });
-        count++;
-      } catch (e) {
-        errors.push(`Failed to create holding for ${name}: ${e}`);
-      }
     }
   }
 
-  // Handle ESOP pool if present
+  // ── ESOP pool → esop_pools_v1 (V1 table used by Cap Table + ESOP pages) ──
   if (withEsop) {
     const esopRow = data.find(r => {
       const row = r as unknown[];
@@ -279,17 +371,18 @@ async function importCapTableSheet(
       const esopShares = Number(esopRow[lastRoundCol + 2]) || 0;
       if (esopShares > 0) {
         try {
-          const existingPools = await getAllFundingRounds(companyId);
-          const lastRound = existingPools[existingPools.length - 1];
-          await createEsopPool({
+          const rounds = await getAllFundingRounds(companyId);
+          const lastRound = rounds[rounds.length - 1];
+          await createEsopPoolV1({
             companyId,
+            name: "ESOP Pool",
             totalShares: esopShares,
-            allocatedShares: 0,
-            poolName: "ESOP Pool",
-            fundingRoundId: lastRound?.id,
+            fundingRoundId: lastRound?.id ?? null,
           });
           count++;
-        } catch { /* pool may already exist */ }
+        } catch {
+          /* pool may already exist — V1 table allows multiple, so this is rare */
+        }
       }
     }
   }
@@ -297,7 +390,9 @@ async function importCapTableSheet(
   return count;
 }
 
-// Parse Projection sheet
+// ─── Projection sheet ──────────────────────────────────────────────────────
+// Writes to the legacy valuation_projections table. Kept because createProjection
+// still exists in db.ts (not yet migrated to V1 financial_projections).
 async function importProjectionSheet(
   ws: XLSX.WorkSheet,
   errors: string[],
@@ -306,7 +401,6 @@ async function importProjectionSheet(
   const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
   let count = 0;
 
-  // Look for Bridge and A round columns
   const headerRow = (data[0] as unknown[] | undefined) || [];
   for (let c = 0; c < (headerRow?.length || 0); c++) {
     const val = String(headerRow[c] || "");
@@ -325,7 +419,6 @@ async function importProjectionSheet(
 
       if (price || moneyRaised) {
         try {
-          const { createProjection } = await import("./db");
           await createProjection({
             companyId,
             name,
@@ -347,16 +440,14 @@ async function importProjectionSheet(
   return count;
 }
 
-// Main import function
+// ─── Main entry ────────────────────────────────────────────────────────────
 export async function importExcelFile(buffer: Buffer, fileName: string, companyId: number): Promise<ImportResult> {
   const errors: string[] = [];
   let totalImported = 0;
 
-  // Create import log
   let logId: number | undefined;
   try {
     const result = await createImportLog({ companyId, fileName, status: "processing" });
-    // createImportLog returns an array of { id }
     if (Array.isArray(result) && result[0]?.id != null) {
       logId = Number(result[0].id);
     }
@@ -365,32 +456,63 @@ export async function importExcelFile(buffer: Buffer, fileName: string, companyI
   try {
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
 
-    // 1. Import Register of Shareholders
+    let investorMap: NameMap = new Map();
+    let shareholderMap = new Map<string, number>();
+
+    // Pass 1: build the shareholder / investor directory (rows 1-13 of Register)
     const registerSheet = workbook.Sheets["Register of shareholders"];
     if (registerSheet) {
-      const { shareholderMap, count } = await importRegisterSheet(registerSheet, errors, companyId);
-      totalImported += count;
+      const r = await seedDirectoryFromRegisterSheet(registerSheet, errors, companyId);
+      shareholderMap = r.shareholderMap;
+      investorMap = r.investorMap;
+      totalImported += r.count;
+    }
 
-      // 2. Import Cap Table (without ESOP)
-      const capTableSheet = workbook.Sheets["Cap Table"];
-      if (capTableSheet) {
-        const c = await importCapTableSheet(capTableSheet, false, shareholderMap, errors, companyId);
-        totalImported += c;
-      }
+    // Pass 2: create funding rounds + any extra investors from Cap Table sheet.
+    // This MUST happen before register entries so entries can link to their round.
+    const capTableSheet = workbook.Sheets["Cap Table"];
+    if (capTableSheet) {
+      totalImported += await importCapTableSheet(capTableSheet, false, shareholderMap, investorMap, errors, companyId);
+    }
 
-      // 3. Import Cap Table with ESOP
-      const capTableEsopSheet = workbook.Sheets["Cap Table w ESOP"];
-      if (capTableEsopSheet) {
-        const c = await importCapTableSheet(capTableEsopSheet, true, shareholderMap, errors, companyId);
-        totalImported += c;
-      }
+    // Pass 3: Cap Table with ESOP — seeds the V1 ESOP pool + remaining investors
+    const capTableEsopSheet = workbook.Sheets["Cap Table w ESOP"];
+    if (capTableEsopSheet) {
+      totalImported += await importCapTableSheet(capTableEsopSheet, true, shareholderMap, investorMap, errors, companyId);
+    }
 
-      // 4. Import Projections
-      const projectionSheet = workbook.Sheets["Projection Bridge"];
-      if (projectionSheet) {
-        const c = await importProjectionSheet(projectionSheet, errors, companyId);
-        totalImported += c;
+    // Pass 4: write V1 register entries (rows 17+) now that rounds exist
+    if (registerSheet) {
+      totalImported += await writeRegisterEntriesFromSheet(
+        registerSheet, errors, companyId, investorMap, shareholderMap,
+      );
+    }
+
+    // Pass 5: Projections
+    const projectionSheet = workbook.Sheets["Projection Bridge"];
+    if (projectionSheet) {
+      totalImported += await importProjectionSheet(projectionSheet, errors, companyId);
+    }
+
+    // 5. Final snapshot (one, not per-register-entry) — captures post-import cap table
+    try {
+      const db = await getDb();
+      if (db && totalImported > 0) {
+        const capTable = await deriveCapTable(companyId);
+        await db.insert(snapshotsV1).values({
+          companyId,
+          name: `Post-import baseline — ${fileName}`,
+          triggerType: "manual",
+          registerEntryId: null,
+          capTableData: capTable as unknown as Record<string, unknown>,
+          totalShares: capTable.totalShares,
+          totalInvestors: capTable.holdings.length,
+          notes: `Auto-created by excel-import. ${totalImported} records imported from "${fileName}".`,
+        });
       }
+    } catch (e) {
+      // Snapshot is a courtesy — don't fail the import if it fails.
+      errors.push(`Post-import snapshot skipped: ${e}`);
     }
 
     if (logId) {
@@ -407,3 +529,7 @@ export async function importExcelFile(buffer: Buffer, fileName: string, companyI
     return { success: false, recordsImported: totalImported, errors };
   }
 }
+
+// Internal import to prevent "and/eq unused" TS warnings if later refactors
+// trim the db helpers; these are available for direct-query fallbacks.
+void and; void eq;
