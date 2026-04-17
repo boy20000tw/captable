@@ -52,8 +52,9 @@ function DashboardContent() {
   // ── Derived metrics ─────────────────────────────────────────────────────
   const totalShares = capTable.data?.totalIssuedShares ?? capTable.data?.totalShares ?? 0;
   const holdings = capTable.data?.holdings ?? [];
-  const investorCount = investors.data?.length ?? 0;
-  const investedCount = (investors.data ?? []).filter(i => i.status === "invested").length;
+  const nonEsopInvestors = (investors.data ?? []).filter(i => !i.name?.toUpperCase().includes('ESOP'));
+  const investorCount = nonEsopInvestors.length;
+  const investedCount = nonEsopInvestors.filter(i => i.status === "invested").length;
   const pipelineCount = (investors.data ?? []).filter(i =>
     i.status === "prospect" || i.status === "meeting" || i.status === "term_sheet"
   ).length;

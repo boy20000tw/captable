@@ -7,6 +7,7 @@ interface CurrencyContextType {
   setCurrency: (c: Currency) => void;
   exchangeRate: number;
   formatAmount: (ntdAmount: number | string | null | undefined) => string;
+  formatPrice: (ntdAmount: number | string | null | undefined) => string;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | null>(null);
@@ -31,8 +32,20 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  function formatPrice(ntdAmount: number | string | null | undefined): string {
+    const val = typeof ntdAmount === "string" ? parseFloat(ntdAmount) : ntdAmount;
+    if (!val || val === 0) return "—";
+
+    if (currency === "USD") {
+      const usd = val * exchangeRate;
+      return `$${usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+    } else {
+      return `NT$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+    }
+  }
+
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, exchangeRate, formatAmount }}>
+    <CurrencyContext.Provider value={{ currency, setCurrency, exchangeRate, formatAmount, formatPrice }}>
       {children}
     </CurrencyContext.Provider>
   );

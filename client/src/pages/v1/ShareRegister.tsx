@@ -5,6 +5,8 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
 import {
   Card,
   CardContent,
@@ -103,6 +105,7 @@ function V1ShareRegisterContent() {
   const { data: investors } = trpc.v1.investors.list.useQuery();
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
   const { canEdit } = usePermissions();
+  const { formatAmount, formatPrice } = useCurrency();
   const utils = trpc.useUtils();
 
   const [investorFilter, setInvestorFilter] = useState<string>("all");
@@ -189,16 +192,19 @@ function V1ShareRegisterContent() {
             Append-only ledger of issued shares, plus the full allocations pipeline.
           </p>
         </div>
-        {canEdit && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowTransferDialog(true)}>
-              Transfer Shares
-            </Button>
-            <Button size="sm" onClick={() => setShowIssuanceDialog(true)}>
-              New Issuance
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <CurrencyToggle />
+          {canEdit && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowTransferDialog(true)}>
+                Transfer Shares
+              </Button>
+              <Button size="sm" onClick={() => setShowIssuanceDialog(true)}>
+                New Issuance
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="register" className="space-y-6">
@@ -308,20 +314,10 @@ function V1ShareRegisterContent() {
                             {sharesNum.toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-xs font-mono">
-                            {r.pricePerShare
-                              ? `${r.currency ?? "NTD"} ${Number(
-                                  r.pricePerShare
-                                ).toLocaleString(undefined, {
-                                  maximumFractionDigits: 4,
-                                })}`
-                              : "—"}
+                            {formatPrice(r.pricePerShare)}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {r.totalAmount
-                              ? `${r.currency ?? "NTD"} ${Number(
-                                  r.totalAmount
-                                ).toLocaleString()}`
-                              : "—"}
+                            {formatAmount(r.totalAmount)}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {r.fundingRoundId != null ? (

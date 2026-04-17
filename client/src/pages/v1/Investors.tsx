@@ -216,20 +216,23 @@ function V1InvestorsContent() {
     deleteMut.mutate({ id: inv.id });
   }
 
-  const filtered = useMemo(() => {
+  // Exclude ESOP pool entries — they belong on Cap Table, not Investors
+  const baseInvestors = useMemo(() => {
     const list = investors ?? [];
+    return list.filter((inv) => !inv.name?.toUpperCase().includes('ESOP'));
+  }, [investors]);
+
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return list.filter((inv) => {
-      // Exclude ESOP pool entries — they belong on Cap Table, not Investors
-      if (inv.name?.toUpperCase().includes('ESOP')) return false;
+    return baseInvestors.filter((inv) => {
       if (statusFilter !== "all" && inv.status !== statusFilter) return false;
       if (kindFilter !== "all" && inv.entityKind !== kindFilter) return false;
       if (q && !inv.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [investors, statusFilter, kindFilter, search]);
+  }, [baseInvestors, statusFilter, kindFilter, search]);
 
-  const isEmpty = !isLoading && (investors?.length ?? 0) === 0;
+  const isEmpty = !isLoading && baseInvestors.length === 0;
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
@@ -294,7 +297,7 @@ function V1InvestorsContent() {
             <div>
               <CardTitle>All Investors</CardTitle>
               <CardDescription>
-                {filtered.length} of {investors?.length ?? 0}
+                {filtered.length} of {baseInvestors.length}
               </CardDescription>
             </div>
           </div>
