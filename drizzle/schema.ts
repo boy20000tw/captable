@@ -62,10 +62,39 @@ export const liquidationPreferenceTypeEnum = pgEnum("liquidation_preference_type
 export const companyMemberRoleEnum = pgEnum("company_member_role", ["owner", "admin", "cfo", "lawyer", "investor", "viewer"]);
 
 // ─── Companies ──────────────────────────────────────────────────────────────
+// The `name` / `slug` were added by the multi-company work. Everything from
+// `nameEn` onwards was added by SPEC-company-settings.md and populates the
+// Company Settings page (also used by DocuSeal eSignature integration later).
 export const companies = pgTable("companies", {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 100 }).unique(),
+
+    // Basic info (SPEC-company-settings §一)
+    nameEn: text("name_en"),
+    taxId: text("tax_id"),
+
+    // Contact
+    address: text("address"),
+    phone: text("phone"),
+    contactEmail: text("contact_email"),
+    website: text("website"),
+
+    // Branding
+    logoUrl: text("logo_url"),
+
+    // Representative / authorized signatory
+    representativeName: text("representative_name"),
+    representativeTitle: text("representative_title"),
+
+    // eSignature (Phase 2 preview — columns reserved now)
+    signatureUrl: text("signature_url"),
+    docusealTenantApiKey: text("docuseal_tenant_api_key"),
+    docusealWebhookSecret: text("docuseal_webhook_secret"),
+
+    // Preferences
+    defaultCurrency: varchar("default_currency", { length: 8 }).default("NTD"),
+
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });

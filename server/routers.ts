@@ -502,6 +502,100 @@ const companiesRouter = router({
       resourceName: input.name,
     });
   }),
+
+  // ── Company Settings (SPEC-company-settings.md) ─────────────────────────
+  // Returns the full company row (all profile + branding fields) for the
+  // currently active company.
+  get: companyProcedure.query(async ({ ctx }) => {
+    return (await getCompanyById(ctx.companyId)) ?? null;
+  }),
+
+  // Update any combination of profile / contact / representative fields.
+  // Editors (owner / admin / cfo) only.
+  update: companyEditorProcedure
+    .input(z.object({
+      name: z.string().min(1).max(255).optional(),
+      nameEn: z.string().nullable().optional(),
+      taxId: z.string().nullable().optional(),
+      address: z.string().nullable().optional(),
+      phone: z.string().nullable().optional(),
+      contactEmail: z.string().email().or(z.literal("")).nullable().optional(),
+      website: z.string().url().or(z.literal("")).nullable().optional(),
+      representativeName: z.string().nullable().optional(),
+      representativeTitle: z.string().nullable().optional(),
+      defaultCurrency: z.enum(["NTD", "USD"]).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Normalize empty strings to null so we don't persist "" values
+      const data: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(input)) {
+        data[k] = v === "" ? null : v;
+      }
+      await updateCompany(ctx.companyId, data as Parameters<typeof updateCompany>[1]);
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update",
+        resourceType: "company",
+        resourceId: ctx.companyId,
+        changesAfter: JSON.stringify(Object.keys(data)),
+      });
+      return (await getCompanyById(ctx.companyId)) ?? null;
+    }),
+
+  // Upload the company logo to Vercel Blob, persist its URL on the row.
+  uploadLogo: companyEditorProcedure
+    .input(z.object({
+      fileName: z.string(),
+      fileBase64: z.string(),
+      contentType: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { storagePut } = await import("./storage");
+      const buffer = Buffer.from(input.fileBase64, "base64");
+      // Namespace blobs by companyId so multi-tenant uploads don't collide
+      const key = `company/${ctx.companyId}/logo/${Date.now()}-${input.fileName}`;
+      const { url } = await storagePut(key, buffer, input.contentType);
+      await updateCompany(ctx.companyId, { logoUrl: url });
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update",
+        resourceType: "company",
+        resourceId: ctx.companyId,
+        resourceName: "logo",
+        changesAfter: JSON.stringify({ logoUrl: url }),
+      });
+      return { url };
+    }),
+
+  // Upload the representative signature (PNG, used by eSignature auto-sign).
+  uploadSignature: companyEditorProcedure
+    .input(z.object({
+      fileName: z.string(),
+      fileBase64: z.string(),
+      contentType: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { storagePut } = await import("./storage");
+      const buffer = Buffer.from(input.fileBase64, "base64");
+      const key = `company/${ctx.companyId}/signature/${Date.now()}-${input.fileName}`;
+      const { url } = await storagePut(key, buffer, input.contentType);
+      await updateCompany(ctx.companyId, { signatureUrl: url });
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update",
+        resourceType: "company",
+        resourceId: ctx.companyId,
+        resourceName: "signature",
+        changesAfter: JSON.stringify({ signatureUrl: url }),
+      });
+      return { url };
+    }),
 });
 
 // ─── V1 Investors Router ────────────────────────────────────────────────────

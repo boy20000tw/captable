@@ -12,6 +12,7 @@ import EsopV1Page from "./pages/v1/Esop";
 import V1RoundsPage from "./pages/v1/Rounds";
 import V1RoundDetailPage from "./pages/v1/RoundDetail";
 import V1InvestorsPage from "./pages/v1/Investors";
+import CompanySettingsPage from "./pages/v1/CompanySettings";
 import AntiDilutionPage from "./pages/AntiDilution";
 import InstrumentsPage from "./pages/Instruments";
 import ValuationPage from "./pages/Valuation";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/audit-log" component={AuditLogPage} />
       <Route path="/import" component={ImportPage} />
       <Route path="/team" component={TeamPage} />
+      <Route path="/settings" component={CompanySettingsPage} />
       <Route path="/join" component={JoinPage} />
 
       <Route path="/404" component={NotFound} />

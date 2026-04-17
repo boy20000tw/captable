@@ -40,6 +40,7 @@ import {
   Calculator,
   Rocket,
   Wrench,
+  Settings,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -85,6 +86,7 @@ const menuGroups = [
       { icon: ClipboardList, label: "Audit Log",         path: "/audit-log" },
       { icon: Upload,        label: "Import & Analysis", path: "/import" },
       { icon: UserCog,       label: "Team",              path: "/team" },
+      { icon: Settings,      label: "Settings",          path: "/settings" },
     ],
   },
 ];
