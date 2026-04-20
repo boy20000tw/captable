@@ -32,6 +32,9 @@ import {
   getAllRegisterEntries, getAllSnapshotsV1,
   getAllEsopPoolsV1, getEsopPoolV1ById, createEsopPoolV1, updateEsopPoolV1, deleteEsopPoolV1,
   getAllEsopGrantsV1, getEsopGrantV1ById, createEsopGrantV1, updateEsopGrantV1, deleteEsopGrantV1,
+  // Instruments (V1)
+  getAllInstruments, getInstrumentById, getInstrumentsByInvestor, getInstrumentsByRound, getInstrumentsByType, getActiveConvertibles,
+  createInstrument, updateInstrument, deleteInstrument,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
@@ -1151,6 +1154,219 @@ const v1EsopRouter = router({
 });
 
 // ─── App Router ────────────────────────────────────────────────────────────────────────────────────
+// ─── Instruments Router (V1) ────────────────────────────────────────────────
+const instrumentsRouter = router({
+  list: companyProcedure.query(({ ctx }) => getAllInstruments(ctx.companyId)),
+  get: companyProcedure.input(z.object({ id: z.number() }))
+    .query(({ ctx, input }) => getInstrumentById(ctx.companyId, input.id)),
+  byInvestor: companyProcedure.input(z.object({ investorId: z.number() }))
+    .query(({ ctx, input }) => getInstrumentsByInvestor(ctx.companyId, input.investorId)),
+  byRound: companyProcedure.input(z.object({ fundingRoundId: z.number() }))
+    .query(({ ctx, input }) => getInstrumentsByRound(ctx.companyId, input.fundingRoundId)),
+  byType: companyProcedure.input(z.object({ type: z.enum(["equity", "safe", "convertible_note"]) }))
+    .query(({ ctx, input }) => getInstrumentsByType(ctx.companyId, input.type)),
+  activeConvertibles: companyProcedure.query(({ ctx }) => getActiveConvertibles(ctx.companyId)),
+
+  create: companyEditorProcedure
+    .input(z.object({
+      name: z.string().min(1),
+      type: z.enum(["equity", "safe", "convertible_note"]),
+      investorId: z.number(),
+      fundingRoundId: z.number().optional(),
+      investmentAmountNtd: z.string(),
+      investmentAmountUsd: z.string().optional(),
+      // Equity
+      pricePerShareNtd: z.string().optional(),
+      sharesIssued: z.number().optional(),
+      // SAFE
+      valuationCapNtd: z.string().optional(),
+      valuationCapUsd: z.string().optional(),
+      discountRate: z.string().optional(),
+      safeType: z.enum(["pre_money", "post_money", "mfn"]).optional(),
+      // Convertible Note
+      interestRate: z.string().optional(),
+      maturityDate: z.string().optional(),
+      // Meta
+      notes: z.string().optional(),
+      boardApprovalDate: z.string().optional(),
+      documentUrl: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const created = await createInstrument({
+        ...input,
+        companyId: ctx.companyId,
+        createdByUserId: ctx.user!.id,
+      });
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "create", resourceType: "instrument",
+        resourceId: created.id, resourceName: input.name,
+        changesAfter: JSON.stringify({ type: input.type, amount: input.investmentAmountNtd }),
+      });
+      return created;
+    }),
+
+  update: companyEditorProcedure
+    .input(z.object({
+      id: z.number(),
+      data: z.object({
+        name: z.string().min(1).optional(),
+        status: z.enum(["active", "converted", "cancelled", "matured"]).optional(),
+        fundingRoundId: z.number().nullable().optional(),
+        investmentAmountNtd: z.string().optional(),
+        investmentAmountUsd: z.string().optional().nullable(),
+        pricePerShareNtd: z.string().optional().nullable(),
+        sharesIssued: z.number().optional().nullable(),
+        valuationCapNtd: z.string().optional().nullable(),
+        valuationCapUsd: z.string().optional().nullable(),
+        discountRate: z.string().optional().nullable(),
+        safeType: z.enum(["pre_money", "post_money", "mfn"]).optional().nullable(),
+        interestRate: z.string().optional().nullable(),
+        maturityDate: z.string().optional().nullable(),
+        accruedInterestNtd: z.string().optional().nullable(),
+        conversionRoundId: z.number().optional().nullable(),
+        conversionDate: z.string().optional().nullable(),
+        conversionPriceNtd: z.string().optional().nullable(),
+        conversionShares: z.number().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        boardApprovalDate: z.string().optional().nullable(),
+        documentUrl: z.string().optional().nullable(),
+      }),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await updateInstrument(ctx.companyId, input.id, input.data as any);
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "instrument",
+        resourceId: input.id,
+        changesAfter: JSON.stringify(input.data),
+      });
+    }),
+
+  delete: companyEditorProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await getInstrumentById(ctx.companyId, input.id);
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Instrument not found" });
+      if (existing.status === "converted") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Cannot delete a converted instrument. Use cancellation instead." });
+      }
+      await deleteInstrument(ctx.companyId, input.id);
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "delete", resourceType: "instrument",
+        resourceId: input.id,
+      });
+    }),
+
+  // ─── Conversion simulator (read-only) ─────────────────────────────────
+  simulateConversion: companyProcedure
+    .input(z.object({
+      nextRoundPricePerShareNtd: z.string(),
+      nextRoundPreMoneyValuationNtd: z.string(),
+      nextRoundPostMoneyValuationNtd: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const convertibles = await getActiveConvertibles(ctx.companyId);
+      if (convertibles.length === 0) return { results: [], totalConversionShares: 0 };
+
+      const nextPrice = parseFloat(input.nextRoundPricePerShareNtd);
+      const preMoney = parseFloat(input.nextRoundPreMoneyValuationNtd);
+
+      let totalConversionShares = 0;
+
+      const results = convertibles.map((inst) => {
+        const investmentAmount = Number(inst.investmentAmountNtd);
+        const valCap = inst.valuationCapNtd ? Number(inst.valuationCapNtd) : null;
+        const discount = inst.discountRate ? Number(inst.discountRate) : 0;
+        const interestRate = inst.interestRate ? Number(inst.interestRate) : 0;
+
+        let principal = investmentAmount;
+        let accruedInterest = 0;
+        if (inst.type === "convertible_note" && interestRate > 0 && inst.createdAt) {
+          const daysSinceIssuance = Math.floor(
+            (Date.now() - new Date(inst.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          const yearsElapsed = daysSinceIssuance / 365;
+          accruedInterest = investmentAmount * interestRate * yearsElapsed;
+          principal = investmentAmount + accruedInterest;
+        }
+
+        const discountPrice = discount > 0 ? nextPrice * (1 - discount) : nextPrice;
+        let capPrice = nextPrice;
+        if (valCap && preMoney > 0) {
+          capPrice = nextPrice * (valCap / preMoney);
+        }
+
+        const conversionPrice = Math.min(discountPrice, capPrice);
+        const conversionShares = Math.floor(principal / conversionPrice);
+        totalConversionShares += conversionShares;
+
+        const usedCap = capPrice <= discountPrice;
+        const effectiveValuation = usedCap ? valCap : preMoney * (1 - discount);
+
+        return {
+          instrumentId: inst.id,
+          instrumentName: inst.name,
+          instrumentType: inst.type,
+          investorId: inst.investorId,
+          investmentAmount,
+          principal: Math.round(principal * 100) / 100,
+          accruedInterest: Math.round(accruedInterest * 100) / 100,
+          valuationCap: valCap,
+          discountRate: discount,
+          interestRate,
+          discountPrice: Math.round(discountPrice * 1_000_000) / 1_000_000,
+          capPrice: Math.round(capPrice * 1_000_000) / 1_000_000,
+          conversionPrice: Math.round(conversionPrice * 1_000_000) / 1_000_000,
+          conversionMethod: usedCap ? "cap" as const : "discount" as const,
+          effectiveValuation: effectiveValuation ? Math.round(effectiveValuation) : null,
+          conversionShares,
+        };
+      });
+
+      return { results, totalConversionShares };
+    }),
+
+  // ─── Execute conversion (writes status + fires audit) ─────────────────
+  executeConversion: companyEditorProcedure
+    .input(z.object({
+      conversionRoundId: z.number(),
+      conversions: z.array(z.object({
+        instrumentId: z.number(),
+        conversionPriceNtd: z.string(),
+        conversionShares: z.number(),
+      })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const today = new Date().toISOString().slice(0, 10);
+      for (const conv of input.conversions) {
+        await updateInstrument(ctx.companyId, conv.instrumentId, {
+          status: "converted",
+          conversionRoundId: input.conversionRoundId,
+          conversionDate: today,
+          conversionPriceNtd: conv.conversionPriceNtd,
+          conversionShares: conv.conversionShares,
+        });
+      }
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "instrument",
+        resourceName: `Conversion at round #${input.conversionRoundId}`,
+        changesAfter: JSON.stringify({
+          conversionRoundId: input.conversionRoundId,
+          conversionsCount: input.conversions.length,
+          conversions: input.conversions,
+        }),
+      });
+      return { success: true, count: input.conversions.length };
+    }),
+});
+
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query(async (opts) => {
@@ -1166,6 +1382,7 @@ export const appRouter = router({
   import: importRouter,
   analysis: analysisRouter,
   antiDilution: antiDilutionRouter,
+  instruments: instrumentsRouter,
   waterfall: waterfallRouter,
   team: teamRouter,
   invitations: invitationsRouter,

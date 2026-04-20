@@ -28,6 +28,7 @@ import {
   snapshots as snapshotsV1, InsertSnapshot,
   esopPoolsV1, InsertEsopPoolV1,
   esopGrantsV1, InsertEsopGrantV1,
+  instruments, InsertInstrument,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1190,6 +1191,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
     ["snapshots", snapshotsV1, snapshotsV1.companyId],
     ["share_register_entries", shareRegisterEntries, shareRegisterEntries.companyId],
     ["allocations", allocations, allocations.companyId],
+    ["instruments", instruments, instruments.companyId],
     ["investors", investors, investors.companyId],
     ["esop_grants_v1", esopGrantsV1, esopGrantsV1.companyId],
     ["esop_pools_v1", esopPoolsV1, esopPoolsV1.companyId],
@@ -1226,10 +1228,90 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   // V1 ESOP — grants before pools (grants reference pools)
   await db.delete(esopGrantsV1).where(eq(esopGrantsV1.companyId, companyId));
   await db.delete(esopPoolsV1).where(eq(esopPoolsV1.companyId, companyId));
+  // Instruments reference investors — delete BEFORE investors.
+  await db.delete(instruments).where(eq(instruments.companyId, companyId));
   await db.delete(investors).where(eq(investors.companyId, companyId));
   await db.delete(shareholders).where(eq(shareholders.companyId, companyId));
   await db.delete(fundingRounds).where(eq(fundingRounds.companyId, companyId));
   await db.delete(userInvitations).where(eq(userInvitations.companyId, companyId));
 
   return counts;
+}
+
+// ─── Instruments (V1) ────────────────────────────────────────────────────────
+export async function getAllInstruments(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(instruments)
+    .where(eq(instruments.companyId, companyId))
+    .orderBy(desc(instruments.createdAt));
+}
+
+export async function getInstrumentById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(instruments)
+    .where(and(eq(instruments.id, id), eq(instruments.companyId, companyId)))
+    .limit(1);
+  return rows[0];
+}
+
+export async function getInstrumentsByInvestor(companyId: number, investorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(instruments)
+    .where(and(eq(instruments.companyId, companyId), eq(instruments.investorId, investorId)))
+    .orderBy(desc(instruments.createdAt));
+}
+
+export async function getInstrumentsByRound(companyId: number, fundingRoundId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(instruments)
+    .where(and(eq(instruments.companyId, companyId), eq(instruments.fundingRoundId, fundingRoundId)))
+    .orderBy(desc(instruments.createdAt));
+}
+
+export async function getInstrumentsByType(companyId: number, type: "equity" | "safe" | "convertible_note") {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(instruments)
+    .where(and(eq(instruments.companyId, companyId), eq(instruments.type, type)))
+    .orderBy(desc(instruments.createdAt));
+}
+
+export async function getActiveConvertibles(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(instruments)
+    .where(
+      and(
+        eq(instruments.companyId, companyId),
+        eq(instruments.status, "active"),
+        sql`${instruments.type} IN ('safe', 'convertible_note')`
+      )
+    )
+    .orderBy(desc(instruments.createdAt));
+}
+
+export async function createInstrument(data: InsertInstrument) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.insert(instruments).values(data).returning();
+  return rows[0];
+}
+
+export async function updateInstrument(companyId: number, id: number, data: Partial<InsertInstrument>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(instruments)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(instruments.id, id), eq(instruments.companyId, companyId)));
+}
+
+export async function deleteInstrument(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(instruments)
+    .where(and(eq(instruments.id, id), eq(instruments.companyId, companyId)));
 }

@@ -670,3 +670,76 @@ export const esopGrantsV1 = pgTable("esop_grants_v1", {
 });
 export type EsopGrantV1 = typeof esopGrantsV1.$inferSelect;
 export type InsertEsopGrantV1 = typeof esopGrantsV1.$inferInsert;
+
+// ─── Instruments (Equity / SAFE / Convertible Note) ────────────────────────
+// Tracks financing instruments independently of the cap table. Equity rows
+// represent an instrument record for bookkeeping (the actual shares are
+// recorded via share_register_entries). SAFEs and convertible notes stay as
+// instruments until converted at a qualified round.
+export const instrumentTypeEnum = pgEnum("instrument_type", [
+    "equity",
+    "safe",
+    "convertible_note",
+]);
+
+export const instrumentStatusEnum = pgEnum("instrument_status", [
+    "active",       // not yet converted / still valid
+    "converted",    // converted into equity
+    "cancelled",    // cancelled before conversion
+    "matured",      // convertible note hit maturity without converting
+]);
+
+export const instrumentSafeTypeEnum = pgEnum("instrument_safe_type", [
+    "pre_money",
+    "post_money",   // YC standard
+    "mfn",          // Most Favored Nation
+]);
+
+export const instruments = pgTable("instruments", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+
+    // ── Basics ──
+    name: varchar("name", { length: 255 }).notNull(),
+    type: instrumentTypeEnum("type").notNull(),
+    status: instrumentStatusEnum("status").default("active").notNull(),
+
+    // ── Relations ──
+    investorId: integer("investorId").notNull(),          // points to investors.id (V1)
+    fundingRoundId: integer("fundingRoundId"),             // optional (SAFEs can pre-date any round)
+
+    // ── Amount ──
+    investmentAmountNtd: decimal("investmentAmountNtd", { precision: 20, scale: 2 }).notNull(),
+    investmentAmountUsd: decimal("investmentAmountUsd", { precision: 20, scale: 2 }),
+
+    // ── Equity-specific ──
+    pricePerShareNtd: decimal("pricePerShareNtd", { precision: 20, scale: 6 }),
+    sharesIssued: bigint("sharesIssued", { mode: "number" }),
+
+    // ── SAFE-specific ──
+    valuationCapNtd: decimal("valuationCapNtd", { precision: 20, scale: 2 }),
+    valuationCapUsd: decimal("valuationCapUsd", { precision: 20, scale: 2 }),
+    discountRate: decimal("discountRate", { precision: 5, scale: 4 }),
+    safeType: instrumentSafeTypeEnum("safeType"),
+
+    // ── Convertible-note-specific ──
+    interestRate: decimal("interestRate", { precision: 5, scale: 4 }),
+    maturityDate: date("maturityDate"),
+    accruedInterestNtd: decimal("accruedInterestNtd", { precision: 20, scale: 2 }),
+
+    // ── Conversion results (filled on trigger) ──
+    conversionRoundId: integer("conversionRoundId"),
+    conversionDate: date("conversionDate"),
+    conversionPriceNtd: decimal("conversionPriceNtd", { precision: 20, scale: 6 }),
+    conversionShares: bigint("conversionShares", { mode: "number" }),
+
+    // ── Meta ──
+    notes: text("notes"),
+    boardApprovalDate: date("boardApprovalDate"),
+    documentUrl: text("documentUrl"),
+    createdByUserId: integer("createdByUserId"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type Instrument = typeof instruments.$inferSelect;
+export type InsertInstrument = typeof instruments.$inferInsert;
