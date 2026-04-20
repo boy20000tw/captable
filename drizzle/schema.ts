@@ -676,8 +676,13 @@ export type InsertEsopGrantV1 = typeof esopGrantsV1.$inferInsert;
 // represent an instrument record for bookkeeping (the actual shares are
 // recorded via share_register_entries). SAFEs and convertible notes stay as
 // instruments until converted at a qualified round.
+// Instruments only tracks pre-conversion investment tools (SAFE, Convertible
+// Note). Regular equity issuances are recorded via Funding Rounds + the share
+// register. The `equity` value is deliberately not listed here.
+// NOTE: Postgres does not support removing enum values. If the production DB
+// still has `equity` in the underlying PG enum, the DB value stays but is no
+// longer accepted by the router's zod input or shown in the UI.
 export const instrumentTypeEnum = pgEnum("instrument_type", [
-    "equity",
     "safe",
     "convertible_note",
 ]);

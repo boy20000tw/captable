@@ -1163,14 +1163,14 @@ const instrumentsRouter = router({
     .query(({ ctx, input }) => getInstrumentsByInvestor(ctx.companyId, input.investorId)),
   byRound: companyProcedure.input(z.object({ fundingRoundId: z.number() }))
     .query(({ ctx, input }) => getInstrumentsByRound(ctx.companyId, input.fundingRoundId)),
-  byType: companyProcedure.input(z.object({ type: z.enum(["equity", "safe", "convertible_note"]) }))
+  byType: companyProcedure.input(z.object({ type: z.enum(["safe", "convertible_note"]) }))
     .query(({ ctx, input }) => getInstrumentsByType(ctx.companyId, input.type)),
   activeConvertibles: companyProcedure.query(({ ctx }) => getActiveConvertibles(ctx.companyId)),
 
   create: companyEditorProcedure
     .input(z.object({
       name: z.string().min(1),
-      type: z.enum(["equity", "safe", "convertible_note"]),
+      type: z.enum(["safe", "convertible_note"]),
       investorId: z.number(),
       fundingRoundId: z.number().optional(),
       investmentAmountNtd: z.string(),

@@ -9,7 +9,12 @@ import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 
 // ════════════════════════════════════════════════════════════════════════════
-// Instruments (V1) — Equity, SAFE, Convertible Note
+// Instruments (V1) — SAFE & Convertible Note
+//
+// Regular equity issuances live on the Funding Rounds / Share Register flow.
+// This page only tracks investment instruments that have NOT yet converted
+// into equity. Once a SAFE / Note converts, the conversion shares get issued
+// through the register via Allocation → Issued.
 //
 // Back-end is instrumentsRouter. Data sources are all V1:
 //   - instruments from trpc.instruments.list
@@ -27,7 +32,7 @@ export default function InstrumentsPage() {
   );
 }
 
-type InstrumentType = "equity" | "safe" | "convertible_note";
+type InstrumentType = "safe" | "convertible_note";
 type InstrumentStatus = "active" | "converted" | "cancelled" | "matured";
 type SafeType = "pre_money" | "post_money" | "mfn";
 
@@ -38,9 +43,6 @@ type InstrumentForm = {
   fundingRoundId: number | "";
   investmentAmountNtd: string;
   investmentAmountUsd: string;
-  // Equity
-  pricePerShareNtd: string;
-  sharesIssued: string;
   // SAFE
   valuationCapNtd: string;
   discountRate: string;
@@ -61,8 +63,6 @@ const emptyForm: InstrumentForm = {
   fundingRoundId: "",
   investmentAmountNtd: "",
   investmentAmountUsd: "",
-  pricePerShareNtd: "",
-  sharesIssued: "",
   valuationCapNtd: "",
   discountRate: "",
   safeType: "post_money",
@@ -113,12 +113,10 @@ type SimResponse = {
 // ─── Display helpers ────────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<InstrumentType, string> = {
-  equity: "Equity",
   safe: "SAFE",
   convertible_note: "Convertible Note",
 };
 const TYPE_COLORS: Record<InstrumentType, string> = {
-  equity: "bg-blue-100 text-blue-800",
   safe: "bg-purple-100 text-purple-800",
   convertible_note: "bg-amber-100 text-amber-800",
 };
@@ -235,7 +233,7 @@ function InstrumentsContent() {
   }, [instruments, tab]);
 
   const summary = useMemo(() => {
-    const s = { equity: 0, safe: 0, convertible_note: 0, active: 0, converted: 0, totalNtd: 0 };
+    const s = { safe: 0, convertible_note: 0, active: 0, converted: 0, totalNtd: 0 };
     (instruments ?? []).forEach((i) => {
       s[i.type as InstrumentType] += 1;
       if (i.status === "active") s.active += 1;
@@ -266,8 +264,6 @@ function InstrumentsContent() {
       fundingRoundId: inst.fundingRoundId ?? "",
       investmentAmountNtd: inst.investmentAmountNtd ?? "",
       investmentAmountUsd: inst.investmentAmountUsd ?? "",
-      pricePerShareNtd: inst.pricePerShareNtd ?? "",
-      sharesIssued: inst.sharesIssued != null ? String(inst.sharesIssued) : "",
       valuationCapNtd: inst.valuationCapNtd ?? "",
       discountRate: inst.discountRate ?? "",
       safeType: (inst.safeType as SafeType) ?? "",
@@ -294,8 +290,6 @@ function InstrumentsContent() {
           fundingRoundId: form.fundingRoundId ? Number(form.fundingRoundId) : null,
           investmentAmountNtd: form.investmentAmountNtd,
           investmentAmountUsd: form.investmentAmountUsd || null,
-          pricePerShareNtd: form.pricePerShareNtd || null,
-          sharesIssued: form.sharesIssued ? Number(form.sharesIssued) : null,
           valuationCapNtd: form.valuationCapNtd || null,
           discountRate: form.discountRate || null,
           safeType: form.safeType || null,
@@ -314,8 +308,6 @@ function InstrumentsContent() {
         fundingRoundId: form.fundingRoundId ? Number(form.fundingRoundId) : undefined,
         investmentAmountNtd: form.investmentAmountNtd,
         investmentAmountUsd: form.investmentAmountUsd || undefined,
-        pricePerShareNtd: form.pricePerShareNtd || undefined,
-        sharesIssued: form.sharesIssued ? Number(form.sharesIssued) : undefined,
         valuationCapNtd: form.valuationCapNtd || undefined,
         discountRate: form.discountRate || undefined,
         safeType: form.type === "safe" && form.safeType ? form.safeType : undefined,
@@ -396,7 +388,7 @@ function InstrumentsContent() {
             Instruments
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Track Equity, SAFEs, and Convertible Notes. Simulate conversion at the next round.
+            Track SAFEs and convertible notes. Simulate how they convert in your next round.
           </p>
         </div>
         {canEdit && (
@@ -411,17 +403,13 @@ function InstrumentsContent() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="border rounded-lg p-4 bg-card">
           <div className="text-sm text-muted-foreground">Total</div>
           <div className="text-2xl font-bold mt-1">{instruments?.length ?? 0}</div>
           <div className="text-xs text-muted-foreground mt-1">
             {summary.active} active · {summary.converted} converted
           </div>
-        </div>
-        <div className="border rounded-lg p-4 bg-card">
-          <div className="text-sm text-muted-foreground">Equity</div>
-          <div className="text-2xl font-bold mt-1 text-blue-700">{summary.equity}</div>
         </div>
         <div className="border rounded-lg p-4 bg-card">
           <div className="text-sm text-muted-foreground">SAFEs</div>
@@ -435,7 +423,7 @@ function InstrumentsContent() {
 
       {/* Tab filter */}
       <div className="flex items-center gap-1 border-b">
-        {(["all", "equity", "safe", "convertible_note"] as const).map((t) => (
+        {(["all", "safe", "convertible_note"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -477,7 +465,6 @@ function InstrumentsContent() {
                 disabled={editingId != null}
                 onChange={(e) => setForm({ ...form, type: e.target.value as InstrumentType })}
               >
-                <option value="equity">Equity</option>
                 <option value="safe">SAFE</option>
                 <option value="convertible_note">Convertible Note</option>
               </select>
@@ -541,31 +528,6 @@ function InstrumentsContent() {
                 onChange={(e) => setForm({ ...form, investmentAmountUsd: e.target.value })}
               />
             </div>
-
-            {/* Equity-specific */}
-            {form.type === "equity" && (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Price per Share (NTD)</label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                    value={form.pricePerShareNtd}
-                    onChange={(e) => setForm({ ...form, pricePerShareNtd: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Shares Issued</label>
-                  <input
-                    type="number"
-                    className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                    value={form.sharesIssued}
-                    onChange={(e) => setForm({ ...form, sharesIssued: e.target.value })}
-                  />
-                </div>
-              </>
-            )}
 
             {/* SAFE-specific */}
             {form.type === "safe" && (
@@ -729,7 +691,7 @@ function InstrumentsContent() {
                   <Wrench className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No instruments yet</p>
                   <p className="text-sm mt-1">
-                    Track SAFEs, convertible notes, and equity rounds here.
+                    Track SAFEs and convertible notes until they convert at the next round.
                   </p>
                   {canEdit && (
                     <button

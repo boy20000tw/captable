@@ -1272,7 +1272,7 @@ export async function getInstrumentsByRound(companyId: number, fundingRoundId: n
     .orderBy(desc(instruments.createdAt));
 }
 
-export async function getInstrumentsByType(companyId: number, type: "equity" | "safe" | "convertible_note") {
+export async function getInstrumentsByType(companyId: number, type: "safe" | "convertible_note") {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(instruments)
