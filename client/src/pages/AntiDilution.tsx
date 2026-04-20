@@ -1,10 +1,30 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { formatShares, formatDate, ROUND_LABELS } from "@/lib/utils";
-import { useState } from "react";
-import { Shield, Plus, Trash2, Edit2, Check, X, AlertTriangle, Info } from "lucide-react";
+import { useState, useMemo } from "react";
+import {
+  Shield, Plus, Trash2, Play, AlertTriangle, TrendingDown,
+  ChevronDown, ChevronUp, Info, Check, X, Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
+
+// ════════════════════════════════════════════════════════════════════════════
+// Anti-Dilution Protection
+//
+// UI for:
+//   - Listing anti-dilution provisions attached to (investor, round) pairs
+//   - Creating a new provision (Full Ratchet / Broad-WA / Narrow-WA)
+//   - Simulating how a hypothetical down round would adjust conversion prices
+//     and compensatory share counts
+//   - Committing simulator results back to the DB (trigger)
+//
+// Back-end is antiDilutionRouter. Data sources are all V1:
+//   - provisions from trpc.antiDilution.list
+//   - investors from trpc.v1.investors.list
+//   - rounds from trpc.fundingRounds.list
+//   - simulator from trpc.antiDilution.simulate (query, read-only)
+//   - trigger from trpc.antiDilution.trigger (mutation, writes + audit log)
+// ════════════════════════════════════════════════════════════════════════════
 
 export default function AntiDilutionPage() {
   return (
@@ -14,85 +34,122 @@ export default function AntiDilutionPage() {
   );
 }
 
-const PROVISION_TYPE_LABELS: Record<string, string> = {
-  full_ratchet: "Full Ratchet",
-  broad_based_wa: "Broad-Based WA",
-  narrow_based_wa: "Narrow-Based WA",
-  none: "None",
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+type ProvisionType = "full_ratchet" | "broad_based_wa" | "narrow_based_wa" | "none";
+
+type ProvisionForm = {
+  shareholderId: number | "";
+  fundingRoundId: number | "";
+  provisionType: ProvisionType;
+  originalPriceNtd: string;
+  originalShares: string;
+  notes: string;
 };
 
-const PROVISION_TYPE_DESC: Record<string, string> = {
-  full_ratchet: "Investor's conversion price is adjusted down to the new lower price — maximum protection for investor.",
-  broad_based_wa: "Weighted average includes all common shares, options, warrants — most common and balanced.",
-  narrow_based_wa: "Weighted average includes only outstanding preferred shares — stronger than broad-based.",
-  none: "No anti-dilution protection.",
+const emptyForm: ProvisionForm = {
+  shareholderId: "",
+  fundingRoundId: "",
+  provisionType: "broad_based_wa",
+  originalPriceNtd: "",
+  originalShares: "",
+  notes: "",
+};
+
+type SimulationInput = {
+  newRoundPriceNtd: string;
+  newRoundSharesIssued: string;
+  newRoundMoneyRaisedNtd: string;
+  triggerRoundId: number | "";
+};
+
+const emptySimInput: SimulationInput = {
+  newRoundPriceNtd: "",
+  newRoundSharesIssued: "",
+  newRoundMoneyRaisedNtd: "",
+  triggerRoundId: "",
+};
+
+type SimResult = {
+  provisionId: number;
+  shareholderId: number;
+  fundingRoundId: number;
+  provisionType: string;
+  originalPriceNtd: number;
+  originalShares: number;
+  adjustedPriceNtd: number;
+  adjustedShares: number;
+  additionalShares: number;
+  triggered: boolean;
+};
+
+type SimResponse = {
+  results: SimResult[];
+  totalNewShares: number;
+  fullyDilutedBefore: number;
+  fullyDilutedAfter: number;
+};
+
+// ─── Display helpers ────────────────────────────────────────────────────────
+
+const PROVISION_LABELS: Record<string, string> = {
+  full_ratchet: "Full Ratchet",
+  broad_based_wa: "Broad-Based Weighted Avg",
+  narrow_based_wa: "Narrow-Based Weighted Avg",
+  none: "None",
 };
 
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-100 text-green-800",
-  triggered: "bg-yellow-100 text-yellow-800",
+  triggered: "bg-red-100 text-red-800",
   waived: "bg-gray-100 text-gray-600",
-  expired: "bg-red-100 text-red-700",
+  expired: "bg-yellow-100 text-yellow-800",
 };
 
-type Provision = {
-  id: number;
-  companyId: number | null;
-  shareholderId: number;
-  fundingRoundId: number;
-  provisionType: "full_ratchet" | "broad_based_wa" | "narrow_based_wa" | "none";
-  originalPriceNtd: string;
-  adjustedPriceNtd: string | null;
-  originalShares: number;
-  adjustedShares: number | null;
-  triggerRoundId: number | null;
-  status: "active" | "triggered" | "waived" | "expired";
-  notes: string | null;
-  createdAt: Date;
-};
+function fmtNumber(n: number | string | null | undefined): string {
+  if (n == null) return "—";
+  const num = typeof n === "string" ? parseFloat(n) : n;
+  if (!Number.isFinite(num)) return "—";
+  return num.toLocaleString();
+}
+
+function fmtPrice(n: number | string | null | undefined): string {
+  if (n == null) return "—";
+  const num = typeof n === "string" ? parseFloat(n) : n;
+  if (!Number.isFinite(num)) return "—";
+  return `NT$ ${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
+}
+
+// ─── Main content ───────────────────────────────────────────────────────────
 
 function AntiDilutionContent() {
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const { canEdit, canDelete } = usePermissions();
-  const [form, setForm] = useState({
-    shareholderId: "",
-    fundingRoundId: "",
-    provisionType: "broad_based_wa" as "full_ratchet" | "broad_based_wa" | "narrow_based_wa" | "none",
-    originalPriceNtd: "",
-    originalShares: "",
-    notes: "",
-  });
-  const [editForm, setEditForm] = useState<{
-    adjustedPriceNtd: string;
-    adjustedShares: string;
-    triggerRoundId: string;
-    status: "active" | "triggered" | "waived" | "expired";
-    notes: string;
-  }>({ adjustedPriceNtd: "", adjustedShares: "", triggerRoundId: "", status: "active", notes: "" });
-
+  const { canEdit } = usePermissions();
   const utils = trpc.useUtils();
+
   const { data: provisions, isLoading } = trpc.antiDilution.list.useQuery();
-  const { data: shareholders } = trpc.v1.investors.list.useQuery();
+  const { data: investors } = trpc.v1.investors.list.useQuery();
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
 
+  // Form state
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<ProvisionForm>(emptyForm);
+
+  // Simulator state
+  const [showSimulator, setShowSimulator] = useState(false);
+  const [simInput, setSimInput] = useState<SimulationInput>(emptySimInput);
+  const [simResults, setSimResults] = useState<SimResponse | null>(null);
+  const [simulating, setSimulating] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+
+  // Mutations
   const createProvision = trpc.antiDilution.create.useMutation({
     onSuccess: () => {
       utils.antiDilution.list.invalidate();
-      toast.success("Anti-dilution provision added");
       setShowForm(false);
-      setForm({ shareholderId: "", fundingRoundId: "", provisionType: "broad_based_wa", originalPriceNtd: "", originalShares: "", notes: "" });
+      setForm(emptyForm);
+      toast.success("Anti-dilution provision added");
     },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const updateProvision = trpc.antiDilution.update.useMutation({
-    onSuccess: () => {
-      utils.antiDilution.list.invalidate();
-      toast.success("Provision updated");
-      setEditingId(null);
-    },
-    onError: (e) => toast.error(e.message),
+    onError: (err) => toast.error(err.message),
   });
 
   const deleteProvision = trpc.antiDilution.delete.useMutation({
@@ -100,339 +157,617 @@ function AntiDilutionContent() {
       utils.antiDilution.list.invalidate();
       toast.success("Provision deleted");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (err) => toast.error(err.message),
   });
 
-  function handleCreate() {
+  const triggerProvisions = trpc.antiDilution.trigger.useMutation({
+    onSuccess: (r) => {
+      utils.antiDilution.list.invalidate();
+      toast.success(`Triggered ${r.count} provision${r.count === 1 ? "" : "s"}`);
+      setSimResults(null);
+      setShowSimulator(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // Lookup maps
+  const investorMap = useMemo(() => {
+    const m = new Map<number, string>();
+    (investors ?? []).forEach((s) => m.set(s.id, s.name));
+    return m;
+  }, [investors]);
+
+  const roundMap = useMemo(() => {
+    const m = new Map<number, { name: string; pricePerShareNtd: string | null }>();
+    (rounds ?? []).forEach((r) => m.set(r.id, { name: r.name, pricePerShareNtd: r.pricePerShareNtd }));
+    return m;
+  }, [rounds]);
+
+  // Summary stats
+  const activeCount = provisions?.filter((p) => p.status === "active").length ?? 0;
+  const triggeredCount = provisions?.filter((p) => p.status === "triggered").length ?? 0;
+
+  // When the user picks a funding round in the form, pre-fill the original
+  // price from the round's pricePerShareNtd so they don't have to retype it.
+  function handleRoundChange(roundId: number) {
+    const round = roundMap.get(roundId);
+    setForm((prev) => ({
+      ...prev,
+      fundingRoundId: roundId,
+      originalPriceNtd: round?.pricePerShareNtd ?? prev.originalPriceNtd,
+    }));
+  }
+
+  async function handleCreate() {
     if (!form.shareholderId || !form.fundingRoundId || !form.originalPriceNtd || !form.originalShares) {
       toast.error("Please fill in all required fields");
       return;
     }
-    createProvision.mutate({
-      shareholderId: parseInt(form.shareholderId),
-      fundingRoundId: parseInt(form.fundingRoundId),
+    await createProvision.mutateAsync({
+      shareholderId: Number(form.shareholderId),
+      fundingRoundId: Number(form.fundingRoundId),
       provisionType: form.provisionType,
       originalPriceNtd: form.originalPriceNtd,
-      originalShares: parseInt(form.originalShares),
+      originalShares: Number(form.originalShares),
       notes: form.notes || undefined,
     });
   }
 
-  function startEdit(p: Provision) {
-    setEditingId(p.id);
-    setEditForm({
-      adjustedPriceNtd: p.adjustedPriceNtd || "",
-      adjustedShares: p.adjustedShares?.toString() || "",
-      triggerRoundId: p.triggerRoundId?.toString() || "",
-      status: p.status,
-      notes: p.notes || "",
-    });
+  async function handleSimulate() {
+    if (!simInput.newRoundPriceNtd || !simInput.newRoundSharesIssued || !simInput.newRoundMoneyRaisedNtd) {
+      toast.error("Please fill in all simulation fields");
+      return;
+    }
+    setSimulating(true);
+    try {
+      const result = await utils.antiDilution.simulate.fetch({
+        newRoundPriceNtd: simInput.newRoundPriceNtd,
+        newRoundSharesIssued: Number(simInput.newRoundSharesIssued),
+        newRoundMoneyRaisedNtd: simInput.newRoundMoneyRaisedNtd,
+      });
+      setSimResults(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Simulation failed";
+      toast.error(msg);
+    } finally {
+      setSimulating(false);
+    }
   }
 
-  function handleUpdate() {
-    if (!editingId) return;
-    updateProvision.mutate({
-      id: editingId,
-      data: {
-        adjustedPriceNtd: editForm.adjustedPriceNtd || undefined,
-        adjustedShares: editForm.adjustedShares ? parseInt(editForm.adjustedShares) : undefined,
-        triggerRoundId: editForm.triggerRoundId ? parseInt(editForm.triggerRoundId) : undefined,
-        status: editForm.status,
-        notes: editForm.notes || undefined,
-      },
-    });
+  async function handleTrigger() {
+    if (!simResults) return;
+    const triggered = simResults.results.filter((r) => r.triggered);
+    if (triggered.length === 0) {
+      toast.error("No provisions are triggered by this scenario");
+      return;
+    }
+    if (!simInput.triggerRoundId) {
+      toast.error("Please select the triggering round before committing");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Commit this down-round adjustment to ${triggered.length} provision${
+        triggered.length === 1 ? "" : "s"
+      }? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setTriggering(true);
+    try {
+      await triggerProvisions.mutateAsync({
+        triggerRoundId: Number(simInput.triggerRoundId),
+        adjustments: triggered.map((r) => ({
+          provisionId: r.provisionId,
+          adjustedPriceNtd: String(r.adjustedPriceNtd),
+          adjustedShares: r.adjustedShares,
+        })),
+      });
+    } finally {
+      setTriggering(false);
+    }
   }
 
-  const getShareholderName = (id: number) => shareholders?.find(s => s.id === id)?.name || `#${id}`;
-  const getRoundName = (id: number | null) => id ? (rounds?.find(r => r.id === id)?.name || `#${id}`) : "—";
-
-  const activeCount = provisions?.filter(p => p.status === "active").length || 0;
-  const triggeredCount = provisions?.filter(p => p.status === "triggered").length || 0;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
+    <div className="p-8 max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between">
-        <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <div>
           <div className="h-px bg-foreground/20 w-16 mb-4" />
-          <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>
-            Anti-Dilution Provisions
+          <h1
+            className="text-3xl font-bold tracking-tight flex items-center gap-2"
+            style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
+          >
+            <Shield className="h-7 w-7 text-primary" />
+            Anti-Dilution Protection
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Track investor protection clauses and down-round adjustments
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage anti-dilution provisions and simulate down-round impact on conversion prices.
           </p>
         </div>
         {canEdit && (
           <button
-            onClick={() => setShowForm(v => !v)}
-            className="flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-sm px-3 py-1.5 hover:opacity-90 transition-opacity"
+            onClick={() => setShowForm((v) => !v)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium"
           >
-            <Plus className="h-3.5 w-3.5" /> Add Provision
+            <Plus className="h-4 w-4" />
+            Add Provision
           </button>
         )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-sm p-5 space-y-2">
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Total Provisions</p>
-          <p className="text-2xl font-bold" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>{provisions?.length || 0}</p>
-          <p className="text-xs text-muted-foreground">across all rounds</p>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="border rounded-lg p-4 bg-card">
+          <div className="text-sm text-muted-foreground">Total Provisions</div>
+          <div className="text-2xl font-bold mt-1">{provisions?.length ?? 0}</div>
         </div>
-        <div className="bg-card border border-border rounded-sm p-5 space-y-2">
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Active</p>
-          <p className="text-2xl font-bold text-green-700" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>{activeCount}</p>
-          <p className="text-xs text-muted-foreground">provisions in effect</p>
-        </div>
-        <div className="bg-card border border-border rounded-sm p-5 space-y-2">
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Triggered</p>
-          <p className="text-2xl font-bold text-yellow-700" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>{triggeredCount}</p>
-          <p className="text-xs text-muted-foreground">require adjustment</p>
-        </div>
-      </div>
-
-      {/* Info Box */}
-      <div className="flex gap-3 bg-blue-50 border border-blue-200 rounded-sm p-4">
-        <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-        <div className="text-xs text-blue-800 space-y-1">
-          <p className="font-semibold">About Anti-Dilution Provisions</p>
-          <p>Anti-dilution provisions protect investors from down-rounds (new shares issued at a lower price). When triggered, they allow investors to receive additional shares or a lower conversion price to maintain their economic position.</p>
-        </div>
-      </div>
-
-      {/* Create Form */}
-      {showForm && (
-        <div className="bg-card border border-border rounded-sm p-6 space-y-5">
-          <div className="flex items-center gap-3">
-            <Shield className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <h3 className="text-base font-semibold tracking-tight">Add Anti-Dilution Provision</h3>
-              <p className="text-xs text-muted-foreground">Record a protection clause for an investor</p>
-            </div>
+        <div className="border rounded-lg p-4 bg-card">
+          <div className="text-sm text-muted-foreground flex items-center gap-1">
+            <Shield className="h-3.5 w-3.5 text-green-600" /> Active
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="text-2xl font-bold mt-1 text-green-700">{activeCount}</div>
+        </div>
+        <div className="border rounded-lg p-4 bg-card">
+          <div className="text-sm text-muted-foreground flex items-center gap-1">
+            <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> Triggered
+          </div>
+          <div className="text-2xl font-bold mt-1 text-red-700">{triggeredCount}</div>
+        </div>
+      </div>
+
+      {/* Add-provision form */}
+      {showForm && canEdit && (
+        <div className="border rounded-lg p-6 bg-card space-y-4">
+          <h3 className="font-semibold text-lg">New Anti-Dilution Provision</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Investor *</label>
+              <label className="text-sm font-medium">Investor *</label>
               <select
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 value={form.shareholderId}
-                onChange={e => setForm(f => ({ ...f, shareholderId: e.target.value }))}
-                className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                onChange={(e) =>
+                  setForm({ ...form, shareholderId: e.target.value ? Number(e.target.value) : "" })
+                }
               >
-                <option value="">Select investor...</option>
-                {(shareholders || []).map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                <option value="">Select investor…</option>
+                {(investors ?? []).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
                 ))}
               </select>
             </div>
+
             <div className="space-y-1.5">
-              <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Investment Round *</label>
+              <label className="text-sm font-medium">Funding Round *</label>
               <select
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 value={form.fundingRoundId}
-                onChange={e => setForm(f => ({ ...f, fundingRoundId: e.target.value }))}
-                className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                onChange={(e) =>
+                  e.target.value ? handleRoundChange(Number(e.target.value)) : setForm((p) => ({ ...p, fundingRoundId: "" }))
+                }
               >
-                <option value="">Select round...</option>
-                {(rounds || []).map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                <option value="">Select round…</option>
+                {(rounds ?? []).map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
                 ))}
               </select>
             </div>
+
             <div className="space-y-1.5">
-              <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Provision Type *</label>
+              <label className="text-sm font-medium">Protection Type *</label>
               <select
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 value={form.provisionType}
-                onChange={e => setForm(f => ({ ...f, provisionType: e.target.value as typeof form.provisionType }))}
-                className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                onChange={(e) => setForm({ ...form, provisionType: e.target.value as ProvisionType })}
               >
-                {Object.entries(PROVISION_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
+                <option value="broad_based_wa">Broad-Based Weighted Average</option>
+                <option value="narrow_based_wa">Narrow-Based Weighted Average</option>
+                <option value="full_ratchet">Full Ratchet</option>
               </select>
             </div>
+
             <div className="space-y-1.5">
-              <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Original Price (NTD) *</label>
+              <label className="text-sm font-medium">Original Price per Share (NTD) *</label>
               <input
                 type="number"
+                step="0.000001"
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                placeholder="e.g. 10.000000"
                 value={form.originalPriceNtd}
-                onChange={e => setForm(f => ({ ...f, originalPriceNtd: e.target.value }))}
-                className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="e.g. 10.00"
+                onChange={(e) => setForm({ ...form, originalPriceNtd: e.target.value })}
               />
             </div>
+
             <div className="space-y-1.5">
-              <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Original Shares *</label>
+              <label className="text-sm font-medium">Original Shares *</label>
               <input
                 type="number"
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                placeholder="e.g. 1000000"
                 value={form.originalShares}
-                onChange={e => setForm(f => ({ ...f, originalShares: e.target.value }))}
-                className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="e.g. 500000"
+                onChange={(e) => setForm({ ...form, originalShares: e.target.value })}
               />
             </div>
+
             <div className="space-y-1.5">
-              <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Notes</label>
+              <label className="text-sm font-medium">Notes</label>
               <input
                 type="text"
+                className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                placeholder="Optional notes…"
                 value={form.notes}
-                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="Optional notes"
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
             </div>
           </div>
-          {form.provisionType && (
-            <div className="flex gap-2 bg-secondary/50 rounded-sm p-3">
-              <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-              <p className="text-xs text-muted-foreground">{PROVISION_TYPE_DESC[form.provisionType]}</p>
-            </div>
-          )}
-          <div className="flex gap-3">
+
+          <div className="flex gap-2 pt-2">
             <button
               onClick={handleCreate}
               disabled={createProvision.isPending}
-              className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50"
             >
-              <Shield className="h-4 w-4" />
-              {createProvision.isPending ? "Adding..." : "Add Provision"}
+              <Check className="h-4 w-4" />
+              {createProvision.isPending ? "Saving…" : "Save Provision"}
             </button>
             <button
-              onClick={() => setShowForm(false)}
-              className="px-5 py-2 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
+              onClick={() => {
+                setShowForm(false);
+                setForm(emptyForm);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent text-sm"
             >
+              <X className="h-4 w-4" />
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      {/* Provisions Table */}
-      <div className="bg-card border border-border rounded-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-border flex items-center gap-3">
-          <Shield className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold tracking-tight">All Provisions</h3>
-          <span className="text-xs text-muted-foreground ml-auto">{provisions?.length || 0} records</span>
-        </div>
-
-        {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
-        ) : !provisions?.length ? (
-          <div className="p-12 text-center space-y-3">
-            <Shield className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-            <p className="text-sm text-muted-foreground">No anti-dilution provisions recorded.</p>
-            <p className="text-xs text-muted-foreground">Add provisions to track investor protection clauses.</p>
-          </div>
-        ) : (
-          <table className="cap-table w-full">
-            <thead>
+      {/* Provisions table */}
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="text-left px-4 py-3 font-medium">Investor</th>
+              <th className="text-left px-4 py-3 font-medium">Round</th>
+              <th className="text-left px-4 py-3 font-medium">Type</th>
+              <th className="text-right px-4 py-3 font-medium">Original Price</th>
+              <th className="text-right px-4 py-3 font-medium">Adjusted Price</th>
+              <th className="text-right px-4 py-3 font-medium">Original Shares</th>
+              <th className="text-right px-4 py-3 font-medium">Adjusted Shares</th>
+              <th className="text-center px-4 py-3 font-medium">Status</th>
+              {canEdit && <th className="text-center px-4 py-3 font-medium w-16"></th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {!provisions || provisions.length === 0 ? (
               <tr>
-                <th>Investor</th>
-                <th>Round</th>
-                <th>Type</th>
-                <th className="text-right">Original Price</th>
-                <th className="text-right">Original Shares</th>
-                <th className="text-right">Adjusted Price</th>
-                <th className="text-right">Adj. Shares</th>
-                <th>Status</th>
-                <th className="text-right">Actions</th>
+                <td
+                  colSpan={canEdit ? 9 : 8}
+                  className="text-center py-12 text-muted-foreground"
+                >
+                  <Shield className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">No anti-dilution provisions yet</p>
+                  <p className="text-sm mt-1">
+                    Add provisions to track price protection for preferred investors.
+                  </p>
+                  {canEdit && (
+                    <button
+                      onClick={() => setShowForm(true)}
+                      className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add First Provision
+                    </button>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {(provisions as Provision[]).map(p => (
-                editingId === p.id ? (
-                  <tr key={p.id} className="bg-secondary/20">
-                    <td colSpan={9} className="p-4">
-                      <div className="grid grid-cols-5 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Adjusted Price (NTD)</label>
-                          <input type="number" value={editForm.adjustedPriceNtd} onChange={e => setEditForm(f => ({ ...f, adjustedPriceNtd: e.target.value }))}
-                            className="w-full border border-input rounded-sm px-2 py-1.5 text-xs bg-background" placeholder="New price" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Adjusted Shares</label>
-                          <input type="number" value={editForm.adjustedShares} onChange={e => setEditForm(f => ({ ...f, adjustedShares: e.target.value }))}
-                            className="w-full border border-input rounded-sm px-2 py-1.5 text-xs bg-background" placeholder="Additional shares" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Trigger Round</label>
-                          <select value={editForm.triggerRoundId} onChange={e => setEditForm(f => ({ ...f, triggerRoundId: e.target.value }))}
-                            className="w-full border border-input rounded-sm px-2 py-1.5 text-xs bg-background">
-                            <option value="">None</option>
-                            {(rounds || []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                          </select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Status</label>
-                          <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value as typeof editForm.status }))}
-                            className="w-full border border-input rounded-sm px-2 py-1.5 text-xs bg-background">
-                            <option value="active">Active</option>
-                            <option value="triggered">Triggered</option>
-                            <option value="waived">Waived</option>
-                            <option value="expired">Expired</option>
-                          </select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Notes</label>
-                          <input type="text" value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
-                            className="w-full border border-input rounded-sm px-2 py-1.5 text-xs bg-background" />
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <button onClick={handleUpdate} disabled={updateProvision.isPending}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded-sm hover:opacity-90">
-                          <Check className="h-3 w-3" /> Save
+            ) : (
+              provisions.map((p) => (
+                <tr key={p.id} className="hover:bg-muted/30">
+                  <td className="px-4 py-3 font-medium">
+                    {investorMap.get(p.shareholderId) ?? `#${p.shareholderId}`}
+                  </td>
+                  <td className="px-4 py-3">
+                    {roundMap.get(p.fundingRoundId)?.name ?? `#${p.fundingRoundId}`}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                      {PROVISION_LABELS[p.provisionType] ?? p.provisionType}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {fmtPrice(p.originalPriceNtd)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {p.adjustedPriceNtd ? (
+                      <span className="text-red-600">{fmtPrice(p.adjustedPriceNtd)}</span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">{fmtNumber(p.originalShares)}</td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {p.adjustedShares ? (
+                      <span className="text-green-600">{fmtNumber(p.adjustedShares)}</span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        STATUS_COLORS[p.status] ?? ""
+                      }`}
+                    >
+                      {p.status}
+                    </span>
+                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3 text-center">
+                      {p.status === "active" && (
+                        <button
+                          onClick={() => {
+                            if (confirm("Delete this provision?")) {
+                              deleteProvision.mutate({ id: p.id });
+                            }
+                          }}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </button>
-                        <button onClick={() => setEditingId(null)}
-                          className="flex items-center gap-1 px-3 py-1.5 border border-border text-xs rounded-sm hover:bg-secondary">
-                          <X className="h-3 w-3" /> Cancel
-                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ─── Down-round simulator ────────────────────────────────────────── */}
+      {activeCount > 0 && (
+        <div className="border rounded-lg overflow-hidden">
+          <button
+            onClick={() => setShowSimulator((v) => !v)}
+            className="w-full flex items-center justify-between px-6 py-4 bg-card hover:bg-muted/30 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-amber-600" />
+              <span className="font-semibold">Down Round Simulator</span>
+              <span className="text-xs text-muted-foreground ml-2">
+                Test how a down round would affect {activeCount} active provision
+                {activeCount > 1 ? "s" : ""}
+              </span>
+            </div>
+            {showSimulator ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {showSimulator && (
+            <div className="px-6 py-5 border-t space-y-5">
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 flex items-start gap-2">
+                <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  This simulator is read-only. Results preview the impact of a hypothetical down
+                  round. Nothing is written until you click <strong>Trigger</strong> below.
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">New Round Price / Share (NTD)</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                    placeholder="e.g. 5.00"
+                    value={simInput.newRoundPriceNtd}
+                    onChange={(e) => setSimInput({ ...simInput, newRoundPriceNtd: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Shares to be Issued</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                    placeholder="e.g. 2000000"
+                    value={simInput.newRoundSharesIssued}
+                    onChange={(e) =>
+                      setSimInput({ ...simInput, newRoundSharesIssued: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Money Raised (NTD)</label>
+                  <input
+                    type="number"
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                    placeholder="e.g. 10000000"
+                    value={simInput.newRoundMoneyRaisedNtd}
+                    onChange={(e) =>
+                      setSimInput({ ...simInput, newRoundMoneyRaisedNtd: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Triggering Round</label>
+                  <select
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                    value={simInput.triggerRoundId}
+                    onChange={(e) =>
+                      setSimInput({
+                        ...simInput,
+                        triggerRoundId: e.target.value ? Number(e.target.value) : "",
+                      })
+                    }
+                  >
+                    <option value="">Select round…</option>
+                    {(rounds ?? []).map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSimulate}
+                  disabled={simulating}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium disabled:opacity-50"
+                >
+                  <Play className="h-4 w-4" />
+                  {simulating ? "Calculating…" : "Run Simulation"}
+                </button>
+                {canEdit && simResults && simResults.totalNewShares > 0 && (
+                  <button
+                    onClick={handleTrigger}
+                    disabled={triggering || !simInput.triggerRoundId}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium disabled:opacity-50"
+                    title={
+                      !simInput.triggerRoundId
+                        ? "Select the triggering round first"
+                        : "Commit the adjustment to the database"
+                    }
+                  >
+                    <Zap className="h-4 w-4" />
+                    {triggering ? "Committing…" : "Commit Trigger"}
+                  </button>
+                )}
+              </div>
+
+              {simResults && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <div className="text-xs text-muted-foreground">Fully Diluted (Before)</div>
+                      <div className="text-lg font-bold mt-1">
+                        {fmtNumber(simResults.fullyDilutedBefore)}
                       </div>
-                    </td>
-                  </tr>
-                ) : (
-                  <tr key={p.id}>
-                    <td className="font-medium">{getShareholderName(p.shareholderId)}</td>
-                    <td className="text-muted-foreground">{getRoundName(p.fundingRoundId)}</td>
-                    <td>
-                      <span className="text-xs font-medium">{PROVISION_TYPE_LABELS[p.provisionType]}</span>
-                    </td>
-                    <td className="text-right tabular-nums">NT${parseFloat(p.originalPriceNtd).toFixed(4)}</td>
-                    <td className="text-right tabular-nums">{formatShares(p.originalShares)}</td>
-                    <td className="text-right tabular-nums">
-                      {p.adjustedPriceNtd ? (
-                        <span className="text-yellow-700 font-medium">NT${parseFloat(p.adjustedPriceNtd).toFixed(4)}</span>
-                      ) : "—"}
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {p.adjustedShares ? (
-                        <span className="text-yellow-700 font-medium">+{formatShares(p.adjustedShares)}</span>
-                      ) : "—"}
-                    </td>
-                    <td>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wide ${STATUS_COLORS[p.status]}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {canEdit && (
-                          <button onClick={() => startEdit(p)} className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded">
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button onClick={() => { if (confirm("Delete this provision?")) deleteProvision.mutate({ id: p.id }); }}
-                            className="p-1 text-muted-foreground hover:text-destructive transition-colors rounded">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
+                    </div>
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <div className="text-xs text-muted-foreground">Fully Diluted (After)</div>
+                      <div className="text-lg font-bold mt-1 text-red-600">
+                        {fmtNumber(simResults.fullyDilutedAfter)}
                       </div>
-                    </td>
-                  </tr>
-                )
-              ))}
-            </tbody>
-          </table>
-        )}
+                    </div>
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <div className="text-xs text-muted-foreground">
+                        Additional Shares from Anti-Dilution
+                      </div>
+                      <div className="text-lg font-bold mt-1 text-amber-600">
+                        {simResults.totalNewShares > 0
+                          ? `+${fmtNumber(simResults.totalNewShares)}`
+                          : "0"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <table className="w-full text-sm border rounded-lg overflow-hidden">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left px-4 py-2 font-medium">Investor</th>
+                        <th className="text-left px-4 py-2 font-medium">Round</th>
+                        <th className="text-left px-4 py-2 font-medium">Type</th>
+                        <th className="text-right px-4 py-2 font-medium">Price Before</th>
+                        <th className="text-right px-4 py-2 font-medium">Price After</th>
+                        <th className="text-right px-4 py-2 font-medium">Shares Before</th>
+                        <th className="text-right px-4 py-2 font-medium">Shares After</th>
+                        <th className="text-right px-4 py-2 font-medium">Additional</th>
+                        <th className="text-center px-4 py-2 font-medium">Triggered</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {simResults.results.map((r) => (
+                        <tr key={r.provisionId} className={r.triggered ? "bg-red-50/50" : ""}>
+                          <td className="px-4 py-2 font-medium">
+                            {investorMap.get(r.shareholderId) ?? `#${r.shareholderId}`}
+                          </td>
+                          <td className="px-4 py-2">
+                            {roundMap.get(r.fundingRoundId)?.name ?? `#${r.fundingRoundId}`}
+                          </td>
+                          <td className="px-4 py-2 text-xs">
+                            {PROVISION_LABELS[r.provisionType] ?? r.provisionType}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono">
+                            {fmtPrice(r.originalPriceNtd)}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono">
+                            {r.triggered ? (
+                              <span className="text-red-600">{fmtPrice(r.adjustedPriceNtd)}</span>
+                            ) : (
+                              fmtPrice(r.adjustedPriceNtd)
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono">
+                            {fmtNumber(r.originalShares)}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono">
+                            {r.triggered ? (
+                              <span className="text-green-600">{fmtNumber(r.adjustedShares)}</span>
+                            ) : (
+                              fmtNumber(r.adjustedShares)
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono text-amber-600">
+                            {r.additionalShares > 0 ? `+${fmtNumber(r.additionalShares)}` : "—"}
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            {r.triggered ? (
+                              <AlertTriangle className="h-4 w-4 text-red-500 inline" />
+                            ) : (
+                              <span className="text-green-600 text-xs">No impact</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Formula reference */}
+      <div className="border rounded-lg p-5 bg-muted/20 space-y-3">
+        <h3 className="font-semibold flex items-center gap-2">
+          <Info className="h-4 w-4" />
+          Formula Reference
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
+          <div>
+            <p className="font-medium text-foreground mb-1">Full Ratchet</p>
+            <p>Adjusted Price = New Round Price</p>
+            <p className="text-xs mt-1">
+              Most favorable to investor. Conversion price drops to the new lower price regardless
+              of round size.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-foreground mb-1">Broad-Based Weighted Average</p>
+            <p>New CP = Old CP × (A + B) / (A + C)</p>
+            <p className="text-xs mt-1">
+              A = fully diluted shares before • B = new money / old price • C = new shares issued.
+              Industry standard — balances investor protection with founder dilution.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

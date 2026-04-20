@@ -112,6 +112,182 @@ const antiDilutionRouter = router({
     }),
   })).mutation(({ input, ctx }) => updateAntiDilutionProvision(ctx.companyId, input.id, input.data)),
   delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteAntiDilutionProvision(ctx.companyId, input.id)),
+
+  // ── Down-round simulator (read-only) ──────────────────────────────────────
+  // Computes the adjusted conversion price + additional shares each active
+  // provision would receive if a new round were priced at `newRoundPriceNtd`.
+  // Does NOT write to the DB — results come back in-memory for the UI to
+  // preview. Fully-diluted base comes from the V1 deriveCapTable() so the
+  // numbers match the rest of the app.
+  simulate: companyProcedure
+    .input(z.object({
+      newRoundPriceNtd: z.string(),
+      newRoundSharesIssued: z.number(),
+      newRoundMoneyRaisedNtd: z.string(),
+    }))
+    .query(async ({ input, ctx }) => {
+      const all = await getAllAntiDilutionProvisions(ctx.companyId);
+      const provisions = all.filter(p => p.status === "active");
+      if (provisions.length === 0) {
+        const ct = await deriveCapTable(ctx.companyId);
+        return {
+          results: [],
+          totalNewShares: 0,
+          fullyDilutedBefore: ct.totalShares,
+          fullyDilutedAfter: ct.totalShares + input.newRoundSharesIssued,
+        };
+      }
+
+      const capTable = await deriveCapTable(ctx.companyId);
+      const fullyDilutedBefore = capTable.totalShares;
+
+      const newPrice = parseFloat(input.newRoundPriceNtd);
+      const newShares = input.newRoundSharesIssued;
+      const newMoney = parseFloat(input.newRoundMoneyRaisedNtd);
+
+      let totalNewSharesFromAdjustment = 0;
+
+      type SimResult = {
+        provisionId: number;
+        shareholderId: number;
+        fundingRoundId: number;
+        provisionType: string;
+        originalPriceNtd: number;
+        originalShares: number;
+        adjustedPriceNtd: number;
+        adjustedShares: number;
+        additionalShares: number;
+        triggered: boolean;
+      };
+
+      const results: SimResult[] = provisions.map((p) => {
+        const originalPrice = Number(p.originalPriceNtd);
+        const originalShares = Number(p.originalShares);
+
+        // Not a down round for this investor — no adjustment.
+        if (newPrice >= originalPrice) {
+          return {
+            provisionId: p.id,
+            shareholderId: p.shareholderId,
+            fundingRoundId: p.fundingRoundId,
+            provisionType: p.provisionType,
+            originalPriceNtd: originalPrice,
+            originalShares,
+            adjustedPriceNtd: originalPrice,
+            adjustedShares: originalShares,
+            additionalShares: 0,
+            triggered: false,
+          };
+        }
+
+        let adjustedPrice: number;
+
+        switch (p.provisionType) {
+          case "full_ratchet":
+            // Investor's conversion price drops to match the new round.
+            adjustedPrice = newPrice;
+            break;
+
+          case "narrow_based_wa": {
+            // Only the round's own outstanding shares count in denominator.
+            // Approximated as the sum of originalShares across provisions
+            // from the same funding round.
+            const roundPool = provisions
+              .filter(pp => pp.fundingRoundId === p.fundingRoundId)
+              .reduce((sum, pp) => sum + Number(pp.originalShares), 0);
+            const A = roundPool || originalShares;
+            const B = newMoney / originalPrice;
+            const C = newShares;
+            adjustedPrice = originalPrice * (A + B) / (A + C);
+            break;
+          }
+
+          case "broad_based_wa":
+          default: {
+            // Industry-standard broad-based weighted-average formula:
+            //   New CP = Old CP * (A + B) / (A + C)
+            //   A = fully diluted shares before the new round
+            //   B = new money / old conversion price
+            //   C = shares actually issued in the new round
+            const A = fullyDilutedBefore;
+            const B = newMoney / originalPrice;
+            const C = newShares;
+            adjustedPrice = originalPrice * (A + B) / (A + C);
+            break;
+          }
+        }
+
+        // Floor the adjusted price at the new round price (sanity guard —
+        // anti-dilution should never make the price lower than the trigger).
+        adjustedPrice = Math.max(adjustedPrice, newPrice);
+
+        // Adjusted share count = original investment / adjusted conversion
+        // price. The investor ends up with more shares to compensate for
+        // the price drop.
+        const investmentAmount = originalPrice * originalShares;
+        const adjustedShares = Math.floor(investmentAmount / adjustedPrice);
+        const additionalShares = adjustedShares - originalShares;
+
+        totalNewSharesFromAdjustment += additionalShares;
+
+        return {
+          provisionId: p.id,
+          shareholderId: p.shareholderId,
+          fundingRoundId: p.fundingRoundId,
+          provisionType: p.provisionType,
+          originalPriceNtd: originalPrice,
+          originalShares,
+          adjustedPriceNtd: Math.round(adjustedPrice * 1_000_000) / 1_000_000,
+          adjustedShares,
+          additionalShares,
+          triggered: true,
+        };
+      });
+
+      return {
+        results,
+        totalNewShares: totalNewSharesFromAdjustment,
+        fullyDilutedBefore,
+        fullyDilutedAfter: fullyDilutedBefore + newShares + totalNewSharesFromAdjustment,
+      };
+    }),
+
+  // ── Trigger: apply simulator results to the DB ────────────────────────────
+  // Writes adjusted price + shares, flips status to "triggered", and records
+  // the triggering round id on each affected provision. Writes an audit log.
+  trigger: companyEditorProcedure
+    .input(z.object({
+      triggerRoundId: z.number(),
+      adjustments: z.array(z.object({
+        provisionId: z.number(),
+        adjustedPriceNtd: z.string(),
+        adjustedShares: z.number(),
+      })),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      for (const adj of input.adjustments) {
+        await updateAntiDilutionProvision(ctx.companyId, adj.provisionId, {
+          adjustedPriceNtd: adj.adjustedPriceNtd,
+          adjustedShares: adj.adjustedShares,
+          triggerRoundId: input.triggerRoundId,
+          status: "triggered",
+        });
+      }
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update",
+        resourceType: "anti_dilution",
+        resourceName: `Down-round trigger on round #${input.triggerRoundId}`,
+        changesAfter: JSON.stringify({
+          triggerRoundId: input.triggerRoundId,
+          adjustmentsCount: input.adjustments.length,
+          adjustments: input.adjustments,
+        }),
+      });
+      return { success: true, count: input.adjustments.length };
+    }),
 });
 
 // ─── Import Router ────────────────────────────────────────────────────────────
