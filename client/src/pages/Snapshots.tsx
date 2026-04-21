@@ -214,7 +214,7 @@ function SnapshotsContent() {
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
                 Snapshot Name *
@@ -269,7 +269,7 @@ function SnapshotsContent() {
               <p className="text-xs text-muted-foreground">Select two snapshots to see ownership changes</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
                 Snapshot A (Before)

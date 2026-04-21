@@ -8,7 +8,7 @@ import {
   Sparkles,
   BookOpen,
   Shield,
-  Wrench,
+  FileText,
   MoreHorizontal,
 } from "lucide-react";
 
@@ -47,7 +47,7 @@ const mobileSections: TabSection[] = [
       { icon: TrendingUp, label: "Rounds", path: "/funding-rounds" },
       { icon: Users, label: "Investors", path: "/investors" },
       { icon: Shield, label: "Anti-Dilution", path: "/anti-dilution" },
-      { icon: Wrench, label: "Instruments", path: "/instruments" },
+      { icon: FileText, label: "Instruments", path: "/instruments" },
     ],
   },
 ];

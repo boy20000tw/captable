@@ -39,7 +39,7 @@ import {
   ClipboardList,
   Calculator,
   Rocket,
-  Wrench,
+  FileText,
   Settings,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -68,7 +68,7 @@ const menuGroups = [
       { icon: Rocket,    label: "Funding Rounds", path: "/funding-rounds" },
       { icon: Users,     label: "Investors",      path: "/investors" },
       { icon: Shield,    label: "Anti-Dilution",  path: "/anti-dilution" },
-      { icon: Wrench,    label: "Instruments",    path: "/instruments" },
+      { icon: FileText,   label: "Instruments",    path: "/instruments" },
     ],
   },
   {
