@@ -15,6 +15,13 @@
       "when": 1776761961075,
       "tag": "0001_perfect_groot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776776182378,
+      "tag": "0002_stale_longshot",
+      "breakpoints": true
     }
   ]
 }
