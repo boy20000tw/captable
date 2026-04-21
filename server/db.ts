@@ -30,6 +30,7 @@ import {
   esopGrantsV1, InsertEsopGrantV1,
   instruments, InsertInstrument,
   signingRequests, InsertSigningRequest,
+  signingTemplates, InsertSigningTemplate,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1194,6 +1195,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
     ["allocations", allocations, allocations.companyId],
     ["instruments", instruments, instruments.companyId],
     ["signing_requests", signingRequests, signingRequests.companyId],
+    ["signing_templates", signingTemplates, signingTemplates.companyId],
     ["investors", investors, investors.companyId],
     ["esop_grants_v1", esopGrantsV1, esopGrantsV1.companyId],
     ["esop_pools_v1", esopPoolsV1, esopPoolsV1.companyId],
@@ -1230,7 +1232,8 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   // V1 ESOP — grants before pools (grants reference pools)
   await db.delete(esopGrantsV1).where(eq(esopGrantsV1.companyId, companyId));
   await db.delete(esopPoolsV1).where(eq(esopPoolsV1.companyId, companyId));
-  // Signing requests + Instruments reference investors — delete BEFORE investors.
+  // Signing templates + requests + Instruments reference investors — delete BEFORE investors.
+  await db.delete(signingTemplates).where(eq(signingTemplates.companyId, companyId));
   await db.delete(signingRequests).where(eq(signingRequests.companyId, companyId));
   await db.delete(instruments).where(eq(instruments.companyId, companyId));
   await db.delete(investors).where(eq(investors.companyId, companyId));
@@ -1374,4 +1377,55 @@ export async function deleteSigningRequest(companyId: number, id: number) {
   if (!db) throw new Error("Database not available");
   await db.delete(signingRequests)
     .where(and(eq(signingRequests.id, id), eq(signingRequests.companyId, companyId)));
+}
+
+// ─── Signing Templates ──────────────────────────────────────────────────────
+
+/** Get templates visible to a company: platform-scope + company's own */
+export async function getSigningTemplatesForCompany(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(signingTemplates)
+    .where(
+      sql`${signingTemplates.scope} = 'platform' OR ${signingTemplates.companyId} = ${companyId}`
+    )
+    .orderBy(asc(signingTemplates.scope), asc(signingTemplates.name));
+}
+
+/** Get platform-only templates (for admin views) */
+export async function getPlatformSigningTemplates() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(signingTemplates)
+    .where(eq(signingTemplates.scope, "platform"))
+    .orderBy(asc(signingTemplates.name));
+}
+
+export async function getSigningTemplateById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(signingTemplates)
+    .where(eq(signingTemplates.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function createSigningTemplate(data: InsertSigningTemplate) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.insert(signingTemplates).values(data).returning();
+  return rows[0];
+}
+
+export async function updateSigningTemplate(id: number, data: Partial<InsertSigningTemplate>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(signingTemplates)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(signingTemplates.id, id));
+}
+
+export async function deleteSigningTemplate(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(signingTemplates).where(eq(signingTemplates.id, id));
 }

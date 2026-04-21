@@ -809,3 +809,31 @@ export const signingRequests = pgTable("signing_requests", {
 });
 export type SigningRequest = typeof signingRequests.$inferSelect;
 export type InsertSigningRequest = typeof signingRequests.$inferInsert;
+
+// ─── Signing Templates (reusable document templates) ────────────────────────
+// scope = "platform" → visible to all companies (admin-managed)
+// scope = "company"  → visible only to that company
+export const signingTemplateScopeEnum = pgEnum("signing_template_scope", ["platform", "company"]);
+
+export const signingTemplates = pgTable("signing_templates", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId"),          // null for platform-scope templates
+
+    scope: signingTemplateScopeEnum("scope").default("company").notNull(),
+    docType: signingDocTypeEnum("docType").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+
+    // DocuSeal template ID (created when the file is uploaded)
+    docusealTemplateId: integer("docusealTemplateId"),
+
+    // Original file stored in Vercel Blob
+    fileUrl: text("fileUrl"),
+    fileName: text("fileName"),
+
+    createdBy: integer("createdBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type SigningTemplate = typeof signingTemplates.$inferSelect;
+export type InsertSigningTemplate = typeof signingTemplates.$inferInsert;

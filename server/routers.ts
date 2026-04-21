@@ -38,6 +38,9 @@ import {
   // Signing Requests (DocuSeal eSignature)
   getAllSigningRequests, getSigningRequestById, getSigningRequestsByStatus,
   createSigningRequest, updateSigningRequest, deleteSigningRequest,
+  // Signing Templates
+  getSigningTemplatesForCompany, getPlatformSigningTemplates, getSigningTemplateById,
+  createSigningTemplate, updateSigningTemplate, deleteSigningTemplate,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
@@ -1392,6 +1395,7 @@ const esignRouter = router({
       sourceDocumentUrl: z.string().optional(),
       signers: z.string().optional(),
       expiresAt: z.string().optional(),
+      docusealTemplateId: z.number().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const row = await createSigningRequest({
@@ -1519,10 +1523,146 @@ const esignRouter = router({
     }),
 
   // List DocuSeal templates (for reuse)
-  listTemplates: companyProcedure.query(async () => {
+  listDocusealTemplates: companyProcedure.query(async () => {
     const { listTemplates } = await import("./docuseal");
     return listTemplates();
   }),
+
+  // ─── Template Library ───────────────────────────────────────────────────
+
+  /** List templates visible to this company (platform + own) */
+  templates: companyProcedure.query(({ ctx }) =>
+    getSigningTemplatesForCompany(ctx.companyId)
+  ),
+
+  /** Platform templates only (for admin panel) */
+  platformTemplates: protectedProcedure.query(() =>
+    getPlatformSigningTemplates()
+  ),
+
+  /** Get single template */
+  getTemplate: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => getSigningTemplateById(input.id)),
+
+  /** Upload a template (company-scope) */
+  uploadTemplate: companyEditorProcedure
+    .input(z.object({
+      docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]),
+      name: z.string().min(1),
+      description: z.string().optional(),
+      fileName: z.string(),
+      fileBase64: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // 1. Store file in Vercel Blob
+      const { storagePut } = await import("./storage");
+      const buffer = Buffer.from(input.fileBase64, "base64");
+      const ext = input.fileName.split(".").pop() || "pdf";
+      const contentType = ext === "docx"
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "application/pdf";
+      const key = `company/${ctx.companyId}/templates/${Date.now()}-${input.fileName}`;
+      const { url: fileUrl } = await storagePut(key, buffer, contentType);
+
+      // 2. Create DocuSeal template
+      const { createTemplateFromPdf, createTemplateFromDocx } = await import("./docuseal");
+      const createFn = ext === "docx" ? createTemplateFromDocx : createTemplateFromPdf;
+      const dsTemplate = await createFn(input.name, input.fileBase64);
+
+      // 3. Save to our DB
+      const row = await createSigningTemplate({
+        companyId: ctx.companyId,
+        scope: "company",
+        docType: input.docType,
+        name: input.name,
+        description: input.description,
+        docusealTemplateId: dsTemplate.id,
+        fileUrl,
+        fileName: input.fileName,
+        createdBy: ctx.user!.id,
+      });
+
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "create", resourceType: "signing_template",
+        resourceName: input.name,
+      });
+      return row;
+    }),
+
+  /** Upload a platform template (admin only — uses protectedProcedure) */
+  uploadPlatformTemplate: protectedProcedure
+    .input(z.object({
+      docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]),
+      name: z.string().min(1),
+      description: z.string().optional(),
+      fileName: z.string(),
+      fileBase64: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Only app admins can create platform templates
+      if (ctx.user!.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only platform admins can create platform templates" });
+      }
+
+      const { storagePut } = await import("./storage");
+      const buffer = Buffer.from(input.fileBase64, "base64");
+      const ext = input.fileName.split(".").pop() || "pdf";
+      const contentType = ext === "docx"
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "application/pdf";
+      const key = `platform/templates/${Date.now()}-${input.fileName}`;
+      const { url: fileUrl } = await storagePut(key, buffer, contentType);
+
+      const { createTemplateFromPdf, createTemplateFromDocx } = await import("./docuseal");
+      const createFn = ext === "docx" ? createTemplateFromDocx : createTemplateFromPdf;
+      const dsTemplate = await createFn(input.name, input.fileBase64);
+
+      const row = await createSigningTemplate({
+        companyId: null,
+        scope: "platform",
+        docType: input.docType,
+        name: input.name,
+        description: input.description,
+        docusealTemplateId: dsTemplate.id,
+        fileUrl,
+        fileName: input.fileName,
+        createdBy: ctx.user!.id,
+      });
+
+      await createAuditLog({
+        userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "create", resourceType: "signing_template",
+        resourceName: `[Platform] ${input.name}`,
+      });
+      return row;
+    }),
+
+  /** Delete a template */
+  deleteTemplate: companyEditorProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const tmpl = await getSigningTemplateById(input.id);
+      if (!tmpl) throw new TRPCError({ code: "NOT_FOUND" });
+      // Company templates: must belong to this company
+      // Platform templates: must be app admin
+      if (tmpl.scope === "company" && tmpl.companyId !== ctx.companyId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      if (tmpl.scope === "platform" && ctx.user!.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only platform admins can delete platform templates" });
+      }
+      await deleteSigningTemplate(input.id);
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "delete", resourceType: "signing_template",
+        resourceId: input.id,
+      });
+      return { success: true };
+    }),
 });
 
 export const appRouter = router({
