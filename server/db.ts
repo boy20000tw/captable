@@ -29,6 +29,7 @@ import {
   esopPoolsV1, InsertEsopPoolV1,
   esopGrantsV1, InsertEsopGrantV1,
   instruments, InsertInstrument,
+  signingRequests, InsertSigningRequest,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1192,6 +1193,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
     ["share_register_entries", shareRegisterEntries, shareRegisterEntries.companyId],
     ["allocations", allocations, allocations.companyId],
     ["instruments", instruments, instruments.companyId],
+    ["signing_requests", signingRequests, signingRequests.companyId],
     ["investors", investors, investors.companyId],
     ["esop_grants_v1", esopGrantsV1, esopGrantsV1.companyId],
     ["esop_pools_v1", esopPoolsV1, esopPoolsV1.companyId],
@@ -1228,7 +1230,8 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   // V1 ESOP — grants before pools (grants reference pools)
   await db.delete(esopGrantsV1).where(eq(esopGrantsV1.companyId, companyId));
   await db.delete(esopPoolsV1).where(eq(esopPoolsV1.companyId, companyId));
-  // Instruments reference investors — delete BEFORE investors.
+  // Signing requests + Instruments reference investors — delete BEFORE investors.
+  await db.delete(signingRequests).where(eq(signingRequests.companyId, companyId));
   await db.delete(instruments).where(eq(instruments.companyId, companyId));
   await db.delete(investors).where(eq(investors.companyId, companyId));
   await db.delete(shareholders).where(eq(shareholders.companyId, companyId));
@@ -1314,4 +1317,61 @@ export async function deleteInstrument(companyId: number, id: number) {
   if (!db) throw new Error("Database not available");
   await db.delete(instruments)
     .where(and(eq(instruments.id, id), eq(instruments.companyId, companyId)));
+}
+
+// ─── Signing Requests (DocuSeal eSignature) ─────────────────────────────────
+
+export async function getAllSigningRequests(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(signingRequests)
+    .where(eq(signingRequests.companyId, companyId))
+    .orderBy(desc(signingRequests.createdAt));
+}
+
+export async function getSigningRequestById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(signingRequests)
+    .where(and(eq(signingRequests.companyId, companyId), eq(signingRequests.id, id)))
+    .limit(1);
+  return rows[0];
+}
+
+export async function getSigningRequestsByStatus(companyId: number, status: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(signingRequests)
+    .where(and(eq(signingRequests.companyId, companyId), eq(signingRequests.status, status as any)))
+    .orderBy(desc(signingRequests.createdAt));
+}
+
+export async function getSigningRequestBySubmissionId(submissionId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(signingRequests)
+    .where(eq(signingRequests.docusealSubmissionId, submissionId));
+  return rows[0];
+}
+
+export async function createSigningRequest(data: InsertSigningRequest) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.insert(signingRequests).values(data).returning();
+  return rows[0];
+}
+
+export async function updateSigningRequest(companyId: number, id: number, data: Partial<InsertSigningRequest>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(signingRequests)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(signingRequests.id, id), eq(signingRequests.companyId, companyId)));
+}
+
+export async function deleteSigningRequest(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(signingRequests)
+    .where(and(eq(signingRequests.id, id), eq(signingRequests.companyId, companyId)));
 }

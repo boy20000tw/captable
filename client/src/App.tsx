@@ -15,6 +15,7 @@ import V1InvestorsPage from "./pages/v1/Investors";
 import CompanySettingsPage from "./pages/v1/CompanySettings";
 import AntiDilutionPage from "./pages/AntiDilution";
 import InstrumentsPage from "./pages/Instruments";
+import ESignPage from "./pages/ESign";
 import ValuationPage from "./pages/Valuation";
 import ProjectionsPage from "./pages/Projections";
 import WaterfallPage from "./pages/Waterfall";
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/investors" component={V1InvestorsPage} />
       <Route path="/anti-dilution" component={AntiDilutionPage} />
       <Route path="/instruments" component={InstrumentsPage} />
+      <Route path="/esign" component={ESignPage} />
       <Route path="/valuation" component={ValuationPage} />
       <Route path="/projections" component={ProjectionsPage} />
       <Route path="/waterfall" component={WaterfallPage} />

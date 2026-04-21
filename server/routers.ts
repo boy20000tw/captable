@@ -35,6 +35,9 @@ import {
   // Instruments (V1)
   getAllInstruments, getInstrumentById, getInstrumentsByInvestor, getInstrumentsByRound, getInstrumentsByType, getActiveConvertibles,
   createInstrument, updateInstrument, deleteInstrument,
+  // Signing Requests (DocuSeal eSignature)
+  getAllSigningRequests, getSigningRequestById, getSigningRequestsByStatus,
+  createSigningRequest, updateSigningRequest, deleteSigningRequest,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
@@ -1367,6 +1370,161 @@ const instrumentsRouter = router({
     }),
 });
 
+// ─── eSign Router (DocuSeal eSignature) ─────────────────────────────────────
+const esignRouter = router({
+  list: companyProcedure.query(({ ctx }) => getAllSigningRequests(ctx.companyId)),
+
+  get: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .query(({ ctx, input }) => getSigningRequestById(ctx.companyId, input.id)),
+
+  byStatus: companyProcedure
+    .input(z.object({ status: z.string() }))
+    .query(({ ctx, input }) => getSigningRequestsByStatus(ctx.companyId, input.status)),
+
+  create: companyEditorProcedure
+    .input(z.object({
+      docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]),
+      title: z.string().min(1),
+      description: z.string().optional(),
+      linkedResourceType: z.string().optional(),
+      linkedResourceId: z.number().optional(),
+      sourceDocumentUrl: z.string().optional(),
+      signers: z.string().optional(),
+      expiresAt: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const row = await createSigningRequest({
+        companyId: ctx.companyId,
+        ...input,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+        createdBy: ctx.user!.id,
+      });
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "create", resourceType: "signing_request",
+        resourceName: input.title,
+        changesAfter: JSON.stringify(input),
+      });
+      return row;
+    }),
+
+  update: companyEditorProcedure
+    .input(z.object({
+      id: z.number(),
+      data: z.object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        status: z.enum(["draft", "pending", "viewed", "completed", "declined", "expired"]).optional(),
+        signers: z.string().optional(),
+        signedDocumentUrl: z.string().optional(),
+        completedAt: z.string().optional(),
+      }),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await updateSigningRequest(ctx.companyId, input.id, {
+        ...input.data,
+        completedAt: input.data.completedAt ? new Date(input.data.completedAt) : undefined,
+      });
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "signing_request",
+        resourceId: input.id,
+        changesAfter: JSON.stringify(input.data),
+      });
+      return { success: true };
+    }),
+
+  delete: companyEditorProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await deleteSigningRequest(ctx.companyId, input.id);
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "delete", resourceType: "signing_request",
+        resourceId: input.id,
+      });
+      return { success: true };
+    }),
+
+  // Upload PDF/DOCX → create DocuSeal template → link to signing_request
+  createTemplate: companyEditorProcedure
+    .input(z.object({
+      signingRequestId: z.number(),
+      fileName: z.string(),
+      fileBase64: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { createTemplateFromPdf, createTemplateFromDocx } = await import("./docuseal");
+      const ext = input.fileName.split(".").pop()?.toLowerCase();
+      const createFn = ext === "docx" ? createTemplateFromDocx : createTemplateFromPdf;
+      const template = await createFn(input.fileName, input.fileBase64);
+      await updateSigningRequest(ctx.companyId, input.signingRequestId, {
+        docusealTemplateId: template.id,
+      });
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "signing_request",
+        resourceId: input.signingRequestId,
+        changesAfter: JSON.stringify({ docusealTemplateId: template.id }),
+      });
+      return { templateId: template.id, template };
+    }),
+
+  // Send signing request → DocuSeal create_submission → mark as pending
+  send: companyEditorProcedure
+    .input(z.object({
+      signingRequestId: z.number(),
+      message: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const req = await getSigningRequestById(ctx.companyId, input.signingRequestId);
+      if (!req) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!req.docusealTemplateId) throw new TRPCError({ code: "BAD_REQUEST", message: "No template — upload a document first" });
+
+      const signers: Array<{ role: string; email: string; name?: string }> = req.signers ? JSON.parse(req.signers) : [];
+      if (signers.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "No signers defined" });
+
+      const { createSubmission } = await import("./docuseal");
+      const submission = await createSubmission(
+        req.docusealTemplateId,
+        signers.map(s => ({ role: s.role || "First Party", email: s.email, name: s.name })),
+        {
+          send_email: true,
+          message: input.message,
+          expire_at: req.expiresAt?.toISOString(),
+        },
+      );
+
+      const submissionId = Array.isArray(submission) ? submission[0]?.submission_id : submission.id;
+
+      await updateSigningRequest(ctx.companyId, input.signingRequestId, {
+        docusealSubmissionId: submissionId,
+        status: "pending",
+        sentAt: new Date(),
+      });
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "signing_request",
+        resourceId: input.signingRequestId,
+        resourceName: req.title,
+        changesAfter: JSON.stringify({ status: "pending", docusealSubmissionId: submissionId }),
+      });
+      return { submissionId, submission };
+    }),
+
+  // List DocuSeal templates (for reuse)
+  listTemplates: companyProcedure.query(async () => {
+    const { listTemplates } = await import("./docuseal");
+    return listTemplates();
+  }),
+});
+
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query(async (opts) => {
@@ -1383,6 +1541,7 @@ export const appRouter = router({
   analysis: analysisRouter,
   antiDilution: antiDilutionRouter,
   instruments: instrumentsRouter,
+  esign: esignRouter,
   waterfall: waterfallRouter,
   team: teamRouter,
   invitations: invitationsRouter,

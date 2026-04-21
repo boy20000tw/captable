@@ -748,3 +748,64 @@ export const instruments = pgTable("instruments", {
 });
 export type Instrument = typeof instruments.$inferSelect;
 export type InsertInstrument = typeof instruments.$inferInsert;
+
+// ─── eSignature (DocuSeal) ──────────────────────────────────────────────────
+
+export const signingStatusEnum = pgEnum("signing_status", [
+    "draft",
+    "pending",
+    "viewed",
+    "completed",
+    "declined",
+    "expired",
+]);
+
+export const signingDocTypeEnum = pgEnum("signing_doc_type", [
+    "share_certificate",
+    "safe_agreement",
+    "convertible_note",
+    "stock_option_grant",
+    "board_resolution",
+    "sha",
+    "custom",
+]);
+
+export const signingRequests = pgTable("signing_requests", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+
+    // Document type & metadata
+    docType: signingDocTypeEnum("docType").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+
+    // Linked entity (optional)
+    linkedResourceType: text("linkedResourceType"),   // "investor" | "instrument" | "esop_grant"
+    linkedResourceId: integer("linkedResourceId"),
+
+    // DocuSeal IDs
+    docusealTemplateId: integer("docusealTemplateId"),
+    docusealSubmissionId: integer("docusealSubmissionId"),
+
+    // Status
+    status: signingStatusEnum("status").default("draft").notNull(),
+
+    // Signers (JSON array: [{role, name, email, signedAt?}])
+    signers: text("signers"),
+
+    // Files
+    sourceDocumentUrl: text("sourceDocumentUrl"),
+    signedDocumentUrl: text("signedDocumentUrl"),
+
+    // Tracking
+    sentAt: timestamp("sentAt"),
+    completedAt: timestamp("completedAt"),
+    expiresAt: timestamp("expiresAt"),
+
+    // Metadata
+    createdBy: integer("createdBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type SigningRequest = typeof signingRequests.$inferSelect;
+export type InsertSigningRequest = typeof signingRequests.$inferInsert;

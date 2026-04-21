@@ -40,6 +40,7 @@ import {
   Calculator,
   Rocket,
   FileText,
+  PenLine,
   Settings,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -60,6 +61,7 @@ const menuGroups = [
       { icon: PieChart,  label: "Cap Table",      path: "/cap-table" },
       { icon: BookOpen,  label: "Share Register", path: "/register" },
       { icon: Sparkles,  label: "ESOP",           path: "/esop" },
+      { icon: PenLine,   label: "eSignature",     path: "/esign" },
     ],
   },
   {
