@@ -252,3 +252,11 @@
 .badge-series_c { background-color: oklch(45% 0.22 25 / 0.15); color: oklch(28% 0.22 25); }
 .badge-esop { background-color: oklch(72% 0.11 192 / 0.15); color: oklch(45% 0.11 192); }
 .badge-other { background-color: oklch(60% 0.05 80 / 0.15); color: oklch(40% 0.05 80); }
+
+/* ─── Mobile safe area ──────────────────────────────────────────────────── */
+/* Reserves space for the iOS home indicator bar / Android gesture area so the
+   bottom tab bar (MobileBottomNav) sits above it. Pair with
+   <meta viewport-fit="cover">. */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

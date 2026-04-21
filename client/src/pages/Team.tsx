@@ -462,7 +462,7 @@ function TeamContent() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <div className="h-px bg-foreground/20 w-16 mb-4" />
           <h1 className="font-serif text-3xl font-bold tracking-tight">Team</h1>
@@ -543,7 +543,8 @@ function TeamContent() {
               <p className="text-muted-foreground text-sm">No team members yet.</p>
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-secondary/30 border-b border-border">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">Member</th>
@@ -620,6 +621,7 @@ function TeamContent() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
@@ -640,7 +642,8 @@ function TeamContent() {
               )}
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-secondary/30 border-b border-border">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">Email / Notes</th>
@@ -708,6 +711,7 @@ function TeamContent() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}

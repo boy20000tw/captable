@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SignIn } from "@clerk/clerk-react";
 import { CompanySwitcher } from "./CompanySwitcher";
+import MobileBottomNav from "./MobileBottomNav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -18,7 +19,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -201,6 +201,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
 
   return (
     <>
+      {/* Desktop sidebar — hidden on mobile; bottom nav takes over there. */}
+      {!isMobile && (
       <div className="relative" ref={sidebarRef}>
         <Sidebar collapsible="icon" className="border-r-0" disableTransition={isResizing}>
           {/* Sidebar Header */}
@@ -321,19 +323,27 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
           style={{ zIndex: 50 }}
         />
       </div>
+      )}
 
       <SidebarInset>
         {isMobile && (
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-4 backdrop-blur sticky top-0 z-40">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="h-9 w-9 rounded" />
-              <span className="text-sm font-medium tracking-tight">
-                {activeMenuItem?.label ?? "Cap Table Manager"}
-              </span>
+            <div className="flex items-center gap-2">
+              <img
+                src="/caploom-logo.png"
+                alt="Caploom"
+                className="h-6 w-auto object-contain"
+              />
             </div>
+            <span className="text-sm font-medium tracking-tight truncate max-w-[55%]">
+              {activeMenuItem?.label ?? ""}
+            </span>
           </div>
         )}
-        <main className="flex-1 min-h-screen">{children}</main>
+        <main className={`flex-1 min-h-screen ${isMobile ? "pb-20" : ""}`}>
+          {children}
+        </main>
+        {isMobile && <MobileBottomNav />}
       </SidebarInset>
     </>
   );

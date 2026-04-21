@@ -237,7 +237,7 @@ function V1InvestorsContent() {
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Users className="h-7 w-7 text-primary" />
@@ -324,7 +324,7 @@ function V1InvestorsContent() {
               No investors match the current filters.
             </div>
           ) : (
-            <Table>
+            <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>

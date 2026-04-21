@@ -247,7 +247,7 @@ function ProjectionDetail({ projection, canEdit, onUpdate, onDelete, isPending }
   return (
     <div className="space-y-6">
       {/* Name + actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {canEdit ? (
             <Input
@@ -408,7 +408,7 @@ const ROW_DEFS: { key: keyof YearlyPnL; label: string; bold?: boolean }[] = [
 
 function ProjectionTable({ rows }: { rows: YearlyPnL[] }) {
   return (
-    <table className="w-full text-sm">
+    <table className="w-full text-sm min-w-[800px]">
       <thead>
         <tr className="border-b border-border">
           <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide">

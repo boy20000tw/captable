@@ -139,7 +139,7 @@ function DashboardContent() {
     return (
       <div className="p-8 space-y-6">
         <div className="h-8 w-64 bg-muted animate-pulse rounded" />
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="h-28 bg-muted animate-pulse rounded" />
           ))}
@@ -153,7 +153,7 @@ function DashboardContent() {
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="h-px bg-foreground/20 w-16 mb-4" />
           <h1
@@ -375,7 +375,8 @@ function DashboardContent() {
                   No allocations yet. Create one from a funding round to start tracking commitments.
                 </div>
               ) : (
-                <table className="cap-table w-full">
+                <div className="overflow-x-auto">
+                <table className="cap-table w-full min-w-[640px]">
                   <thead>
                     <tr>
                       <th>Investor</th>
@@ -411,6 +412,7 @@ function DashboardContent() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </div>
@@ -443,7 +445,8 @@ function DashboardContent() {
                 .
               </div>
             ) : (
-              <table className="cap-table w-full">
+              <div className="overflow-x-auto">
+              <table className="cap-table w-full min-w-[640px]">
                 <thead>
                   <tr>
                     <th>Round</th>
@@ -493,6 +496,7 @@ function DashboardContent() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </>

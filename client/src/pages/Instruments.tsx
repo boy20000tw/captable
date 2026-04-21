@@ -377,7 +377,7 @@ function InstrumentsContent() {
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="h-px bg-foreground/20 w-16 mb-4" />
           <h1
@@ -668,8 +668,8 @@ function InstrumentsContent() {
       )}
 
       {/* Instruments table */}
-      <div className="border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="border rounded-lg overflow-x-auto">
+        <table className="w-full text-sm min-w-[800px]">
           <thead className="bg-muted/50">
             <tr>
               <th className="text-left px-4 py-3 font-medium">Name</th>
@@ -901,7 +901,8 @@ function InstrumentsContent() {
                     </div>
                   </div>
 
-                  <table className="w-full text-sm border rounded-lg overflow-hidden">
+                  <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm min-w-[800px]">
                     <thead className="bg-muted/50">
                       <tr>
                         <th className="text-left px-3 py-2 font-medium">Instrument</th>
@@ -960,6 +961,7 @@ function InstrumentsContent() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
             </div>

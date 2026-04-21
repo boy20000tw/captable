@@ -92,7 +92,7 @@ export default function Waterfall() {
       <div className="px-8 py-10 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-10 border-b border-stone-200 pb-6">
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div>
               <p className="text-xs tracking-[0.2em] text-stone-400 uppercase mb-2">Financial Analysis</p>
               <h1 className="font-display text-4xl font-bold text-stone-900">Waterfall Analysis</h1>
@@ -212,7 +212,7 @@ export default function Waterfall() {
         {waterfallData && !isLoading && (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card className="border-stone-200">
                 <CardContent className="pt-6">
                   <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">Exit Value</p>
@@ -303,7 +303,8 @@ export default function Waterfall() {
                           </div>
                         </div>
                         {tranche.shareholders.length > 0 && (
-                          <table className="w-full text-xs">
+                          <div className="overflow-x-auto">
+                          <table className="w-full text-xs min-w-[640px]">
                             <thead>
                               <tr className="border-b border-stone-100">
                                 <th className="text-left px-4 py-2 text-stone-400 font-normal">Shareholder</th>
@@ -325,6 +326,7 @@ export default function Waterfall() {
                               ))}
                             </tbody>
                           </table>
+                          </div>
                         )}
                       </div>
                     ))}
@@ -347,7 +349,8 @@ export default function Waterfall() {
                     No shareholder data available. Import cap table data first.
                   </div>
                 ) : (
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[640px]">
                     <thead>
                       <tr className="border-b border-stone-200">
                         <th className="text-left py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">Shareholder</th>
@@ -385,6 +388,7 @@ export default function Waterfall() {
                       </tr>
                     </tfoot>
                   </table>
+                  </div>
                 )}
               </CardContent>
             </Card>

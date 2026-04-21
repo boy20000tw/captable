@@ -140,7 +140,7 @@ export function EstimatedValuationContent() {
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div className="space-y-1">
           <div className="h-px bg-foreground/20 w-16 mb-4" />
           <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>
@@ -235,7 +235,7 @@ export function EstimatedValuationContent() {
         </div>
 
         {/* Input Fields */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">Round Name</label>
             <input type="text" value={newRoundName} onChange={e => setNewRoundName(e.target.value)}
@@ -339,8 +339,8 @@ export function EstimatedValuationContent() {
               </button>
 
               {showPerShareholder && (
-                <div className="border border-border rounded-sm overflow-hidden">
-                  <table className="cap-table w-full">
+                <div className="border border-border rounded-sm overflow-x-auto">
+                  <table className="cap-table w-full min-w-[800px]">
                     <thead>
                       <tr>
                         <th>Shareholder</th>
@@ -432,7 +432,8 @@ export function EstimatedValuationContent() {
           <div className="px-6 py-4 border-b border-border">
             <h3 className="text-sm font-semibold tracking-tight">Historical Round Details</h3>
           </div>
-          <table className="cap-table w-full">
+          <div className="overflow-x-auto">
+          <table className="cap-table w-full min-w-[800px]">
             <thead>
               <tr>
                 <th>Round</th>
@@ -472,6 +473,7 @@ export function EstimatedValuationContent() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

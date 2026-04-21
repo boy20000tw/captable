@@ -120,7 +120,7 @@ function AuditLogContent() {
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h1 className="font-serif text-3xl font-bold tracking-tight">Audit Log</h1>
           <p className="text-muted-foreground mt-1">
@@ -220,8 +220,8 @@ function AuditLogContent() {
           )}
         </div>
       ) : (
-        <div className="border border-border rounded-sm overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="border border-border rounded-sm overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-secondary/30 border-b border-border">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">Timestamp</th>

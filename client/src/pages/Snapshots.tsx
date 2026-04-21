@@ -116,7 +116,7 @@ function SnapshotsContent() {
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div className="space-y-1">
           <div className="h-px bg-foreground/20 w-16 mb-4" />
           <h1
@@ -307,8 +307,8 @@ function SnapshotsContent() {
           </div>
 
           {compareIds[0] && compareIds[1] && comparisonRows.length > 0 && (
-            <div className="border border-border rounded-sm overflow-hidden">
-              <table className="cap-table w-full">
+            <div className="border border-border rounded-sm overflow-x-auto">
+              <table className="cap-table w-full min-w-[640px]">
                 <thead>
                   <tr>
                     <th>Investor</th>
@@ -450,7 +450,8 @@ function SnapshotsContent() {
                           No holdings recorded in this snapshot.
                         </div>
                       ) : (
-                        <table className="cap-table w-full">
+                        <div className="overflow-x-auto">
+                        <table className="cap-table w-full min-w-[640px]">
                           <thead>
                             <tr>
                               <th>Investor</th>
@@ -479,6 +480,7 @@ function SnapshotsContent() {
                               ))}
                           </tbody>
                         </table>
+                        </div>
                       )}
                     </div>
                   )}
