@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SignIn } from "@clerk/clerk-react";
 import { CompanySwitcher } from "./CompanySwitcher";
+import { VersionBadge } from "./ChangelogDrawer";
 import MobileBottomNav from "./MobileBottomNav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -315,6 +316,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <VersionBadge collapsed={isCollapsed} />
           </SidebarFooter>
         </Sidebar>
 
