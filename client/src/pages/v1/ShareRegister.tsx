@@ -715,9 +715,10 @@ function InvestorEditDialog({
 
 // ─── Register Write Dialog (Transfer / Issuance) ─────────────────────────────
 
+// Fallback when share_classes table is empty (pre-migration).
+// Only real share class types — funding round linkage is a separate dropdown.
 const SHARE_CLASSES_FALLBACK = [
-  "common", "seed", "seed_plus", "pre_a", "bridge",
-  "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop",
+  "common", "preferred", "esop",
 ] as const;
 
 type RegisterWriteInput = {

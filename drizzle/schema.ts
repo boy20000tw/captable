@@ -33,7 +33,7 @@ export const fundingRoundStatusEnum = pgEnum("funding_round_status", ["completed
 
 // Share transactions enums
 export const shareTransactionTypeEnum = pgEnum("share_transaction_type", ["issuance", "transfer_in", "transfer_out", "esop_grant", "esop_exercise", "esop_cancel"]);
-export const shareClassEnum = pgEnum("share_class", ["common", "seed", "seed_plus", "pre_a", "bridge", "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop"]);
+export const shareClassEnum = pgEnum("share_class", ["common", "preferred", "seed", "seed_plus", "pre_a", "bridge", "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop"]);
 
 // ESOP grants enums
 export const esopGrantStatusEnum = pgEnum("esop_grant_status", ["active", "fully_vested", "cancelled", "exercised"]);
