@@ -28,9 +28,7 @@ export type RegisterEntryInput = {
   // Required
   investorId: number;
   eventType: "issuance" | "transfer_in" | "transfer_out" | "cancellation" | "reversal";
-  shareClass:
-    | "common" | "seed" | "seed_plus" | "pre_a" | "bridge"
-    | "series_a" | "pre_b" | "series_b" | "pre_c" | "series_c" | "esop";
+  shareClass: string;
   shares: number;               // positive integer; sign convention handled per event type
   effectiveDate: string;        // YYYY-MM-DD
 
@@ -84,7 +82,7 @@ export async function writeRegisterEntry(
     companyId,
     investorId: input.investorId,
     eventType: input.eventType,
-    shareClass: input.shareClass,
+    shareClass: input.shareClass as any,  // dynamic share class → pgEnum cast
     shares: signed,
     effectiveDate: input.effectiveDate,
     allocationId: input.allocationId ?? null,

@@ -707,7 +707,7 @@ function InvestorEditDialog({
 
 // ─── Register Write Dialog (Transfer / Issuance) ─────────────────────────────
 
-const SHARE_CLASSES = [
+const SHARE_CLASSES_FALLBACK = [
   "common", "seed", "seed_plus", "pre_a", "bridge",
   "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop",
 ] as const;
@@ -715,7 +715,7 @@ const SHARE_CLASSES = [
 type RegisterWriteInput = {
   investorId: number;
   eventType: "issuance" | "transfer_in" | "transfer_out" | "cancellation" | "reversal";
-  shareClass: (typeof SHARE_CLASSES)[number];
+  shareClass: string;
   shares: number;
   effectiveDate: string;
   fundingRoundId?: number;
@@ -742,6 +742,11 @@ function RegisterWriteDialog({
   onSubmit: (data: RegisterWriteInput) => void;
   saving: boolean;
 }) {
+  const { data: shareClassesDynamic } = trpc.shareClasses.list.useQuery();
+  const SHARE_CLASSES = shareClassesDynamic && shareClassesDynamic.length > 0
+    ? shareClassesDynamic.map((sc: any) => sc.slug)
+    : [...SHARE_CLASSES_FALLBACK];
+
   const [investorId, setInvestorId] = useState("");
   const [toInvestorId, setToInvestorId] = useState("");
   const [shareClass, setShareClass] = useState<string>("common");
@@ -856,11 +861,14 @@ function RegisterWriteDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {SHARE_CLASSES.map((sc) => (
-                    <SelectItem key={sc} value={sc}>
-                      {sc.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
+                  {SHARE_CLASSES.map((sc: string) => {
+                    const scObj = shareClassesDynamic?.find((s: any) => s.slug === sc);
+                    return (
+                      <SelectItem key={sc} value={sc}>
+                        {scObj ? scObj.name : sc.replace(/_/g, " ")}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -959,7 +967,7 @@ const EVENT_TYPES = ["issuance", "transfer_in", "transfer_out", "cancellation", 
 type EntryUpdateData = {
   effectiveDate?: string;
   eventType?: (typeof EVENT_TYPES)[number];
-  shareClass?: (typeof SHARE_CLASSES)[number];
+  shareClass?: string;
   shares?: number;
   pricePerShare?: string | null;
   currency?: string;
@@ -983,6 +991,10 @@ function EntryEditDialog({
   saving: boolean;
 }) {
   const entry = entries.find((e) => e.id === entryId);
+  const { data: shareClassesDynEdit } = trpc.shareClasses.list.useQuery();
+  const SHARE_CLASSES = shareClassesDynEdit && shareClassesDynEdit.length > 0
+    ? shareClassesDynEdit.map((sc: any) => sc.slug)
+    : [...SHARE_CLASSES_FALLBACK];
 
   const [effectiveDate, setEffectiveDate] = useState(entry?.effectiveDate ?? "");
   const [eventType, setEventType] = useState(entry?.eventType ?? "issuance");
@@ -1039,9 +1051,12 @@ function EntryEditDialog({
               <Select value={shareClass} onValueChange={setShareClass}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {SHARE_CLASSES.map((sc) => (
-                    <SelectItem key={sc} value={sc}>{sc.replace(/_/g, " ")}</SelectItem>
-                  ))}
+                  {SHARE_CLASSES.map((sc: string) => {
+                    const scObj = shareClassesDynEdit?.find((s: any) => s.slug === sc);
+                    return (
+                      <SelectItem key={sc} value={sc}>{scObj ? scObj.name : sc.replace(/_/g, " ")}</SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

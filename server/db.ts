@@ -31,6 +31,7 @@ import {
   instruments, InsertInstrument,
   signingRequests, InsertSigningRequest,
   signingTemplates, InsertSigningTemplate,
+  shareClasses, InsertShareClass,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1196,6 +1197,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
     ["instruments", instruments, instruments.companyId],
     ["signing_requests", signingRequests, signingRequests.companyId],
     ["signing_templates", signingTemplates, signingTemplates.companyId],
+    ["share_classes", shareClasses, shareClasses.companyId],
     ["investors", investors, investors.companyId],
     ["esop_grants_v1", esopGrantsV1, esopGrantsV1.companyId],
     ["esop_pools_v1", esopPoolsV1, esopPoolsV1.companyId],
@@ -1235,6 +1237,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   // Signing templates + requests + Instruments reference investors — delete BEFORE investors.
   await db.delete(signingTemplates).where(eq(signingTemplates.companyId, companyId));
   await db.delete(signingRequests).where(eq(signingRequests.companyId, companyId));
+  await db.delete(shareClasses).where(eq(shareClasses.companyId, companyId));
   await db.delete(instruments).where(eq(instruments.companyId, companyId));
   await db.delete(investors).where(eq(investors.companyId, companyId));
   await db.delete(shareholders).where(eq(shareholders.companyId, companyId));
@@ -1428,4 +1431,62 @@ export async function deleteSigningTemplate(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(signingTemplates).where(eq(signingTemplates.id, id));
+}
+
+// ─── Share Classes ──────────────────────────────────────────────────────────
+export async function getShareClasses(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(shareClasses)
+    .where(eq(shareClasses.companyId, companyId))
+    .orderBy(asc(shareClasses.sortOrder), asc(shareClasses.id));
+}
+
+export async function getShareClassById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(shareClasses)
+    .where(and(eq(shareClasses.companyId, companyId), eq(shareClasses.id, id)));
+  return rows[0] ?? null;
+}
+
+export async function getShareClassBySlug(companyId: number, slug: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(shareClasses)
+    .where(and(eq(shareClasses.companyId, companyId), eq(shareClasses.slug, slug)));
+  return rows[0] ?? null;
+}
+
+export async function createShareClass(data: InsertShareClass) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.insert(shareClasses).values(data).returning();
+  return rows[0];
+}
+
+export async function updateShareClass(companyId: number, id: number, data: Partial<InsertShareClass>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(shareClasses)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(shareClasses.companyId, companyId), eq(shareClasses.id, id)));
+}
+
+export async function deleteShareClass(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(shareClasses)
+    .where(and(eq(shareClasses.companyId, companyId), eq(shareClasses.id, id)));
+}
+
+/** Seed default share classes for a new company (Common + ESOP). */
+export async function seedDefaultShareClasses(companyId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const defaults: InsertShareClass[] = [
+    { companyId, name: "Common", slug: "common", classType: "common", sortOrder: 0 },
+    { companyId, name: "ESOP", slug: "esop", classType: "common", sortOrder: 100 },
+  ];
+  await db.insert(shareClasses).values(defaults);
 }

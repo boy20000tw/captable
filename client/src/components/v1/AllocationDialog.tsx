@@ -56,7 +56,7 @@ export type AllocationDialogProps = {
   onSaved?: () => void;
 };
 
-const SHARE_CLASSES = [
+const SHARE_CLASSES_FALLBACK = [
   "common", "seed", "seed_plus", "pre_a", "bridge",
   "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop",
 ] as const;
@@ -65,7 +65,7 @@ const CURRENCIES = ["NTD", "USD", "EUR", "JPY", "TWD"] as const;
 
 type FormState = {
   investorId: string;
-  shareClass: (typeof SHARE_CLASSES)[number];
+  shareClass: string;
   amount: string;
   currency: string;
   fxToNtd: string;
@@ -141,6 +141,10 @@ export default function AllocationDialog({
   const isEdit = !!allocation;
   const utils = trpc.useUtils();
   const { data: investors } = trpc.v1.investors.list.useQuery();
+  const { data: shareClassesDynamic } = trpc.shareClasses.list.useQuery();
+  const SHARE_CLASSES = shareClassesDynamic && shareClassesDynamic.length > 0
+    ? shareClassesDynamic.map((sc: any) => sc.slug)
+    : [...SHARE_CLASSES_FALLBACK];
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
@@ -350,11 +354,14 @@ export default function AllocationDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SHARE_CLASSES.map((sc) => (
-                  <SelectItem key={sc} value={sc}>
-                    {sc}
-                  </SelectItem>
-                ))}
+                {SHARE_CLASSES.map((sc: string) => {
+                  const scObj = shareClassesDynamic?.find((s: any) => s.slug === sc);
+                  return (
+                    <SelectItem key={sc} value={sc}>
+                      {scObj ? scObj.name : sc.replace(/_/g, " ")}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

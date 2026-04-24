@@ -41,6 +41,9 @@ import {
   // Signing Templates
   getSigningTemplatesForCompany, getPlatformSigningTemplates, getSigningTemplateById,
   createSigningTemplate, updateSigningTemplate, deleteSigningTemplate,
+  // Share Classes
+  getShareClasses, getShareClassById, getShareClassBySlug,
+  createShareClass, updateShareClass, deleteShareClass, seedDefaultShareClasses,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
@@ -844,7 +847,7 @@ const v1AllocationsRouter = router({
   create: companyEditorProcedure.input(z.object({
     fundingRoundId: z.number(),
     investorId: z.number(),
-    shareClass: z.enum(["common","seed","seed_plus","pre_a","bridge","series_a","pre_b","series_b","pre_c","series_c","esop"]),
+    shareClass: z.string().min(1),
     amount: z.string().optional(),              // numeric-as-string
     currency: z.string().default("NTD"),
     fxToNtd: z.string().default("1"),
@@ -856,6 +859,7 @@ const v1AllocationsRouter = router({
   })).mutation(async ({ ctx, input }) => {
     const created = await createAllocation({
       ...input, companyId: ctx.companyId,
+      shareClass: input.shareClass as any,  // dynamic share class → pgEnum cast
       status: "planned",
       createdByUserId: ctx.user!.id,
     });
@@ -960,7 +964,7 @@ const v1RegisterRouter = router({
   write: companyEditorProcedure.input(z.object({
     investorId: z.number(),
     eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal"]),
-    shareClass: z.enum(["common", "seed", "seed_plus", "pre_a", "bridge", "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop"]),
+    shareClass: z.string().min(1),
     shares: z.number().int().positive(),
     effectiveDate: z.string(),
     fundingRoundId: z.number().optional(),
@@ -986,7 +990,7 @@ const v1RegisterRouter = router({
     data: z.object({
       effectiveDate: z.string().optional(),
       eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal"]).optional(),
-      shareClass: z.enum(["common", "seed", "seed_plus", "pre_a", "bridge", "series_a", "pre_b", "series_b", "pre_c", "series_c", "esop"]).optional(),
+      shareClass: z.string().min(1).optional(),
       shares: z.number().int().optional(),
       pricePerShare: z.string().optional().nullable(),
       currency: z.string().optional(),
@@ -1000,7 +1004,7 @@ const v1RegisterRouter = router({
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
     const [updated] = await db.update(shareRegisterEntries)
-      .set(input.data)
+      .set({ ...input.data, shareClass: input.data.shareClass as any })
       .where(and(eq(shareRegisterEntries.id, input.id), eq(shareRegisterEntries.companyId, ctx.companyId)))
       .returning();
     if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Register entry not found" });
@@ -1373,6 +1377,115 @@ const instrumentsRouter = router({
     }),
 });
 
+// ─── Share Classes Router ────────────────────────────────────────────────────
+const shareClassRouter = router({
+  list: companyProcedure.query(({ ctx }) => getShareClasses(ctx.companyId)),
+
+  get: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .query(({ ctx, input }) => getShareClassById(ctx.companyId, input.id)),
+
+  bySlug: companyProcedure
+    .input(z.object({ slug: z.string() }))
+    .query(({ ctx, input }) => getShareClassBySlug(ctx.companyId, input.slug)),
+
+  create: companyEditorProcedure
+    .input(z.object({
+      name: z.string().min(1),
+      slug: z.string().min(1),
+      classType: z.enum(["common", "preferred"]),
+      authorizedShares: z.number().optional(),
+      parValue: z.string().optional(),
+      pricePerShare: z.string().optional(),
+      currency: z.string().optional(),
+      liquidationMultiple: z.string().optional(),
+      participationType: z.enum(["non_participating", "participating", "capped_participating"]).optional(),
+      participationCap: z.string().optional(),
+      seniorityRank: z.number().optional(),
+      antiDilutionType: z.enum(["none", "full_ratchet", "broad_based_wa", "narrow_based_wa"]).optional(),
+      isConvertible: z.boolean().optional(),
+      conversionRatio: z.string().optional(),
+      dividendType: z.enum(["none", "non_cumulative", "cumulative"]).optional(),
+      dividendRate: z.string().optional(),
+      votingMultiplier: z.string().optional(),
+      boardSeats: z.number().optional(),
+      protectiveProvisions: z.string().optional(),
+      fundingRoundId: z.number().optional(),
+      notes: z.string().optional(),
+      sortOrder: z.number().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const row = await createShareClass({ companyId: ctx.companyId, ...input });
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "create", resourceType: "share_class",
+        resourceName: input.name,
+        changesAfter: JSON.stringify(input),
+      });
+      return row;
+    }),
+
+  update: companyEditorProcedure
+    .input(z.object({
+      id: z.number(),
+      data: z.object({
+        name: z.string().optional(),
+        slug: z.string().optional(),
+        classType: z.enum(["common", "preferred"]).optional(),
+        authorizedShares: z.number().nullable().optional(),
+        parValue: z.string().nullable().optional(),
+        pricePerShare: z.string().nullable().optional(),
+        currency: z.string().optional(),
+        liquidationMultiple: z.string().optional(),
+        participationType: z.enum(["non_participating", "participating", "capped_participating"]).optional(),
+        participationCap: z.string().nullable().optional(),
+        seniorityRank: z.number().optional(),
+        antiDilutionType: z.enum(["none", "full_ratchet", "broad_based_wa", "narrow_based_wa"]).optional(),
+        isConvertible: z.boolean().optional(),
+        conversionRatio: z.string().optional(),
+        dividendType: z.enum(["none", "non_cumulative", "cumulative"]).optional(),
+        dividendRate: z.string().nullable().optional(),
+        votingMultiplier: z.string().optional(),
+        boardSeats: z.number().optional(),
+        protectiveProvisions: z.string().nullable().optional(),
+        fundingRoundId: z.number().nullable().optional(),
+        notes: z.string().nullable().optional(),
+        sortOrder: z.number().optional(),
+      }),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await updateShareClass(ctx.companyId, input.id, input.data);
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "share_class",
+        resourceId: input.id,
+        changesAfter: JSON.stringify(input.data),
+      });
+      return { success: true };
+    }),
+
+  delete: companyEditorProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await deleteShareClass(ctx.companyId, input.id);
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "delete", resourceType: "share_class",
+        resourceId: input.id,
+      });
+      return { success: true };
+    }),
+
+  seed: companyOwnerProcedure
+    .mutation(async ({ ctx }) => {
+      await seedDefaultShareClasses(ctx.companyId);
+      return { success: true };
+    }),
+});
+
 // ─── eSign Router (DocuSeal eSignature) ─────────────────────────────────────
 const esignRouter = router({
   list: companyProcedure.query(({ ctx }) => getAllSigningRequests(ctx.companyId)),
@@ -1682,6 +1795,7 @@ export const appRouter = router({
   antiDilution: antiDilutionRouter,
   instruments: instrumentsRouter,
   esign: esignRouter,
+  shareClasses: shareClassRouter,
   waterfall: waterfallRouter,
   team: teamRouter,
   invitations: invitationsRouter,

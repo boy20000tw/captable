@@ -42,6 +42,7 @@ import {
   FileText,
   PenLine,
   Settings,
+  Layers,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -59,6 +60,7 @@ const menuGroups = [
     label: "Ownership",
     items: [
       { icon: PieChart,  label: "Cap Table",      path: "/cap-table" },
+      { icon: Layers,   label: "Share Classes",  path: "/share-classes" },
       { icon: BookOpen,  label: "Share Register", path: "/register" },
       { icon: Sparkles,  label: "ESOP",           path: "/esop" },
       { icon: PenLine,   label: "eSignature",     path: "/esign" },

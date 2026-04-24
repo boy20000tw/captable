@@ -58,6 +58,11 @@ export const valuation409aMethodEnum = pgEnum("valuation_409a_method", ["dcf", "
 // Liquidation preferences enums
 export const liquidationPreferenceTypeEnum = pgEnum("liquidation_preference_type", ["non_participating", "participating", "capped_participating"]);
 
+// Share class enums
+export const shareClassTypeEnum = pgEnum("share_class_type", ["common", "preferred"]);
+export const dividendTypeEnum = pgEnum("dividend_type", ["none", "non_cumulative", "cumulative"]);
+export const antiDilutionDefaultEnum = pgEnum("anti_dilution_default", ["none", "full_ratchet", "broad_based_wa", "narrow_based_wa"]);
+
 // Company member role enum
 export const companyMemberRoleEnum = pgEnum("company_member_role", ["owner", "admin", "cfo", "lawyer", "investor", "viewer"]);
 
@@ -424,6 +429,50 @@ export const liquidationPreferences = pgTable("liquidation_preferences", {
 export type LiquidationPreference = typeof liquidationPreferences.$inferSelect;
 export type InsertLiquidationPreference = typeof liquidationPreferences.$inferInsert;
 
+// ─── Share Classes ──────────────────────────────────────────────────────────
+// Defines the terms & rights of each equity class. Each company can have
+// multiple classes (e.g. Common, Series Seed Preferred, Series A Preferred).
+// The `slug` field matches legacy shareClassEnum values for backward compat.
+export const shareClasses = pgTable("share_classes", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    // Identity
+    name: varchar("name", { length: 128 }).notNull(),             // "Series A Preferred"
+    slug: varchar("slug", { length: 64 }).notNull(),              // "series_a" — matches shareClassEnum
+    classType: shareClassTypeEnum("classType").default("common").notNull(),  // common or preferred
+    // Authorized shares
+    authorizedShares: bigint("authorizedShares", { mode: "number" }),
+    parValue: decimal("parValue", { precision: 20, scale: 6 }),
+    pricePerShare: decimal("pricePerShare", { precision: 20, scale: 6 }),
+    currency: varchar("currency", { length: 8 }).default("USD"),
+    // Liquidation terms (for preferred)
+    liquidationMultiple: decimal("liquidationMultiple", { precision: 6, scale: 2 }).default("1.00"),
+    participationType: liquidationPreferenceTypeEnum("participationType").default("non_participating"),
+    participationCap: decimal("participationCap", { precision: 6, scale: 2 }),
+    seniorityRank: integer("seniorityRank").default(1),
+    // Anti-dilution
+    antiDilutionType: antiDilutionDefaultEnum("antiDilutionType").default("none"),
+    // Conversion
+    isConvertible: boolean("isConvertible").default(true),
+    conversionRatio: decimal("conversionRatio", { precision: 10, scale: 4 }).default("1.0000"),
+    // Dividends
+    dividendType: dividendTypeEnum("dividendType").default("none"),
+    dividendRate: decimal("dividendRate", { precision: 6, scale: 4 }),   // e.g. 0.08 = 8%
+    // Voting
+    votingMultiplier: decimal("votingMultiplier", { precision: 6, scale: 2 }).default("1.00"),  // votes per share
+    // Protective provisions & board
+    boardSeats: integer("boardSeats").default(0),
+    protectiveProvisions: text("protectiveProvisions"),  // JSON or markdown
+    // Linkage
+    fundingRoundId: integer("fundingRoundId"),   // optionally tie to a round
+    notes: text("notes"),
+    sortOrder: integer("sortOrder").default(0),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ShareClass = typeof shareClasses.$inferSelect;
+export type InsertShareClass = typeof shareClasses.$inferInsert;
+
 // ─── 5-Year Financial Projections ────────────────────────────────────────────
 import { jsonb } from "drizzle-orm/pg-core";
 
@@ -534,6 +583,7 @@ export const allocations = pgTable("allocations", {
     fundingRoundId: integer("fundingRoundId").notNull(),
     investorId: integer("investorId").notNull(),
     shareClass: shareClassEnum("shareClass").notNull(),
+    shareClassId: integer("shareClassId"),   // FK to share_classes (nullable for legacy rows)
 
     // Money (multi-currency ready)
     amount: decimal("amount", { precision: 20, scale: 2 }),             // in `currency`
@@ -577,6 +627,7 @@ export const shareRegisterEntries = pgTable("share_register_entries", {
     investorId: integer("investorId").notNull(),
     eventType: registerEventTypeEnum("eventType").notNull(),
     shareClass: shareClassEnum("shareClass").notNull(),
+    shareClassId: integer("shareClassId"),   // FK to share_classes (nullable for legacy rows)
     // Shares: signed integer. Issuance / transfer_in positive;
     // transfer_out / cancellation / reversal negative (by convention).
     shares: bigint("shares", { mode: "number" }).notNull(),
