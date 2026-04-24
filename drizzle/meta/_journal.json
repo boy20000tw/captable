@@ -22,6 +22,13 @@
       "when": 1776776182378,
       "tag": "0002_stale_longshot",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777040142334,
+      "tag": "0003_blushing_gravity",
+      "breakpoints": true
     }
   ]
 }

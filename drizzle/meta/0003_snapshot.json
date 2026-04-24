@@ -1,0 +1,3553 @@
+{
+  "id": "b3bf32ce-9f40-4ad6-9cf4-3abfeea665d1",
+  "prevId": "bdc58a49-30c6-4e07-ae31-97ad0f54867a",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.allocations": {
+      "name": "allocations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "investorId": {
+          "name": "investorId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shareClass": {
+          "name": "shareClass",
+          "type": "share_class",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shareClassId": {
+          "name": "shareClassId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'NTD'"
+        },
+        "fxToNtd": {
+          "name": "fxToNtd",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'1'"
+        },
+        "sharesAllocated": {
+          "name": "sharesAllocated",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pricePerShare": {
+          "name": "pricePerShare",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "allocation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'planned'"
+        },
+        "plannedAt": {
+          "name": "plannedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "committedAt": {
+          "name": "committedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signedAt": {
+          "name": "signedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundedAt": {
+          "name": "fundedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issuedAt": {
+          "name": "issuedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "termSheetUrl": {
+          "name": "termSheetUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agreementUrl": {
+          "name": "agreementUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdByUserId": {
+          "name": "createdByUserId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.anti_dilution_provisions": {
+      "name": "anti_dilution_provisions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shareholderId": {
+          "name": "shareholderId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provisionType": {
+          "name": "provisionType",
+          "type": "anti_dilution_provision_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'broad_based_wa'"
+        },
+        "originalPriceNtd": {
+          "name": "originalPriceNtd",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "adjustedPriceNtd": {
+          "name": "adjustedPriceNtd",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "originalShares": {
+          "name": "originalShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "adjustedShares": {
+          "name": "adjustedShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "triggerRoundId": {
+          "name": "triggerRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "anti_dilution_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.audit_logs": {
+      "name": "audit_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "userId": {
+          "name": "userId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "userName": {
+          "name": "userName",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action": {
+          "name": "action",
+          "type": "audit_action",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resourceType": {
+          "name": "resourceType",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resourceId": {
+          "name": "resourceId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resourceName": {
+          "name": "resourceName",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changesBefore": {
+          "name": "changesBefore",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changesAfter": {
+          "name": "changesAfter",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipAddress": {
+          "name": "ipAddress",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cap_table_snapshots": {
+      "name": "cap_table_snapshots",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "snapshotDate": {
+          "name": "snapshotDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "triggerEvent": {
+          "name": "triggerEvent",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalShares": {
+          "name": "totalShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "totalShareholders": {
+          "name": "totalShareholders",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "esopPoolTotal": {
+          "name": "esopPoolTotal",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "esopAllocated": {
+          "name": "esopAllocated",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "postMoneyValuationNtd": {
+          "name": "postMoneyValuationNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "snapshotData": {
+          "name": "snapshotData",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.companies": {
+      "name": "companies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name_en": {
+          "name": "name_en",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "logo_url": {
+          "name": "logo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "representative_name": {
+          "name": "representative_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "representative_title": {
+          "name": "representative_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signature_url": {
+          "name": "signature_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "docuseal_tenant_api_key": {
+          "name": "docuseal_tenant_api_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "docuseal_webhook_secret": {
+          "name": "docuseal_webhook_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_currency": {
+          "name": "default_currency",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'NTD'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "companies_slug_unique": {
+          "name": "companies_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.company_members": {
+      "name": "company_members",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "company_member_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'viewer'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.dcf_scenarios": {
+      "name": "dcf_scenarios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "projectionId": {
+          "name": "projectionId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "discountRate": {
+          "name": "discountRate",
+          "type": "numeric(8, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terminalGrowth": {
+          "name": "terminalGrowth",
+          "type": "numeric(8, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "netDebt": {
+          "name": "netDebt",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "cash": {
+          "name": "cash",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "targetRaise": {
+          "name": "targetRaise",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "targetPreMoney": {
+          "name": "targetPreMoney",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.esop_grants": {
+      "name": "esop_grants",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "esopPoolId": {
+          "name": "esopPoolId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shareholderId": {
+          "name": "shareholderId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "granteeName": {
+          "name": "granteeName",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grantDate": {
+          "name": "grantDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sharesGranted": {
+          "name": "sharesGranted",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sharesVested": {
+          "name": "sharesVested",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "sharesExercised": {
+          "name": "sharesExercised",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "sharesCancelled": {
+          "name": "sharesCancelled",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "exercisePriceNtd": {
+          "name": "exercisePriceNtd",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vestingStartDate": {
+          "name": "vestingStartDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vestingCliffMonths": {
+          "name": "vestingCliffMonths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 12
+        },
+        "vestingTotalMonths": {
+          "name": "vestingTotalMonths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 48
+        },
+        "status": {
+          "name": "status",
+          "type": "esop_grant_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "expiryDate": {
+          "name": "expiryDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.esop_grants_v1": {
+      "name": "esop_grants_v1",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "poolId": {
+          "name": "poolId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "investorId": {
+          "name": "investorId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grantDate": {
+          "name": "grantDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sharesGranted": {
+          "name": "sharesGranted",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sharesVested": {
+          "name": "sharesVested",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "sharesExercised": {
+          "name": "sharesExercised",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "sharesCancelled": {
+          "name": "sharesCancelled",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "exercisePrice": {
+          "name": "exercisePrice",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'NTD'"
+        },
+        "vestingStartDate": {
+          "name": "vestingStartDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vestingCliffMonths": {
+          "name": "vestingCliffMonths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 12
+        },
+        "vestingTotalMonths": {
+          "name": "vestingTotalMonths",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 48
+        },
+        "status": {
+          "name": "status",
+          "type": "esop_grant_v1_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "expiryDate": {
+          "name": "expiryDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.esop_pool": {
+      "name": "esop_pool",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "poolName": {
+          "name": "poolName",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ESOP Pool'"
+        },
+        "totalShares": {
+          "name": "totalShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allocatedShares": {
+          "name": "allocatedShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "vestedShares": {
+          "name": "vestedShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "exercisedShares": {
+          "name": "exercisedShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cancelledShares": {
+          "name": "cancelledShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.esop_pools_v1": {
+      "name": "esop_pools_v1",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalShares": {
+          "name": "totalShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.financial_projections": {
+      "name": "financial_projections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "startYear": {
+          "name": "startYear",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "years": {
+          "name": "years",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 5
+        },
+        "assumptions": {
+          "name": "assumptions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.funding_rounds": {
+      "name": "funding_rounds",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roundDate": {
+          "name": "roundDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pricePerShareNtd": {
+          "name": "pricePerShareNtd",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "moneyRaisedNtd": {
+          "name": "moneyRaisedNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preMoneyValuationNtd": {
+          "name": "preMoneyValuationNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "postMoneyValuationNtd": {
+          "name": "postMoneyValuationNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "exchangeRate": {
+          "name": "exchangeRate",
+          "type": "numeric(10, 7)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "funding_round_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'completed'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sortOrder": {
+          "name": "sortOrder",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.import_logs": {
+      "name": "import_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fileName": {
+          "name": "fileName",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fileUrl": {
+          "name": "fileUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "import_log_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "recordsImported": {
+          "name": "recordsImported",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "errorMessage": {
+          "name": "errorMessage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.instruments": {
+      "name": "instruments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "instrument_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "instrument_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "investorId": {
+          "name": "investorId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "investmentAmountNtd": {
+          "name": "investmentAmountNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "investmentAmountUsd": {
+          "name": "investmentAmountUsd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pricePerShareNtd": {
+          "name": "pricePerShareNtd",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sharesIssued": {
+          "name": "sharesIssued",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valuationCapNtd": {
+          "name": "valuationCapNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valuationCapUsd": {
+          "name": "valuationCapUsd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discountRate": {
+          "name": "discountRate",
+          "type": "numeric(5, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "safeType": {
+          "name": "safeType",
+          "type": "instrument_safe_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "interestRate": {
+          "name": "interestRate",
+          "type": "numeric(5, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "maturityDate": {
+          "name": "maturityDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accruedInterestNtd": {
+          "name": "accruedInterestNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conversionRoundId": {
+          "name": "conversionRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conversionDate": {
+          "name": "conversionDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conversionPriceNtd": {
+          "name": "conversionPriceNtd",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "conversionShares": {
+          "name": "conversionShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "boardApprovalDate": {
+          "name": "boardApprovalDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "documentUrl": {
+          "name": "documentUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdByUserId": {
+          "name": "createdByUserId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.investors": {
+      "name": "investors",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entityKind": {
+          "name": "entityKind",
+          "type": "investor_entity_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'individual'"
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nationality": {
+          "name": "nationality",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "investor_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'prospect'"
+        },
+        "aka": {
+          "name": "aka",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linkedinUrl": {
+          "name": "linkedinUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "firstContactAt": {
+          "name": "firstContactAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastContactAt": {
+          "name": "lastContactAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ownerUserId": {
+          "name": "ownerUserId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.liquidation_preferences": {
+      "name": "liquidation_preferences",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preferenceType": {
+          "name": "preferenceType",
+          "type": "liquidation_preference_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'non_participating'"
+        },
+        "liquidationMultiple": {
+          "name": "liquidationMultiple",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'1.00'"
+        },
+        "participationCap": {
+          "name": "participationCap",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seniorityRank": {
+          "name": "seniorityRank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "liquidation_preferences_fundingRoundId_unique": {
+          "name": "liquidation_preferences_fundingRoundId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "fundingRoundId"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.share_classes": {
+      "name": "share_classes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "classType": {
+          "name": "classType",
+          "type": "share_class_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'common'"
+        },
+        "authorizedShares": {
+          "name": "authorizedShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parValue": {
+          "name": "parValue",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pricePerShare": {
+          "name": "pricePerShare",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'USD'"
+        },
+        "liquidationMultiple": {
+          "name": "liquidationMultiple",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1.00'"
+        },
+        "participationType": {
+          "name": "participationType",
+          "type": "liquidation_preference_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'non_participating'"
+        },
+        "participationCap": {
+          "name": "participationCap",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seniorityRank": {
+          "name": "seniorityRank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 1
+        },
+        "antiDilutionType": {
+          "name": "antiDilutionType",
+          "type": "anti_dilution_default",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'none'"
+        },
+        "isConvertible": {
+          "name": "isConvertible",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "conversionRatio": {
+          "name": "conversionRatio",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1.0000'"
+        },
+        "dividendType": {
+          "name": "dividendType",
+          "type": "dividend_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'none'"
+        },
+        "dividendRate": {
+          "name": "dividendRate",
+          "type": "numeric(6, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "votingMultiplier": {
+          "name": "votingMultiplier",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1.00'"
+        },
+        "boardSeats": {
+          "name": "boardSeats",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "protectiveProvisions": {
+          "name": "protectiveProvisions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sortOrder": {
+          "name": "sortOrder",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.share_holdings": {
+      "name": "share_holdings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shareholderId": {
+          "name": "shareholderId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commonShares": {
+          "name": "commonShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "seedShares": {
+          "name": "seedShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "seedPlusShares": {
+          "name": "seedPlusShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "preAShares": {
+          "name": "preAShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "bridgeShares": {
+          "name": "bridgeShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "seriesAShares": {
+          "name": "seriesAShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "esopShares": {
+          "name": "esopShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "totalShares": {
+          "name": "totalShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "ownershipPct": {
+          "name": "ownershipPct",
+          "type": "numeric(20, 10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paidInCapitalNtd": {
+          "name": "paidInCapitalNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "investmentDate": {
+          "name": "investmentDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.share_register_entries": {
+      "name": "share_register_entries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allocationId": {
+          "name": "allocationId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "investorId": {
+          "name": "investorId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "eventType": {
+          "name": "eventType",
+          "type": "register_event_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shareClass": {
+          "name": "shareClass",
+          "type": "share_class",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shareClassId": {
+          "name": "shareClassId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shares": {
+          "name": "shares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pricePerShare": {
+          "name": "pricePerShare",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "varchar(8)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'NTD'"
+        },
+        "fxToNtd": {
+          "name": "fxToNtd",
+          "type": "numeric(18, 8)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1'"
+        },
+        "totalAmount": {
+          "name": "totalAmount",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "effectiveDate": {
+          "name": "effectiveDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reversedEntryId": {
+          "name": "reversedEntryId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdByUserId": {
+          "name": "createdByUserId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.share_transactions": {
+      "name": "share_transactions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shareholderId": {
+          "name": "shareholderId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transactionDate": {
+          "name": "transactionDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "transactionType": {
+          "name": "transactionType",
+          "type": "share_transaction_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shareClass": {
+          "name": "shareClass",
+          "type": "share_class",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sharesAmount": {
+          "name": "sharesAmount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pricePerShareNtd": {
+          "name": "pricePerShareNtd",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalAmountNtd": {
+          "name": "totalAmountNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxQualified": {
+          "name": "taxQualified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "taxCapNtd": {
+          "name": "taxCapNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lockUpEndDate": {
+          "name": "lockUpEndDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxDeductionYear": {
+          "name": "taxDeductionYear",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxDeductionAmountNtd": {
+          "name": "taxDeductionAmountNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.shareholder_documents": {
+      "name": "shareholder_documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shareholderId": {
+          "name": "shareholderId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "documentType": {
+          "name": "documentType",
+          "type": "shareholder_document_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "documentName": {
+          "name": "documentName",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "shareholder_document_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "signedDate": {
+          "name": "signedDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expiryDate": {
+          "name": "expiryDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundingRoundId": {
+          "name": "fundingRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fileUrl": {
+          "name": "fileUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.shareholders": {
+      "name": "shareholders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aka": {
+          "name": "aka",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "shareholder_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'other'"
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nationality": {
+          "name": "nationality",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "isEntity": {
+          "name": "isEntity",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lockupPeriod": {
+          "name": "lockupPeriod",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxBenefits": {
+          "name": "taxBenefits",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.signing_requests": {
+      "name": "signing_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "docType": {
+          "name": "docType",
+          "type": "signing_doc_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linkedResourceType": {
+          "name": "linkedResourceType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linkedResourceId": {
+          "name": "linkedResourceId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "docusealTemplateId": {
+          "name": "docusealTemplateId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "docusealSubmissionId": {
+          "name": "docusealSubmissionId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "signing_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "signers": {
+          "name": "signers",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sourceDocumentUrl": {
+          "name": "sourceDocumentUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signedDocumentUrl": {
+          "name": "signedDocumentUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sentAt": {
+          "name": "sentAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completedAt": {
+          "name": "completedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expiresAt": {
+          "name": "expiresAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdBy": {
+          "name": "createdBy",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.signing_templates": {
+      "name": "signing_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "signing_template_scope",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'company'"
+        },
+        "docType": {
+          "name": "docType",
+          "type": "signing_doc_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "docusealTemplateId": {
+          "name": "docusealTemplateId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fileUrl": {
+          "name": "fileUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fileName": {
+          "name": "fileName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdBy": {
+          "name": "createdBy",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.snapshots": {
+      "name": "snapshots",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "triggerType": {
+          "name": "triggerType",
+          "type": "snapshot_trigger",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'register_write'"
+        },
+        "registerEntryId": {
+          "name": "registerEntryId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capTableData": {
+          "name": "capTableData",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "totalShares": {
+          "name": "totalShares",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "totalInvestors": {
+          "name": "totalInvestors",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdByUserId": {
+          "name": "createdByUserId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_invitations": {
+      "name": "user_invitations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "token": {
+          "name": "token",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "appRole": {
+          "name": "appRole",
+          "type": "invitation_app_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'viewer'"
+        },
+        "invitedByUserId": {
+          "name": "invitedByUserId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "invitation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "expiresAt": {
+          "name": "expiresAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acceptedAt": {
+          "name": "acceptedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acceptedByUserId": {
+          "name": "acceptedByUserId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_invitations_token_unique": {
+          "name": "user_invitations_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "openId": {
+          "name": "openId",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "loginMethod": {
+          "name": "loginMethod",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'user'"
+        },
+        "appRole": {
+          "name": "appRole",
+          "type": "user_app_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'viewer'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "lastSignedIn": {
+          "name": "lastSignedIn",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_openId_unique": {
+          "name": "users_openId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "openId"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.valuation_projections": {
+      "name": "valuation_projections",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "projectionDate": {
+          "name": "projectionDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pricePerShareNtd": {
+          "name": "pricePerShareNtd",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "targetRaiseNtd": {
+          "name": "targetRaiseNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preMoneyValuationNtd": {
+          "name": "preMoneyValuationNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "postMoneyValuationNtd": {
+          "name": "postMoneyValuationNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "newSharesIssued": {
+          "name": "newSharesIssued",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "exchangeRate": {
+          "name": "exchangeRate",
+          "type": "numeric(10, 7)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scenario": {
+          "name": "scenario",
+          "type": "valuation_scenario",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'base'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.valuations_409a": {
+      "name": "valuations_409a",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "companyId": {
+          "name": "companyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valuationDate": {
+          "name": "valuationDate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fmvPerShareNtd": {
+          "name": "fmvPerShareNtd",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fmvPerShareUsd": {
+          "name": "fmvPerShareUsd",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commonStockValueNtd": {
+          "name": "commonStockValueNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferredStockValueNtd": {
+          "name": "preferredStockValueNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalCompanyValueNtd": {
+          "name": "totalCompanyValueNtd",
+          "type": "numeric(20, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valuationFirm": {
+          "name": "valuationFirm",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reportUrl": {
+          "name": "reportUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "method": {
+          "name": "method",
+          "type": "valuation_409a_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'dcf'"
+        },
+        "relatedRoundId": {
+          "name": "relatedRoundId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.allocation_status": {
+      "name": "allocation_status",
+      "schema": "public",
+      "values": [
+        "planned",
+        "committed",
+        "signed",
+        "funded",
+        "issued"
+      ]
+    },
+    "public.anti_dilution_default": {
+      "name": "anti_dilution_default",
+      "schema": "public",
+      "values": [
+        "none",
+        "full_ratchet",
+        "broad_based_wa",
+        "narrow_based_wa"
+      ]
+    },
+    "public.anti_dilution_provision_type": {
+      "name": "anti_dilution_provision_type",
+      "schema": "public",
+      "values": [
+        "full_ratchet",
+        "broad_based_wa",
+        "narrow_based_wa",
+        "none"
+      ]
+    },
+    "public.anti_dilution_status": {
+      "name": "anti_dilution_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "triggered",
+        "waived",
+        "expired"
+      ]
+    },
+    "public.audit_action": {
+      "name": "audit_action",
+      "schema": "public",
+      "values": [
+        "create",
+        "update",
+        "delete",
+        "import",
+        "export",
+        "login",
+        "invite"
+      ]
+    },
+    "public.company_member_role": {
+      "name": "company_member_role",
+      "schema": "public",
+      "values": [
+        "owner",
+        "admin",
+        "cfo",
+        "lawyer",
+        "investor",
+        "viewer"
+      ]
+    },
+    "public.dividend_type": {
+      "name": "dividend_type",
+      "schema": "public",
+      "values": [
+        "none",
+        "non_cumulative",
+        "cumulative"
+      ]
+    },
+    "public.esop_grant_status": {
+      "name": "esop_grant_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "fully_vested",
+        "cancelled",
+        "exercised"
+      ]
+    },
+    "public.esop_grant_v1_status": {
+      "name": "esop_grant_v1_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "fully_vested",
+        "exercised",
+        "cancelled"
+      ]
+    },
+    "public.funding_round_status": {
+      "name": "funding_round_status",
+      "schema": "public",
+      "values": [
+        "completed",
+        "projected",
+        "bridge"
+      ]
+    },
+    "public.import_log_status": {
+      "name": "import_log_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "processing",
+        "completed",
+        "failed"
+      ]
+    },
+    "public.instrument_safe_type": {
+      "name": "instrument_safe_type",
+      "schema": "public",
+      "values": [
+        "pre_money",
+        "post_money",
+        "mfn"
+      ]
+    },
+    "public.instrument_status": {
+      "name": "instrument_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "converted",
+        "cancelled",
+        "matured"
+      ]
+    },
+    "public.instrument_type": {
+      "name": "instrument_type",
+      "schema": "public",
+      "values": [
+        "safe",
+        "convertible_note"
+      ]
+    },
+    "public.investor_entity_kind": {
+      "name": "investor_entity_kind",
+      "schema": "public",
+      "values": [
+        "individual",
+        "entity"
+      ]
+    },
+    "public.investor_status": {
+      "name": "investor_status",
+      "schema": "public",
+      "values": [
+        "prospect",
+        "meeting",
+        "term_sheet",
+        "invested",
+        "passed"
+      ]
+    },
+    "public.invitation_app_role": {
+      "name": "invitation_app_role",
+      "schema": "public",
+      "values": [
+        "admin",
+        "cfo",
+        "lawyer",
+        "investor",
+        "viewer"
+      ]
+    },
+    "public.invitation_status": {
+      "name": "invitation_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "accepted",
+        "revoked",
+        "expired"
+      ]
+    },
+    "public.liquidation_preference_type": {
+      "name": "liquidation_preference_type",
+      "schema": "public",
+      "values": [
+        "non_participating",
+        "participating",
+        "capped_participating"
+      ]
+    },
+    "public.register_event_type": {
+      "name": "register_event_type",
+      "schema": "public",
+      "values": [
+        "issuance",
+        "transfer_in",
+        "transfer_out",
+        "cancellation",
+        "reversal"
+      ]
+    },
+    "public.share_class": {
+      "name": "share_class",
+      "schema": "public",
+      "values": [
+        "common",
+        "seed",
+        "seed_plus",
+        "pre_a",
+        "bridge",
+        "series_a",
+        "pre_b",
+        "series_b",
+        "pre_c",
+        "series_c",
+        "esop"
+      ]
+    },
+    "public.share_class_type": {
+      "name": "share_class_type",
+      "schema": "public",
+      "values": [
+        "common",
+        "preferred"
+      ]
+    },
+    "public.share_transaction_type": {
+      "name": "share_transaction_type",
+      "schema": "public",
+      "values": [
+        "issuance",
+        "transfer_in",
+        "transfer_out",
+        "esop_grant",
+        "esop_exercise",
+        "esop_cancel"
+      ]
+    },
+    "public.shareholder_document_status": {
+      "name": "shareholder_document_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "signed",
+        "expired",
+        "waived"
+      ]
+    },
+    "public.shareholder_document_type": {
+      "name": "shareholder_document_type",
+      "schema": "public",
+      "values": [
+        "sha",
+        "subscription",
+        "nda",
+        "board_consent",
+        "side_letter",
+        "warrant",
+        "other"
+      ]
+    },
+    "public.shareholder_type": {
+      "name": "shareholder_type",
+      "schema": "public",
+      "values": [
+        "founder",
+        "angel",
+        "seed",
+        "seed_plus",
+        "pre_a",
+        "bridge",
+        "series_a",
+        "pre_b",
+        "series_b",
+        "pre_c",
+        "series_c",
+        "esop",
+        "other"
+      ]
+    },
+    "public.signing_doc_type": {
+      "name": "signing_doc_type",
+      "schema": "public",
+      "values": [
+        "share_certificate",
+        "safe_agreement",
+        "convertible_note",
+        "stock_option_grant",
+        "board_resolution",
+        "sha",
+        "custom"
+      ]
+    },
+    "public.signing_status": {
+      "name": "signing_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "pending",
+        "viewed",
+        "completed",
+        "declined",
+        "expired"
+      ]
+    },
+    "public.signing_template_scope": {
+      "name": "signing_template_scope",
+      "schema": "public",
+      "values": [
+        "platform",
+        "company"
+      ]
+    },
+    "public.snapshot_trigger": {
+      "name": "snapshot_trigger",
+      "schema": "public",
+      "values": [
+        "register_write",
+        "manual"
+      ]
+    },
+    "public.user_app_role": {
+      "name": "user_app_role",
+      "schema": "public",
+      "values": [
+        "owner",
+        "admin",
+        "cfo",
+        "lawyer",
+        "investor",
+        "viewer"
+      ]
+    },
+    "public.user_role": {
+      "name": "user_role",
+      "schema": "public",
+      "values": [
+        "user",
+        "admin"
+      ]
+    },
+    "public.valuation_409a_method": {
+      "name": "valuation_409a_method",
+      "schema": "public",
+      "values": [
+        "dcf",
+        "market_comparable",
+        "asset_based",
+        "409a_safe_harbor",
+        "other"
+      ]
+    },
+    "public.valuation_scenario": {
+      "name": "valuation_scenario",
+      "schema": "public",
+      "values": [
+        "base",
+        "optimistic",
+        "conservative"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
