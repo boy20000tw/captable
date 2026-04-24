@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.0",
+    date: "2026-04-25",
+    type: "minor",
+    title: "Investor portal",
+    description: "投資人登入後可以查看持股、vesting 進度和文件簽署狀態。",
+  },
+  {
     version: "1.5.1",
     date: "2026-04-24",
     type: "patch",
