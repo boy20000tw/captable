@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.9.0",
+    date: "2026-04-25",
+    type: "minor",
+    title: "Share certificate PDF",
+    description: "Generate formal share certificates from any issuance or ESOP exercise entry — includes company branding, certificate number, share details, and authorized signatory block.",
+  },
+  {
     version: "1.8.0",
     date: "2026-04-25",
     type: "minor",

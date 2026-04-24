@@ -181,6 +181,34 @@ async function startServer() {
     }
   });
 
+  app.get("/api/export/certificate.pdf", async (req, res) => {
+    try {
+      const ctx = await resolveExportContext(req, res);
+      if (!ctx) return;
+      const { investorId, shareClass, shares, pricePerShare, currency, effectiveDate, registerEntryId } = req.query;
+      if (!investorId || !shareClass || !shares || !effectiveDate) {
+        res.status(400).json({ error: "Missing required params: investorId, shareClass, shares, effectiveDate" });
+        return;
+      }
+      const { generateShareCertificatePdf } = await import("../v1/export");
+      const buffer = await generateShareCertificatePdf(ctx.companyId, {
+        investorId: Number(investorId),
+        shareClass: String(shareClass),
+        shares: Number(shares),
+        pricePerShare: pricePerShare ? String(pricePerShare) : null,
+        currency: currency ? String(currency) : "USD",
+        effectiveDate: String(effectiveDate),
+        registerEntryId: registerEntryId ? Number(registerEntryId) : undefined,
+      });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename=certificate-${investorId}.pdf`);
+      res.send(buffer);
+    } catch (error) {
+      console.error("Export certificate PDF error:", error);
+      res.status(500).json({ error: "Export failed" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

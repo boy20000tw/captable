@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BookOpen, UserPen, Edit2, FileSpreadsheet } from "lucide-react";
+import { BookOpen, UserPen, Edit2, FileSpreadsheet, Award } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -352,14 +352,39 @@ function V1ShareRegisterContent() {
                           </TableCell>
                           {canEdit && (
                             <TableCell>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => setEditingEntryId(r.id)}
-                                title="Edit register entry"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </Button>
+                              <div className="flex items-center gap-0.5">
+                                {(r.eventType === "issuance" || r.eventType === "esop_exercise") && sharesNum > 0 && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      const params = new URLSearchParams({
+                                        companyId: String(getActiveCompanyId()),
+                                        investorId: String(r.investorId),
+                                        shareClass: String(r.shareClass),
+                                        shares: String(Math.abs(sharesNum)),
+                                        effectiveDate: r.effectiveDate,
+                                        registerEntryId: String(r.id),
+                                        ...(r.pricePerShare ? { pricePerShare: r.pricePerShare } : {}),
+                                        ...(r.currency ? { currency: r.currency } : {}),
+                                      });
+                                      window.open(`/api/export/certificate.pdf?${params}`, "_blank");
+                                    }}
+                                    title="Download share certificate"
+                                    className="text-amber-600 hover:text-amber-700"
+                                  >
+                                    <Award className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setEditingEntryId(r.id)}
+                                  title="Edit register entry"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </TableCell>
                           )}
                         </TableRow>

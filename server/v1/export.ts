@@ -278,6 +278,202 @@ export async function generateRegisterExcel(companyId: number): Promise<Buffer> 
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+// ─── Share Certificate PDF ──────────────────────────────────────────────────
+
+export type CertificateData = {
+  investorId: number;
+  shareClass: string;
+  shares: number;
+  pricePerShare?: string | null;
+  currency?: string;
+  effectiveDate: string;
+  registerEntryId?: number;
+};
+
+export async function generateShareCertificatePdf(
+  companyId: number,
+  cert: CertificateData,
+): Promise<Buffer> {
+  const { jsPDF } = await import("jspdf");
+
+  const company = await getCompanyFull(companyId);
+  const classMap = await getShareClassNames(companyId);
+  const investorName = await getInvestorName(companyId, cert.investorId);
+
+  const certNumber = `CERT-${companyId}-${cert.registerEntryId ?? Date.now()}`;
+  const shareClassName = classMap[cert.shareClass] ?? cert.shareClass.replace(/_/g, " ");
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.width;
+  const H = doc.internal.pageSize.height;
+
+  // ── Decorative border ────────────────────────────────────────────────────
+  doc.setDrawColor(40, 40, 40);
+  doc.setLineWidth(1.5);
+  doc.rect(12, 12, W - 24, H - 24);
+  doc.setLineWidth(0.3);
+  doc.rect(15, 15, W - 30, H - 30);
+
+  let y = 35;
+
+  // ── Company logo (if available) ──────────────────────────────────────────
+  // Logo embedding requires base64 — skip for URL-based logos, show name instead
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(company.name, W / 2, y, { align: "center" });
+  y += 6;
+  if (company.nameEn && company.nameEn !== company.name) {
+    doc.text(company.nameEn, W / 2, y, { align: "center" });
+    y += 6;
+  }
+
+  // ── Title ────────────────────────────────────────────────────────────────
+  y += 8;
+  doc.setFontSize(26);
+  doc.setTextColor(20);
+  doc.text("SHARE CERTIFICATE", W / 2, y, { align: "center" });
+
+  y += 10;
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Certificate No. ${certNumber}`, W / 2, y, { align: "center" });
+
+  // ── Divider ──────────────────────────────────────────────────────────────
+  y += 10;
+  doc.setDrawColor(180);
+  doc.setLineWidth(0.5);
+  doc.line(40, y, W - 40, y);
+
+  // ── Main content ─────────────────────────────────────────────────────────
+  y += 16;
+  doc.setFontSize(12);
+  doc.setTextColor(40);
+  doc.text("This is to certify that", W / 2, y, { align: "center" });
+
+  y += 12;
+  doc.setFontSize(18);
+  doc.setTextColor(20);
+  doc.text(investorName, W / 2, y, { align: "center" });
+
+  y += 12;
+  doc.setFontSize(12);
+  doc.setTextColor(40);
+  doc.text("is the registered holder of", W / 2, y, { align: "center" });
+
+  y += 14;
+  doc.setFontSize(28);
+  doc.setTextColor(20);
+  doc.text(cert.shares.toLocaleString(), W / 2, y, { align: "center" });
+
+  y += 12;
+  doc.setFontSize(14);
+  doc.setTextColor(40);
+  doc.text(`shares of ${shareClassName}`, W / 2, y, { align: "center" });
+
+  y += 8;
+  doc.setFontSize(11);
+  doc.setTextColor(80);
+  doc.text(`of ${company.nameEn || company.name}`, W / 2, y, { align: "center" });
+
+  // ── Details table ────────────────────────────────────────────────────────
+  y += 18;
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.3);
+
+  const detailsLeft = 50;
+  const detailsRight = W - 50;
+  const details = [
+    ["Share Class", shareClassName],
+    ["Number of Shares", cert.shares.toLocaleString()],
+    ["Issue Date", formatCertDate(cert.effectiveDate)],
+    ...(cert.pricePerShare ? [["Price per Share", `${cert.currency ?? "USD"} ${cert.pricePerShare}`]] : []),
+    ...(cert.registerEntryId ? [["Register Entry", `#${cert.registerEntryId}`]] : []),
+  ];
+
+  for (const [label, value] of details) {
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(label, detailsLeft, y);
+    doc.setTextColor(30);
+    doc.text(value, detailsRight, y, { align: "right" });
+    y += 7;
+  }
+
+  // ── Divider ──────────────────────────────────────────────────────────────
+  y += 8;
+  doc.line(40, y, W - 40, y);
+
+  // ── Signature block ──────────────────────────────────────────────────────
+  y += 20;
+  const sigLeft = 45;
+  const sigRight = W - 45;
+
+  // Date
+  doc.setFontSize(9);
+  doc.setTextColor(80);
+  doc.text("Date of Issue", sigLeft, y);
+  doc.setTextColor(30);
+  doc.setFontSize(10);
+  doc.text(formatCertDate(cert.effectiveDate), sigLeft, y + 6);
+
+  // Authorized signatory
+  doc.setFontSize(9);
+  doc.setTextColor(80);
+  doc.text("Authorized Signatory", sigRight, y, { align: "right" });
+  if (company.representativeName) {
+    doc.setTextColor(30);
+    doc.setFontSize(10);
+    doc.text(company.representativeName, sigRight, y + 6, { align: "right" });
+    if (company.representativeTitle) {
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text(company.representativeTitle, sigRight, y + 11, { align: "right" });
+    }
+  }
+
+  // Signature line
+  y += 18;
+  doc.setDrawColor(150);
+  doc.setLineWidth(0.3);
+  doc.line(sigRight - 60, y, sigRight, y);
+
+  // ── Footer ───────────────────────────────────────────────────────────────
+  doc.setFontSize(7);
+  doc.setTextColor(160);
+  doc.text(
+    `This certificate was generated by Caploom on ${new Date().toLocaleDateString("en-US")}`,
+    W / 2, H - 20,
+    { align: "center" },
+  );
+  if (company.address) {
+    doc.text(company.address, W / 2, H - 16, { align: "center" });
+  }
+
+  return Buffer.from(doc.output("arraybuffer"));
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+async function getCompanyFull(companyId: number) {
+  const db = await getDb();
+  if (!db) return { name: "Company", nameEn: null, address: null, representativeName: null, representativeTitle: null, logoUrl: null, signatureUrl: null };
+  const rows = await db.select().from(companies).where(eq(companies.id, companyId));
+  return rows[0] ?? { name: "Company", nameEn: null, address: null, representativeName: null, representativeTitle: null, logoUrl: null, signatureUrl: null };
+}
+
+async function getInvestorName(companyId: number, investorId: number): Promise<string> {
+  const db = await getDb();
+  if (!db) return `Investor #${investorId}`;
+  const rows = await db.select({ name: investors.name }).from(investors)
+    .where(eq(investors.id, investorId));
+  return rows[0]?.name ?? `Investor #${investorId}`;
+}
+
+function formatCertDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
+
 async function getCompanyName(companyId: number): Promise<string> {
   const db = await getDb();
   if (!db) return "Company";
