@@ -29,6 +29,13 @@
       "when": 1777040142334,
       "tag": "0003_blushing_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777043397157,
+      "tag": "0004_boring_gabe_jones",
+      "breakpoints": true
     }
   ]
 }
