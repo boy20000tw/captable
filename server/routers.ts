@@ -963,7 +963,7 @@ const v1RegisterRouter = router({
   // Direct register write — for manual issuances, transfers, cancellations
   write: companyEditorProcedure.input(z.object({
     investorId: z.number(),
-    eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal"]),
+    eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal", "esop_exercise"]),
     shareClass: z.string().min(1),
     shares: z.number().int().positive(),
     effectiveDate: z.string(),
@@ -989,7 +989,7 @@ const v1RegisterRouter = router({
     id: z.number(),
     data: z.object({
       effectiveDate: z.string().optional(),
-      eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal"]).optional(),
+      eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal", "esop_exercise"]).optional(),
       shareClass: z.string().min(1).optional(),
       shares: z.number().int().optional(),
       pricePerShare: z.string().optional().nullable(),
@@ -1142,6 +1142,64 @@ const v1EsopRouter = router({
       action: "delete", resourceType: "esop_grant_v1", resourceId: input.id,
     });
   }),
+
+  // ── Exercise grant → write Common shares to register ─────────────────────
+  exerciseGrant: companyEditorProcedure
+    .input(z.object({
+      grantId: z.number(),
+      sharesToExercise: z.number().int().positive(),
+      effectiveDate: z.string().optional(),  // defaults to today
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const grant = await getEsopGrantV1ById(ctx.companyId, input.grantId);
+      if (!grant) throw new TRPCError({ code: "NOT_FOUND", message: "Grant not found" });
+      if (grant.status === "cancelled") throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot exercise a cancelled grant" });
+      if (grant.status === "exercised") throw new TRPCError({ code: "BAD_REQUEST", message: "Grant already fully exercised" });
+
+      const exercisable = grant.sharesGranted - grant.sharesExercised - grant.sharesCancelled;
+      if (input.sharesToExercise > exercisable) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Only ${exercisable} shares available to exercise` });
+      }
+
+      const newExercised = grant.sharesExercised + input.sharesToExercise;
+      const fullyExercised = newExercised >= grant.sharesGranted - grant.sharesCancelled;
+      const effectiveDate = input.effectiveDate || new Date().toISOString().slice(0, 10);
+
+      // 1. Update grant record
+      await updateEsopGrantV1(ctx.companyId, input.grantId, {
+        sharesExercised: newExercised,
+        status: fullyExercised ? "exercised" : "active",
+      });
+
+      // 2. Write Common shares to share register (ESOP exercises into Common)
+      const { entry, snapshot } = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
+        investorId: grant.investorId,
+        eventType: "esop_exercise" as any,
+        shareClass: "common" as any,
+        shares: input.sharesToExercise,
+        effectiveDate,
+        pricePerShare: grant.exercisePrice,
+        currency: grant.currency,
+        totalAmount: grant.exercisePrice
+          ? String(Number(grant.exercisePrice) * input.sharesToExercise)
+          : undefined,
+        notes: `ESOP exercise: ${input.sharesToExercise} shares from grant #${grant.id}`,
+      });
+
+      // 3. Audit log
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "esop_grant_v1", resourceId: input.grantId,
+        resourceName: `Exercise ${input.sharesToExercise} shares`,
+        changesAfter: JSON.stringify({
+          sharesExercised: newExercised,
+          status: fullyExercised ? "exercised" : "active",
+          registerEntryId: entry.id,
+        }),
+      });
+
+      return { grant: { ...grant, sharesExercised: newExercised }, entry, snapshot };
+    }),
 
   // Pool + usage summary (for Cap Table + Dashboard)
   poolSummary: companyProcedure.query(async ({ ctx }) => {

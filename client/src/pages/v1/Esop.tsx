@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
-import { Plus, Edit2, Trash2, Briefcase } from "lucide-react";
+import { Plus, Edit2, Trash2, Briefcase, Play } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -214,6 +214,14 @@ function EsopV1Content() {
     onSuccess: () => { invalidateAll(); toast.success("Grant deleted"); },
     onError: (e) => toast.error(e.message),
   });
+  const exerciseGrantMut = trpc.v1.esop.exerciseGrant.useMutation({
+    onSuccess: () => { invalidateAll(); setExerciseDialogGrant(null); toast.success("Grant exercised — Common shares issued to register"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Exercise dialog state
+  const [exerciseDialogGrant, setExerciseDialogGrant] = useState<any | null>(null);
+  const [exerciseShares, setExerciseShares] = useState("");
 
   // ─── Lookup helpers ───────────────────────────────────────────────────────
   const investorMap = useMemo(() => {
@@ -637,6 +645,22 @@ function EsopV1Content() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
+                          {canEdit && g.status !== "cancelled" && g.status !== "exercised" && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const exercisable = g.sharesGranted - g.sharesExercised - g.sharesCancelled;
+                                setExerciseShares(String(exercisable));
+                                setExerciseDialogGrant(g);
+                              }}
+                              title="Exercise"
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {canEdit && (
                             <Button
                               size="icon"
@@ -952,6 +976,108 @@ function EsopV1Content() {
               disabled={createGrantMut.isPending || updateGrantMut.isPending}
             >
               {editGrantId != null ? "Save Changes" : "Create Grant"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Exercise Dialog */}
+      <Dialog open={!!exerciseDialogGrant} onOpenChange={(v) => { if (!v) setExerciseDialogGrant(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exercise Grant</DialogTitle>
+            <DialogDescription>
+              Exercise vested options → Common Stock issued to share register.
+            </DialogDescription>
+          </DialogHeader>
+
+          {exerciseDialogGrant && (() => {
+            const g = exerciseDialogGrant;
+            const exercisable = g.sharesGranted - g.sharesExercised - g.sharesCancelled;
+            const vested = computeVestedAsOfToday(g.sharesGranted, g.vestingStartDate, g.vestingCliffMonths, g.vestingTotalMonths);
+            const vestedExercisable = Math.max(0, vested - g.sharesExercised);
+            const requestedShares = Number(exerciseShares) || 0;
+
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Grantee</p>
+                    <p className="font-medium">{investorMap.get(g.investorId)?.name ?? `#${g.investorId}`}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Exercise Price</p>
+                    <p className="font-medium">{g.exercisePrice ? `${g.currency ?? "NTD"} ${g.exercisePrice}` : "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Total Granted</p>
+                    <p className="font-medium">{formatNumber(g.sharesGranted)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Already Exercised</p>
+                    <p className="font-medium">{formatNumber(g.sharesExercised)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Vested (as of today)</p>
+                    <p className="font-medium text-green-600">{formatNumber(vested)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Exercisable Now</p>
+                    <p className="font-medium text-green-600">{formatNumber(vestedExercisable)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Shares to Exercise</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={exercisable}
+                    value={exerciseShares}
+                    onChange={(e) => setExerciseShares(e.target.value)}
+                  />
+                  {requestedShares > vestedExercisable && requestedShares <= exercisable && (
+                    <p className="text-xs text-amber-600">
+                      Warning: {requestedShares - vestedExercisable} shares have not vested yet.
+                    </p>
+                  )}
+                  {requestedShares > exercisable && (
+                    <p className="text-xs text-red-600">
+                      Cannot exceed {formatNumber(exercisable)} exercisable shares.
+                    </p>
+                  )}
+                </div>
+
+                {requestedShares > 0 && g.exercisePrice && (
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <p className="text-xs text-muted-foreground">Total Exercise Cost</p>
+                    <p className="text-lg font-semibold">
+                      {g.currency ?? "NTD"} {formatNumber(Math.round(Number(g.exercisePrice) * requestedShares))}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExerciseDialogGrant(null)}>Cancel</Button>
+            <Button
+              disabled={
+                exerciseGrantMut.isPending ||
+                !exerciseShares ||
+                Number(exerciseShares) <= 0 ||
+                Number(exerciseShares) > (exerciseDialogGrant ? exerciseDialogGrant.sharesGranted - exerciseDialogGrant.sharesExercised - exerciseDialogGrant.sharesCancelled : 0)
+              }
+              onClick={() => {
+                if (!exerciseDialogGrant) return;
+                exerciseGrantMut.mutate({
+                  grantId: exerciseDialogGrant.id,
+                  sharesToExercise: Number(exerciseShares),
+                });
+              }}
+            >
+              {exerciseGrantMut.isPending ? "Exercising..." : "Exercise & Issue Shares"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1160,6 +1160,32 @@ export async function deleteEsopGrantV1(companyId: number, id: number) {
   await db.delete(esopGrantsV1).where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId)));
 }
 
+/**
+ * Compute vested shares as of a given date (server-side).
+ * Standard cliff + linear monthly vesting.
+ */
+export function computeVestedShares(grant: {
+  sharesGranted: number;
+  sharesCancelled: number;
+  vestingStartDate: string | null;
+  vestingCliffMonths: number;
+  vestingTotalMonths: number;
+}, asOfDate?: Date): number {
+  const now = asOfDate ?? new Date();
+  if (!grant.vestingStartDate || grant.vestingTotalMonths <= 0) return 0;
+
+  const start = new Date(grant.vestingStartDate + "T00:00:00");
+  const months = (now.getFullYear() - start.getFullYear()) * 12
+    + (now.getMonth() - start.getMonth())
+    + (now.getDate() >= start.getDate() ? 0 : -1);
+
+  if (months < grant.vestingCliffMonths) return 0;
+
+  const netGranted = grant.sharesGranted - grant.sharesCancelled;
+  const vested = Math.floor((months / grant.vestingTotalMonths) * netGranted);
+  return Math.min(vested, netGranted);
+}
+
 // ─── Danger Zone ──────────────────────────────────────────────────────────────
 /**
  * Delete all business-data rows belonging to a single company. Preserves: users,

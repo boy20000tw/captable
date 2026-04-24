@@ -27,7 +27,7 @@ import {
 export type RegisterEntryInput = {
   // Required
   investorId: number;
-  eventType: "issuance" | "transfer_in" | "transfer_out" | "cancellation" | "reversal";
+  eventType: "issuance" | "transfer_in" | "transfer_out" | "cancellation" | "reversal" | "esop_exercise";
   shareClass: string;
   shares: number;               // positive integer; sign convention handled per event type
   effectiveDate: string;        // YYYY-MM-DD
@@ -129,6 +129,7 @@ function signedShareCount(
   switch (eventType) {
     case "issuance":
     case "transfer_in":
+    case "esop_exercise":
       return shares;
     case "transfer_out":
     case "cancellation":
@@ -154,13 +155,14 @@ async function buildSnapshotName(
     .where(and(eq(investors.id, input.investorId), eq(investors.companyId, companyId)))
     .limit(1);
   const who = inv?.name ?? `Investor #${input.investorId}`;
-  const verb = {
-    issuance:     "Issuance to",
-    transfer_in:  "Transfer to",
-    transfer_out: "Transfer from",
-    cancellation: "Cancellation for",
-    reversal:     "Reversal for",
-  }[input.eventType];
+  const verb: string = ({
+    issuance:      "Issuance to",
+    transfer_in:   "Transfer to",
+    transfer_out:  "Transfer from",
+    cancellation:  "Cancellation for",
+    reversal:      "Reversal for",
+    esop_exercise: "ESOP exercise for",
+  } as Record<string, string>)[input.eventType] ?? input.eventType;
   return `${verb} ${who} (${input.shares.toLocaleString()} ${input.shareClass}) on ${input.effectiveDate}`;
 }
 

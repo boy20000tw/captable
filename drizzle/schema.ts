@@ -536,11 +536,12 @@ export const allocationStatusEnum = pgEnum("allocation_status", [
     "issued",
 ]);
 export const registerEventTypeEnum = pgEnum("register_event_type", [
-    "issuance",       // new shares issued to an investor
-    "transfer_in",    // shares transferred to an investor from another
-    "transfer_out",   // shares transferred away from an investor
-    "cancellation",   // shares retired / cancelled
-    "reversal",       // corrects a prior entry (points via reversedEntryId)
+    "issuance",        // new shares issued to an investor
+    "transfer_in",     // shares transferred to an investor from another
+    "transfer_out",    // shares transferred away from an investor
+    "cancellation",    // shares retired / cancelled
+    "reversal",        // corrects a prior entry (points via reversedEntryId)
+    "esop_exercise",   // ESOP grant exercised → Common Stock issued
 ]);
 export const snapshotTriggerEnum = pgEnum("snapshot_trigger", [
     "register_write",

@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.7.0",
+    date: "2026-04-25",
+    type: "minor",
+    title: "ESOP exercise flow",
+    description: "Exercise vested options into Common Stock with one click — atomically updates grant, writes to share register, and triggers cap table snapshot.",
+  },
+  {
     version: "1.6.0",
     date: "2026-04-25",
     type: "minor",
