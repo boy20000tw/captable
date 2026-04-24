@@ -120,6 +120,67 @@ async function startServer() {
     }
   });
 
+  // ─── Export endpoints (PDF / Excel) ────────────────────────────────────────
+  // All export routes require authenticated user + company membership.
+  async function resolveExportContext(req: any, res: any): Promise<{ companyId: number } | null> {
+    const auth = (req as any).auth;
+    if (!auth?.userId) { res.status(401).json({ error: "Unauthorized" }); return null; }
+    const user = await getUserByOpenId(auth.userId);
+    if (!user) { res.status(401).json({ error: "User not found" }); return null; }
+    const memberships = await getUserCompanyMemberships(user.id);
+    if (memberships.length === 0) { res.status(403).json({ error: "No company access" }); return null; }
+    // Use companyId from query param or first membership
+    const companyId = req.query.companyId ? parseInt(req.query.companyId as string) : memberships[0].companyId;
+    const isMember = memberships.some(m => m.companyId === companyId);
+    if (!isMember) { res.status(403).json({ error: "No access to this company" }); return null; }
+    return { companyId };
+  }
+
+  app.get("/api/export/cap-table.pdf", async (req, res) => {
+    try {
+      const ctx = await resolveExportContext(req, res);
+      if (!ctx) return;
+      const { generateCapTablePdf } = await import("../v1/export");
+      const buffer = await generateCapTablePdf(ctx.companyId);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "attachment; filename=cap-table.pdf");
+      res.send(buffer);
+    } catch (error) {
+      console.error("Export cap-table PDF error:", error);
+      res.status(500).json({ error: "Export failed" });
+    }
+  });
+
+  app.get("/api/export/cap-table.xlsx", async (req, res) => {
+    try {
+      const ctx = await resolveExportContext(req, res);
+      if (!ctx) return;
+      const { generateCapTableExcel } = await import("../v1/export");
+      const buffer = await generateCapTableExcel(ctx.companyId);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=cap-table.xlsx");
+      res.send(buffer);
+    } catch (error) {
+      console.error("Export cap-table Excel error:", error);
+      res.status(500).json({ error: "Export failed" });
+    }
+  });
+
+  app.get("/api/export/share-register.xlsx", async (req, res) => {
+    try {
+      const ctx = await resolveExportContext(req, res);
+      if (!ctx) return;
+      const { generateRegisterExcel } = await import("../v1/export");
+      const buffer = await generateRegisterExcel(ctx.companyId);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=share-register.xlsx");
+      res.send(buffer);
+    } catch (error) {
+      console.error("Export share-register Excel error:", error);
+      res.status(500).json({ error: "Export failed" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

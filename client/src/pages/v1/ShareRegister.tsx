@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { BookOpen, UserPen, Edit2 } from "lucide-react";
+import { BookOpen, UserPen, Edit2, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { getActiveCompanyId } from "@/lib/activeCompany";
 import { formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -205,6 +206,13 @@ function V1ShareRegisterContent() {
         </div>
         <div className="flex items-center gap-3">
           <CurrencyToggle />
+          <Button
+            variant="outline" size="sm"
+            onClick={() => window.open(`/api/export/share-register.xlsx?companyId=${getActiveCompanyId()}`, "_blank")}
+            className="gap-1.5 text-xs"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Export Excel
+          </Button>
           {canEdit && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowTransferDialog(true)}>

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { PieChart, ArrowRight } from "lucide-react";
+import { PieChart, ArrowRight, Download, FileSpreadsheet, FileText } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { getActiveCompanyId } from "@/lib/activeCompany";
 import { Switch } from "@/components/ui/switch";
 import {
   Card,
@@ -87,13 +88,31 @@ function V1CapTableContent() {
             Derived from share register. Not editable.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <label htmlFor="esop-toggle" className="text-sm text-muted-foreground whitespace-nowrap">
               Include ESOP
             </label>
             <Switch id="esop-toggle" checked={includeEsop} onCheckedChange={setIncludeEsop} />
           </div>
+          {data && data.holdings.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline" size="sm"
+                onClick={() => window.open(`/api/export/cap-table.pdf?companyId=${getActiveCompanyId()}`, "_blank")}
+                className="gap-1.5 text-xs"
+              >
+                <FileText className="h-3.5 w-3.5" /> PDF
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                onClick={() => window.open(`/api/export/cap-table.xlsx?companyId=${getActiveCompanyId()}`, "_blank")}
+                className="gap-1.5 text-xs"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+              </Button>
+            </div>
+          )}
           {data?.generatedAt && (
             <p className="text-xs text-muted-foreground">
               As of {new Date(data.generatedAt).toLocaleString()}
