@@ -13,7 +13,6 @@ import V1RoundsPage from "./pages/v1/Rounds";
 import V1RoundDetailPage from "./pages/v1/RoundDetail";
 import V1InvestorsPage from "./pages/v1/Investors";
 import CompanySettingsPage from "./pages/v1/CompanySettings";
-import ShareClassesPage from "./pages/v1/ShareClasses";
 import AntiDilutionPage from "./pages/AntiDilution";
 import InstrumentsPage from "./pages/Instruments";
 import ESignPage from "./pages/ESign";
@@ -31,7 +30,6 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/cap-table" component={V1CapTablePage} />
-      <Route path="/share-classes" component={ShareClassesPage} />
       <Route path="/register" component={V1ShareRegisterPage} />
       <Route path="/esop" component={EsopV1Page} />
       <Route path="/funding-rounds" component={V1RoundsPage} />
