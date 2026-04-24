@@ -1836,6 +1836,104 @@ const esignRouter = router({
     }),
 });
 
+// ─── Investor Portal Router ──────────────────────────────────────────────────
+// Read-only endpoints for users with role="investor". Matches the logged-in
+// user's email to an investor record, then returns their holdings, grants, and docs.
+const investorPortalRouter = router({
+  /** Resolve the current user's investor record by email match */
+  myProfile: companyProcedure.query(async ({ ctx }) => {
+    const db = await import("./db").then(m => m.getDb());
+    if (!db) return null;
+    const { investors: investorsTable } = await import("../drizzle/schema");
+    const { eq, and } = await import("drizzle-orm");
+    const userEmail = ctx.user!.email;
+    if (!userEmail) return null;
+    const rows = await db.select().from(investorsTable)
+      .where(and(eq(investorsTable.companyId, ctx.companyId), eq(investorsTable.email, userEmail)));
+    return rows[0] ?? null;
+  }),
+
+  /** Holdings: shares by class from the cap table */
+  myHoldings: companyProcedure.query(async ({ ctx }) => {
+    const db = await import("./db").then(m => m.getDb());
+    if (!db) return { holdings: [], totalShares: 0 };
+    const { investors: investorsTable, shareRegisterEntries: sre } = await import("../drizzle/schema");
+    const { eq, and, sum } = await import("drizzle-orm");
+    // Find investor by email
+    const userEmail = ctx.user!.email;
+    if (!userEmail) return { holdings: [], totalShares: 0 };
+    const [inv] = await db.select().from(investorsTable)
+      .where(and(eq(investorsTable.companyId, ctx.companyId), eq(investorsTable.email, userEmail)));
+    if (!inv) return { holdings: [], totalShares: 0 };
+
+    // Aggregate register entries
+    const rows = await db.select({
+      shareClass: sre.shareClass,
+      total: sum(sre.shares).as("total"),
+    }).from(sre)
+      .where(and(eq(sre.companyId, ctx.companyId), eq(sre.investorId, inv.id)))
+      .groupBy(sre.shareClass);
+
+    const holdings = rows
+      .map(r => ({ shareClass: r.shareClass, shares: Number(r.total ?? 0) }))
+      .filter(h => h.shares > 0);
+    const totalShares = holdings.reduce((s, h) => s + h.shares, 0);
+
+    return { investorId: inv.id, investorName: inv.name, holdings, totalShares };
+  }),
+
+  /** ESOP grants for this investor */
+  myGrants: companyProcedure.query(async ({ ctx }) => {
+    const db = await import("./db").then(m => m.getDb());
+    if (!db) return [];
+    const { investors: investorsTable, esopGrantsV1 } = await import("../drizzle/schema");
+    const { eq, and } = await import("drizzle-orm");
+    const userEmail = ctx.user!.email;
+    if (!userEmail) return [];
+    const [inv] = await db.select().from(investorsTable)
+      .where(and(eq(investorsTable.companyId, ctx.companyId), eq(investorsTable.email, userEmail)));
+    if (!inv) return [];
+    return db.select().from(esopGrantsV1)
+      .where(and(eq(esopGrantsV1.companyId, ctx.companyId), eq(esopGrantsV1.investorId, inv.id)));
+  }),
+
+  /** Signing requests addressed to this investor */
+  myDocuments: companyProcedure.query(async ({ ctx }) => {
+    const db = await import("./db").then(m => m.getDb());
+    if (!db) return [];
+    const { signingRequests } = await import("../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+    const userEmail = ctx.user!.email;
+    if (!userEmail) return [];
+    // Find signing requests where this user is a signer
+    const all = await db.select().from(signingRequests)
+      .where(eq(signingRequests.companyId, ctx.companyId));
+    return all.filter(sr => {
+      if (!sr.signers) return false;
+      try {
+        const signers = JSON.parse(sr.signers);
+        return signers.some((s: any) => s.email === userEmail);
+      } catch { return false; }
+    });
+  }),
+
+  /** Register entries for this investor (for certificate download) */
+  myRegisterEntries: companyProcedure.query(async ({ ctx }) => {
+    const db = await import("./db").then(m => m.getDb());
+    if (!db) return [];
+    const { investors: investorsTable, shareRegisterEntries: sre } = await import("../drizzle/schema");
+    const { eq, and, asc } = await import("drizzle-orm");
+    const userEmail = ctx.user!.email;
+    if (!userEmail) return [];
+    const [inv] = await db.select().from(investorsTable)
+      .where(and(eq(investorsTable.companyId, ctx.companyId), eq(investorsTable.email, userEmail)));
+    if (!inv) return [];
+    return db.select().from(sre)
+      .where(and(eq(sre.companyId, ctx.companyId), eq(sre.investorId, inv.id)))
+      .orderBy(asc(sre.effectiveDate));
+  }),
+});
+
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query(async (opts) => {
@@ -1854,6 +1952,7 @@ export const appRouter = router({
   instruments: instrumentsRouter,
   esign: esignRouter,
   shareClasses: shareClassRouter,
+  investorPortal: investorPortalRouter,
   waterfall: waterfallRouter,
   team: teamRouter,
   invitations: invitationsRouter,

@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.10.0",
+    date: "2026-04-25",
+    type: "minor",
+    title: "Investor portal",
+    description: "Dedicated read-only view for investors — see holdings by share class, ESOP vesting timeline, download share certificates, and track document signing status.",
+  },
+  {
     version: "1.9.0",
     date: "2026-04-25",
     type: "minor",

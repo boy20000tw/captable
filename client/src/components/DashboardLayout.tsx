@@ -43,6 +43,7 @@ import {
   FileText,
   PenLine,
   Settings,
+  UserCheck,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -70,6 +71,7 @@ const menuGroups = [
     items: [
       { icon: Rocket,    label: "Funding Rounds", path: "/funding-rounds" },
       { icon: Users,     label: "Investors",      path: "/investors" },
+      { icon: UserCheck, label: "Investor Portal", path: "/investor-portal" },
       { icon: Shield,    label: "Anti-Dilution",  path: "/anti-dilution" },
       { icon: FileText,   label: "Instruments",    path: "/instruments" },
     ],

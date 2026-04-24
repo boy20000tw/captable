@@ -13,6 +13,7 @@ import V1RoundsPage from "./pages/v1/Rounds";
 import V1RoundDetailPage from "./pages/v1/RoundDetail";
 import V1InvestorsPage from "./pages/v1/Investors";
 import CompanySettingsPage from "./pages/v1/CompanySettings";
+import InvestorPortalPage from "./pages/v1/InvestorPortal";
 import AntiDilutionPage from "./pages/AntiDilution";
 import InstrumentsPage from "./pages/Instruments";
 import ESignPage from "./pages/ESign";
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/funding-rounds" component={V1RoundsPage} />
       <Route path="/funding-rounds/:id" component={V1RoundDetailPage} />
       <Route path="/investors" component={V1InvestorsPage} />
+      <Route path="/investor-portal" component={InvestorPortalPage} />
       <Route path="/anti-dilution" component={AntiDilutionPage} />
       <Route path="/instruments" component={InstrumentsPage} />
       <Route path="/esign" component={ESignPage} />
