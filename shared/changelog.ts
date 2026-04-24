@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.8.0",
+    date: "2026-04-25",
+    type: "minor",
+    title: "Vesting schedule visualization",
+    description: "Click any ESOP grant to expand an interactive vesting timeline — area chart with cliff/today markers, progress bar, and milestone cards.",
+  },
+  {
     version: "1.7.0",
     date: "2026-04-25",
     type: "minor",

@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
-import { Plus, Edit2, Trash2, Briefcase, Play } from "lucide-react";
+import { Plus, Edit2, Trash2, Briefcase, Play, ChevronDown, ChevronUp } from "lucide-react";
+import { VestingTimeline } from "@/components/v1/VestingTimeline";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -222,6 +223,7 @@ function EsopV1Content() {
   // Exercise dialog state
   const [exerciseDialogGrant, setExerciseDialogGrant] = useState<any | null>(null);
   const [exerciseShares, setExerciseShares] = useState("");
+  const [expandedGrantId, setExpandedGrantId] = useState<number | null>(null);
 
   // ─── Lookup helpers ───────────────────────────────────────────────────────
   const investorMap = useMemo(() => {
@@ -623,11 +625,12 @@ function EsopV1Content() {
                 {filteredGrants.map((g) => {
                   const investor = investorMap.get(g.investorId);
                   const pool = poolMap.get(g.poolId);
+                  const isExpanded = expandedGrantId === g.id;
                   return (
+                    <React.Fragment key={g.id}>
                     <TableRow
-                      key={g.id}
                       className="cursor-pointer hover:bg-secondary/30"
-                      onClick={() => openGrantEdit(g)}
+                      onClick={() => setExpandedGrantId(isExpanded ? null : g.id)}
                     >
                       <TableCell className="font-medium">
                         {investor?.name ?? `Investor #${g.investorId}`}
@@ -641,7 +644,10 @@ function EsopV1Content() {
                       <TableCell className="text-right">{formatNumber(g.sharesExercised)}</TableCell>
                       <TableCell>{grantStatusBadge(g.status as GrantStatus)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        Cliff {g.vestingCliffMonths ?? 0}mo / Total {g.vestingTotalMonths ?? 0}mo
+                        <div className="flex items-center gap-1">
+                          Cliff {g.vestingCliffMonths ?? 0}mo / Total {g.vestingTotalMonths ?? 0}mo
+                          {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
@@ -679,6 +685,16 @@ function EsopV1Content() {
                         </div>
                       </TableCell>
                     </TableRow>
+                    {isExpanded && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="bg-muted/20 p-0">
+                          <div className="px-6 py-4">
+                            <VestingTimeline grant={g} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </TableBody>
