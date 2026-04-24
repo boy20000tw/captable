@@ -1486,7 +1486,7 @@ export async function seedDefaultShareClasses(companyId: number) {
   if (!db) throw new Error("Database not available");
   const defaults: InsertShareClass[] = [
     { companyId, name: "Common", slug: "common", classType: "common", sortOrder: 0 },
-    { companyId, name: "ESOP", slug: "esop", classType: "common", sortOrder: 100 },
+    { companyId, name: "Preferred", slug: "preferred", classType: "preferred", sortOrder: 1 },
   ];
   await db.insert(shareClasses).values(defaults);
 }

@@ -718,7 +718,7 @@ function InvestorEditDialog({
 // Fallback when share_classes table is empty (pre-migration).
 // Only real share class types — funding round linkage is a separate dropdown.
 const SHARE_CLASSES_FALLBACK = [
-  "common", "preferred", "esop",
+  "common", "preferred",
 ] as const;
 
 type RegisterWriteInput = {

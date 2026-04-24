@@ -59,7 +59,7 @@ export type AllocationDialogProps = {
 // Fallback when share_classes table is empty (pre-migration).
 // Only real share class types — funding round linkage is a separate field.
 const SHARE_CLASSES_FALLBACK = [
-  "common", "preferred", "esop",
+  "common", "preferred",
 ] as const;
 
 const CURRENCIES = ["NTD", "USD", "EUR", "JPY", "TWD"] as const;
