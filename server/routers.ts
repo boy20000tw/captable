@@ -1,5 +1,5 @@
 import {
-  protectedProcedure, publicProcedure, router,
+  protectedProcedure, publicProcedure, router, adminProcedure,
   companyProcedure, companyEditorProcedure, companyOwnerAdminProcedure, companyOwnerProcedure,
 } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
@@ -44,6 +44,10 @@ import {
   // Share Classes
   getShareClasses, getShareClassById, getShareClassBySlug,
   createShareClass, updateShareClass, deleteShareClass, seedDefaultShareClasses,
+  // Admin
+  adminListCompanies, adminGetCompanyDetail, adminUpdateCompanyPlan,
+  adminGetCompanyAuditLogs, createAdminAuditLog, getAdminAuditLogs,
+  adminGetPlatformStats,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
@@ -1969,32 +1973,119 @@ export const appRouter = router({
   }),
   admin: router({
     // ─── Danger Zone: Clear All Business Data for the active company ──────
-    // Owner-only. Deletes all rows scoped to ctx.companyId across business tables.
-    // Preserves: users, companies, company_members.
     clearAllData: companyOwnerProcedure
-      .input(z.object({
-        confirmationPhrase: z.string(),
-      }))
+      .input(z.object({ confirmationPhrase: z.string() }))
       .mutation(async ({ input, ctx }) => {
-        // Require exact confirmation phrase to prevent accidental invocation
         if (input.confirmationPhrase !== "CLEAR ALL DATA") {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Confirmation phrase does not match. Type exactly: CLEAR ALL DATA",
-          });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Confirmation phrase does not match." });
         }
         const counts = await truncateAllBusinessData(ctx.companyId);
-        // Re-create an audit log of this action (audit_logs was just truncated for this company)
         await createAuditLog({
-          companyId: ctx.companyId,
-          userId: ctx.user!.id,
-          userName: ctx.user!.name ?? undefined,
-          action: "delete",
-          resourceType: "system",
-          resourceName: "All business data (truncated)",
+          companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+          action: "delete", resourceType: "system", resourceName: "All business data (truncated)",
           changesBefore: JSON.stringify(counts),
         });
         return { success: true, cleared: counts };
+      }),
+
+    // ─── Platform Admin: Dashboard stats ──────────────────────────────────
+    platformStats: adminProcedure.query(async () => {
+      return adminGetPlatformStats();
+    }),
+
+    // ─── Platform Admin: List all companies ───────────────────────────────
+    listCompanies: adminProcedure
+      .input(z.object({ search: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        const all = await adminListCompanies();
+        if (!input?.search) return all;
+        const q = input.search.toLowerCase();
+        return all.filter(c =>
+          c.name.toLowerCase().includes(q) ||
+          c.nameEn?.toLowerCase().includes(q) ||
+          c.contactEmail?.toLowerCase().includes(q)
+        );
+      }),
+
+    // ─── Platform Admin: Company detail ───────────────────────────────────
+    companyDetail: adminProcedure
+      .input(z.object({ companyId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const detail = await adminGetCompanyDetail(input.companyId);
+        if (!detail) throw new TRPCError({ code: "NOT_FOUND", message: "Company not found" });
+        // Log this view
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "view_company",
+          targetCompanyId: input.companyId,
+          targetCompanyName: detail.company.name,
+        });
+        return detail;
+      }),
+
+    // ─── Platform Admin: View company audit logs ──────────────────────────
+    companyAuditLogs: adminProcedure
+      .input(z.object({
+        companyId: z.number(),
+        limit: z.number().min(1).max(500).default(100),
+        offset: z.number().min(0).default(0),
+      }))
+      .query(async ({ input, ctx }) => {
+        const logs = await adminGetCompanyAuditLogs(input.companyId, input.limit, input.offset);
+        // Log this access
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "view_audit_log",
+          targetCompanyId: input.companyId,
+          details: JSON.stringify({ limit: input.limit, offset: input.offset }),
+        });
+        return logs;
+      }),
+
+    // ─── Platform Admin: Update company plan ──────────────────────────────
+    updatePlan: adminProcedure
+      .input(z.object({
+        companyId: z.number(),
+        plan: z.enum(["free", "paid", "custom"]).optional(),
+        planNote: z.string().optional(),
+        isSuspended: z.boolean().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { companyId, ...updates } = input;
+        const before = await adminGetCompanyDetail(companyId);
+        if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Company not found" });
+
+        await adminUpdateCompanyPlan(companyId, updates);
+
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: updates.isSuspended !== undefined
+            ? (updates.isSuspended ? "suspend_company" : "reactivate_company")
+            : "update_plan",
+          targetCompanyId: companyId,
+          targetCompanyName: before.company.name,
+          details: JSON.stringify({
+            before: { plan: before.company.plan, planNote: before.company.planNote, isSuspended: before.company.isSuspended },
+            after: updates,
+          }),
+        });
+        return { success: true };
+      }),
+
+    // ─── Platform Admin: Admin activity log ───────────────────────────────
+    adminAuditLogs: adminProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(500).default(100),
+        offset: z.number().min(0).default(0),
+      }).optional())
+      .query(async ({ input }) => {
+        return getAdminAuditLogs(input?.limit ?? 100, input?.offset ?? 0);
       }),
   }),
 });

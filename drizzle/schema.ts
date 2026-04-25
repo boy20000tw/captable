@@ -66,6 +66,15 @@ export const antiDilutionDefaultEnum = pgEnum("anti_dilution_default", ["none", 
 // Company member role enum
 export const companyMemberRoleEnum = pgEnum("company_member_role", ["owner", "admin", "cfo", "lawyer", "investor", "viewer"]);
 
+// Company subscription plan enum
+export const companyPlanEnum = pgEnum("company_plan", ["free", "paid", "custom"]);
+
+// Admin audit action enum (platform-level admin operations)
+export const adminAuditActionEnum = pgEnum("admin_audit_action", [
+    "view_company", "update_plan", "update_permissions",
+    "view_audit_log", "suspend_company", "reactivate_company",
+]);
+
 // ─── Companies ──────────────────────────────────────────────────────────────
 // The `name` / `slug` were added by the multi-company work. Everything from
 // `nameEn` onwards was added by SPEC-company-settings.md and populates the
@@ -99,6 +108,11 @@ export const companies = pgTable("companies", {
 
     // Preferences
     defaultCurrency: varchar("default_currency", { length: 8 }).default("NTD"),
+
+    // Subscription
+    plan: companyPlanEnum("plan").default("free").notNull(),
+    planNote: text("plan_note"),           // admin memo, e.g. "Enterprise — 3-year contract"
+    isSuspended: boolean("is_suspended").default(false).notNull(),
 
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -166,6 +180,22 @@ export const auditLogs = pgTable("audit_logs", {
 });
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+// ─── Admin Audit Logs (platform-level operations by admin users) ──────────────
+export const adminAuditLogs = pgTable("admin_audit_logs", {
+    id: serial("id").primaryKey(),
+    adminUserId: integer("admin_user_id").notNull(),
+    adminUserName: varchar("admin_user_name", { length: 255 }),
+    adminUserEmail: varchar("admin_user_email", { length: 320 }),
+    action: adminAuditActionEnum("action").notNull(),
+    targetCompanyId: integer("target_company_id"),
+    targetCompanyName: varchar("target_company_name", { length: 255 }),
+    details: text("details"),               // JSON string with before/after or context
+    ipAddress: varchar("ip_address", { length: 64 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AdminAuditLog = typeof adminAuditLogs.$inferSelect;
+export type InsertAdminAuditLog = typeof adminAuditLogs.$inferInsert;
 
 // ─── Shareholders ─────────────────────────────────────────────────────────────
 export const shareholders = pgTable("shareholders", {

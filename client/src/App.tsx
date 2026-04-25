@@ -27,6 +27,9 @@ import TeamPage from "./pages/Team";
 import JoinPage from "./pages/Join";
 import Valuation409APage from "./pages/Valuation409A";
 import Election83bPage from "./pages/Election83b";
+import AdminOverviewPage from "./pages/admin/AdminOverview";
+import AdminCompaniesPage from "./pages/admin/AdminCompanies";
+import AdminActivityPage from "./pages/admin/AdminActivity";
 
 function Router() {
   return (
@@ -53,6 +56,11 @@ function Router() {
       <Route path="/join" component={JoinPage} />
       <Route path="/409a" component={Valuation409APage} />
       <Route path="/83b" component={Election83bPage} />
+
+      {/* Admin panel routes */}
+      <Route path="/admin" component={AdminOverviewPage} />
+      <Route path="/admin/companies" component={AdminCompaniesPage} />
+      <Route path="/admin/activity" component={AdminActivityPage} />
 
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

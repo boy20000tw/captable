@@ -32,6 +32,7 @@ import {
   signingRequests, InsertSigningRequest,
   signingTemplates, InsertSigningTemplate,
   shareClasses, InsertShareClass,
+  adminAuditLogs, InsertAdminAuditLog,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1515,4 +1516,125 @@ export async function seedDefaultShareClasses(companyId: number) {
     { companyId, name: "Preferred", slug: "preferred", classType: "preferred", sortOrder: 1 },
   ];
   await db.insert(shareClasses).values(defaults);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Admin (platform-level) operations
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** List ALL companies with member count (admin overview). */
+export async function adminListCompanies() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: companies.id,
+      name: companies.name,
+      nameEn: companies.nameEn,
+      slug: companies.slug,
+      plan: companies.plan,
+      planNote: companies.planNote,
+      isSuspended: companies.isSuspended,
+      contactEmail: companies.contactEmail,
+      createdAt: companies.createdAt,
+      updatedAt: companies.updatedAt,
+    })
+    .from(companies)
+    .orderBy(desc(companies.createdAt));
+
+  // Get member counts
+  const memberCounts = await db
+    .select({
+      companyId: companyMembers.companyId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(companyMembers)
+    .groupBy(companyMembers.companyId);
+
+  const countMap = new Map(memberCounts.map(m => [m.companyId, m.count]));
+  return rows.map(r => ({ ...r, memberCount: countMap.get(r.id) ?? 0 }));
+}
+
+/** Admin: get company detail (no sensitive business data). */
+export async function adminGetCompanyDetail(companyId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [company] = await db.select().from(companies).where(eq(companies.id, companyId));
+  if (!company) return null;
+
+  const members = await db
+    .select({
+      id: companyMembers.id,
+      userId: companyMembers.userId,
+      role: companyMembers.role,
+      createdAt: companyMembers.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(companyMembers)
+    .leftJoin(users, eq(companyMembers.userId, users.id))
+    .where(eq(companyMembers.companyId, companyId));
+
+  return { company, members };
+}
+
+/** Admin: update company plan/subscription. */
+export async function adminUpdateCompanyPlan(
+  companyId: number,
+  data: { plan?: string; planNote?: string; isSuspended?: boolean }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(companies)
+    .set({ ...data, updatedAt: new Date() } as any)
+    .where(eq(companies.id, companyId));
+}
+
+/** Admin: view audit logs for a specific company. */
+export async function adminGetCompanyAuditLogs(companyId: number, limit = 100, offset = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(auditLogs)
+    .where(eq(auditLogs.companyId, companyId))
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(limit).offset(offset);
+}
+
+/** Admin: create admin audit log entry. */
+export async function createAdminAuditLog(data: InsertAdminAuditLog) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(adminAuditLogs).values(data);
+}
+
+/** Admin: list admin audit logs. */
+export async function getAdminAuditLogs(limit = 100, offset = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(adminAuditLogs)
+    .orderBy(desc(adminAuditLogs.createdAt))
+    .limit(limit).offset(offset);
+}
+
+/** Admin: get platform-wide stats. */
+export async function adminGetPlatformStats() {
+  const db = await getDb();
+  if (!db) return { totalCompanies: 0, totalUsers: 0, planBreakdown: [] };
+
+  const [companyCount] = await db.select({ count: sql<number>`count(*)::int` }).from(companies);
+  const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+
+  const planBreakdown = await db
+    .select({
+      plan: companies.plan,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(companies)
+    .groupBy(companies.plan);
+
+  return {
+    totalCompanies: companyCount?.count ?? 0,
+    totalUsers: userCount?.count ?? 0,
+    planBreakdown,
+  };
 }

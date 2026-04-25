@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.12.0",
+    date: "2026-04-25",
+    type: "minor",
+    title: "Admin panel",
+    description: "Platform admin backend — company management with subscription tiers (Free/Paid/Custom), audit log viewer, plan editor, suspend/reactivate, and admin activity tracking.",
+  },
+  {
     version: "1.11.0",
     date: "2026-04-25",
     type: "minor",

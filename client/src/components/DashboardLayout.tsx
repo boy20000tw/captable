@@ -57,6 +57,7 @@ import {
   FlaskConical,
   DollarSign,
   FileCheck,
+  ShieldCheck,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -413,6 +414,18 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {/* Admin link — only visible to platform admins */}
+            {user?.role === "admin" && (
+              <button
+                onClick={() => setLocation("/admin")}
+                className={`flex items-center gap-2 w-full rounded-md text-xs transition-colors ${
+                  isCollapsed ? "justify-center px-2 py-2" : "px-3 py-2"
+                } text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent`}
+              >
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                {!isCollapsed && <span>Admin Panel</span>}
+              </button>
+            )}
             <VersionBadge collapsed={isCollapsed} />
           </SidebarFooter>
         </Sidebar>
