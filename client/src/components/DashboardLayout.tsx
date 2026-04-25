@@ -11,6 +11,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -19,6 +24,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -44,57 +52,111 @@ import {
   PenLine,
   Settings,
   UserCheck,
+  ChevronRight,
+  BarChart3,
+  FlaskConical,
+  DollarSign,
+  FileCheck,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
-import { Separator } from "./ui/separator";
 
-const menuGroups = [
+type NavItem = {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+};
+
+type NavGroup =
+  | { type: "single"; icon: typeof LayoutDashboard; label: string; path: string }
+  | { type: "group"; icon: typeof LayoutDashboard; label: string; items: NavItem[] };
+
+const navStructure: NavGroup[] = [
   {
-    label: "Overview",
+    type: "single",
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    path: "/",
+  },
+  {
+    type: "group",
+    icon: PieChart,
+    label: "Equity",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+      { icon: PieChart,  label: "Cap Table",       path: "/cap-table" },
+      { icon: BookOpen,  label: "Share Register",  path: "/register" },
+      { icon: Sparkles,  label: "ESOP",            path: "/esop" },
+      { icon: PenLine,   label: "eSignature",      path: "/esign" },
     ],
   },
   {
-    label: "Ownership",
-    items: [
-      { icon: PieChart,  label: "Cap Table",      path: "/cap-table" },
-      { icon: BookOpen,  label: "Share Register", path: "/register" },
-      { icon: Sparkles,  label: "ESOP",           path: "/esop" },
-      { icon: PenLine,   label: "eSignature",     path: "/esign" },
-    ],
-  },
-  {
+    type: "group",
+    icon: Rocket,
     label: "Fundraising",
     items: [
-      { icon: Rocket,    label: "Funding Rounds", path: "/funding-rounds" },
-      { icon: Users,     label: "Investors",      path: "/investors" },
-      { icon: UserCheck, label: "Investor Portal", path: "/investor-portal" },
-      { icon: Shield,    label: "Anti-Dilution",  path: "/anti-dilution" },
-      { icon: FileText,   label: "Instruments",    path: "/instruments" },
+      { icon: Rocket,    label: "Funding Rounds",  path: "/funding-rounds" },
+      { icon: Users,     label: "Investors",       path: "/investors" },
+      { icon: FileText,  label: "Instruments",     path: "/instruments" },
     ],
   },
   {
+    type: "group",
+    icon: BarChart3,
     label: "Analysis",
     items: [
-      { icon: Calculator, label: "Scenario Modeling", path: "/valuation" },
-      { icon: TrendingUp, label: "Projections & DCF",             path: "/projections" },
-      { icon: Droplets,   label: "Waterfall",                     path: "/waterfall" },
+      { icon: Droplets,   label: "Waterfall",          path: "/waterfall" },
+      { icon: Calculator, label: "Scenario Modeling",   path: "/valuation" },
+      { icon: TrendingUp, label: "Projections & DCF",   path: "/projections" },
+      { icon: Shield,     label: "Anti-Dilution",       path: "/anti-dilution" },
     ],
   },
   {
-    label: "System",
+    type: "single",
+    icon: UserCheck,
+    label: "Investor Portal",
+    path: "/investor-portal",
+  },
+  {
+    type: "group",
+    icon: FlaskConical,
+    label: "Advanced",
     items: [
-      { icon: Camera,        label: "Snapshots",         path: "/snapshots" },
-      { icon: ClipboardList, label: "Audit Log",         path: "/audit-log" },
-      { icon: Upload,        label: "Import & Analysis", path: "/import" },
-      { icon: UserCog,       label: "Team",              path: "/team" },
-      { icon: Settings,      label: "Settings",          path: "/settings" },
+      { icon: DollarSign, label: "409A Valuation",   path: "/409a" },
+      { icon: FileCheck,  label: "83(b) Election",   path: "/83b" },
+    ],
+  },
+  {
+    type: "group",
+    icon: Settings,
+    label: "Settings",
+    items: [
+      { icon: Settings,       label: "Company",          path: "/settings" },
+      { icon: UserCog,        label: "Team",             path: "/team" },
+      { icon: Upload,         label: "Import & Analysis", path: "/import" },
+      { icon: Camera,         label: "Snapshots",        path: "/snapshots" },
+      { icon: ClipboardList,  label: "Audit Log",        path: "/audit-log" },
     ],
   },
 ];
+
+/** Helper: check if current location is inside a group */
+function isGroupActive(group: NavGroup, loc: string): boolean {
+  if (group.type === "single") return group.path === loc;
+  return group.items.some(i => i.path === loc);
+}
+
+/** Find the active label for mobile header */
+function getActiveLabel(loc: string): string {
+  for (const g of navStructure) {
+    if (g.type === "single" && g.path === loc) return g.label;
+    if (g.type === "group") {
+      const item = g.items.find(i => i.path === loc);
+      if (item) return item.label;
+    }
+  }
+  return "";
+}
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
 const DEFAULT_WIDTH = 240;
@@ -175,9 +237,6 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
-  const allItems = menuGroups.flatMap(g => g.items);
-  const activeMenuItem = allItems.find(item => item.path === location);
-
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
   }, [isCollapsed]);
@@ -243,47 +302,83 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             </div>
           </SidebarHeader>
 
-          {/* Sidebar Navigation */}
-          <SidebarContent className="gap-0 py-4">
-            {menuGroups.map((group, gi) => (
-              <div key={group.label}>
-                {gi > 0 && !isCollapsed && (
-                  <div className="mx-3 my-2">
-                    <Separator className="bg-sidebar-border" />
-                  </div>
-                )}
-                {!isCollapsed && (
-                  <p
-                    className="px-4 py-1.5 text-[9px] font-600 tracking-[0.18em] uppercase text-sidebar-foreground/40"
-                    style={{ fontFamily: "'Inter', sans-serif" }}
+          {/* Sidebar Navigation — 6 collapsible groups */}
+          <SidebarContent className="gap-0 py-2">
+            <SidebarMenu className="px-2 gap-0.5">
+              {navStructure.map((nav) => {
+                if (nav.type === "single") {
+                  const isActive = location === nav.path;
+                  return (
+                    <SidebarMenuItem key={nav.label}>
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        onClick={() => setLocation(nav.path)}
+                        tooltip={nav.label}
+                        className={`h-9 transition-all text-sm ${
+                          isActive
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        }`}
+                      >
+                        <nav.icon className="h-4 w-4 shrink-0" />
+                        <span>{nav.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                // Collapsible group
+                const groupActive = isGroupActive(nav, location);
+                return (
+                  <Collapsible
+                    key={nav.label}
+                    asChild
+                    defaultOpen={groupActive}
+                    className="group/collapsible"
                   >
-                    {group.label}
-                  </p>
-                )}
-                <SidebarMenu className="px-2">
-                  {group.items.map(item => {
-                    const isActive = location === item.path;
-                    return (
-                      <SidebarMenuItem key={item.path}>
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
                         <SidebarMenuButton
-                          isActive={isActive}
-                          onClick={() => setLocation(item.path)}
-                          tooltip={item.label}
+                          tooltip={nav.label}
                           className={`h-9 transition-all text-sm ${
-                            isActive
-                              ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                            groupActive
+                              ? "text-sidebar-foreground font-medium"
                               : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                           }`}
                         >
-                          <item.icon className="h-4 w-4 shrink-0" />
-                          <span>{item.label}</span>
+                          <nav.icon className="h-4 w-4 shrink-0" />
+                          <span>{nav.label}</span>
+                          <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </div>
-            ))}
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {nav.items.map((item) => {
+                            const isActive = location === item.path;
+                            return (
+                              <SidebarMenuSubItem key={item.path}>
+                                <SidebarMenuSubButton
+                                  onClick={() => setLocation(item.path)}
+                                  isActive={isActive}
+                                  className={`cursor-pointer transition-colors ${
+                                    isActive
+                                      ? "bg-sidebar-primary/10 text-sidebar-primary font-medium"
+                                      : ""
+                                  }`}
+                                >
+                                  <item.icon className="h-3.5 w-3.5 shrink-0" />
+                                  <span>{item.label}</span>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                );
+              })}
+            </SidebarMenu>
           </SidebarContent>
 
           {/* Sidebar Footer */}
@@ -342,7 +437,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               />
             </div>
             <span className="text-sm font-medium tracking-tight truncate max-w-[55%]">
-              {activeMenuItem?.label ?? ""}
+              {getActiveLabel(location)}
             </span>
           </div>
         )}

@@ -25,6 +25,8 @@ import AuditLogPage from "./pages/AuditLog";
 import ImportPage from "./pages/Import";
 import TeamPage from "./pages/Team";
 import JoinPage from "./pages/Join";
+import Valuation409APage from "./pages/Valuation409A";
+import Election83bPage from "./pages/Election83b";
 
 function Router() {
   return (
@@ -49,6 +51,8 @@ function Router() {
       <Route path="/team" component={TeamPage} />
       <Route path="/settings" component={CompanySettingsPage} />
       <Route path="/join" component={JoinPage} />
+      <Route path="/409a" component={Valuation409APage} />
+      <Route path="/83b" component={Election83bPage} />
 
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

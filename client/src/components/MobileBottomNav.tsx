@@ -10,10 +10,18 @@ import {
   Shield,
   FileText,
   MoreHorizontal,
+  Rocket,
+  PenLine,
+  Droplets,
+  Calculator,
+  UserCheck,
+  Settings,
+  UserCog,
+  Upload,
+  Camera,
+  ClipboardList,
+  BarChart3,
 } from "lucide-react";
-
-// On mobile we only surface Overview / Ownership / Fundraising. The Analysis
-// and System groups stay desktop-only — per SPEC-mobile-responsive §背景.
 
 type TabItem = {
   icon: typeof LayoutDashboard;
@@ -28,37 +36,50 @@ type TabSection = {
 
 const mobileSections: TabSection[] = [
   {
-    section: "Overview",
+    section: "Equity",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-      { icon: PieChart, label: "Cap Table", path: "/cap-table" },
-    ],
-  },
-  {
-    section: "Ownership",
-    items: [
-      { icon: BookOpen, label: "Register", path: "/register" },
-      { icon: Sparkles, label: "ESOP", path: "/esop" },
+      { icon: PieChart,  label: "Cap Table",      path: "/cap-table" },
+      { icon: BookOpen,  label: "Share Register",  path: "/register" },
+      { icon: Sparkles,  label: "ESOP",            path: "/esop" },
+      { icon: PenLine,   label: "eSignature",      path: "/esign" },
     ],
   },
   {
     section: "Fundraising",
     items: [
-      { icon: TrendingUp, label: "Rounds", path: "/funding-rounds" },
-      { icon: Users, label: "Investors", path: "/investors" },
-      { icon: Shield, label: "Anti-Dilution", path: "/anti-dilution" },
-      { icon: FileText, label: "Instruments", path: "/instruments" },
+      { icon: Rocket,    label: "Funding Rounds",  path: "/funding-rounds" },
+      { icon: Users,     label: "Investors",       path: "/investors" },
+      { icon: FileText,  label: "Instruments",     path: "/instruments" },
+    ],
+  },
+  {
+    section: "Analysis",
+    items: [
+      { icon: Droplets,   label: "Waterfall",          path: "/waterfall" },
+      { icon: Calculator, label: "Scenario Modeling",   path: "/valuation" },
+      { icon: TrendingUp, label: "Projections & DCF",   path: "/projections" },
+      { icon: Shield,     label: "Anti-Dilution",       path: "/anti-dilution" },
+    ],
+  },
+  {
+    section: "More",
+    items: [
+      { icon: UserCheck,    label: "Investor Portal",   path: "/investor-portal" },
+      { icon: Settings,     label: "Company",           path: "/settings" },
+      { icon: UserCog,      label: "Team",              path: "/team" },
+      { icon: Upload,       label: "Import & Analysis", path: "/import" },
+      { icon: Camera,       label: "Snapshots",         path: "/snapshots" },
+      { icon: ClipboardList, label: "Audit Log",        path: "/audit-log" },
     ],
   },
 ];
 
-// Bottom-bar tabs — the 4 most-used destinations. Everything else lives in
-// the "More" sheet.
+// Bottom-bar tabs — the 4 most-used destinations
 const primaryTabs: TabItem[] = [
-  { icon: LayoutDashboard, label: "Home", path: "/" },
-  { icon: PieChart, label: "Cap Table", path: "/cap-table" },
-  { icon: TrendingUp, label: "Rounds", path: "/funding-rounds" },
-  { icon: Users, label: "Investors", path: "/investors" },
+  { icon: LayoutDashboard, label: "Home",      path: "/" },
+  { icon: PieChart,        label: "Cap Table",  path: "/cap-table" },
+  { icon: Rocket,          label: "Rounds",     path: "/funding-rounds" },
+  { icon: BarChart3,       label: "Analysis",   path: "/waterfall" },
 ];
 
 export default function MobileBottomNav() {

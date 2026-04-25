@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.11.0",
+    date: "2026-04-25",
+    type: "minor",
+    title: "Navigation redesign",
+    description: "Streamlined sidebar from 18 flat items to 6 collapsible groups — Dashboard, Equity, Fundraising, Analysis, Investor Portal, Settings — with auto-expanding active section.",
+  },
+  {
     version: "1.10.0",
     date: "2026-04-25",
     type: "minor",
