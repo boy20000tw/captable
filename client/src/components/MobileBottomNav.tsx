@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -34,57 +35,57 @@ type TabSection = {
   items: TabItem[];
 };
 
-const mobileSections: TabSection[] = [
-  {
-    section: "Equity",
-    items: [
-      { icon: PieChart,  label: "Cap Table",      path: "/cap-table" },
-      { icon: BookOpen,  label: "Share Register",  path: "/register" },
-      { icon: Sparkles,  label: "ESOP",            path: "/esop" },
-      { icon: PenLine,   label: "eSignature",      path: "/esign" },
-    ],
-  },
-  {
-    section: "Fundraising",
-    items: [
-      { icon: Rocket,    label: "Funding Rounds",  path: "/funding-rounds" },
-      { icon: Users,     label: "Investors",       path: "/investors" },
-      { icon: FileText,  label: "Instruments",     path: "/instruments" },
-    ],
-  },
-  {
-    section: "Analysis",
-    items: [
-      { icon: Droplets,   label: "Waterfall",          path: "/waterfall" },
-      { icon: Calculator, label: "Scenario Modeling",   path: "/valuation" },
-      { icon: TrendingUp, label: "Projections & DCF",   path: "/projections" },
-      { icon: Shield,     label: "Anti-Dilution",       path: "/anti-dilution" },
-    ],
-  },
-  {
-    section: "More",
-    items: [
-      { icon: UserCheck,    label: "Investor Portal",   path: "/investor-portal" },
-      { icon: Settings,     label: "Company",           path: "/settings" },
-      { icon: UserCog,      label: "Team",              path: "/team" },
-      { icon: Upload,       label: "Import & Analysis", path: "/import" },
-      { icon: Camera,       label: "Snapshots",         path: "/snapshots" },
-      { icon: ClipboardList, label: "Audit Log",        path: "/audit-log" },
-    ],
-  },
-];
-
-// Bottom-bar tabs — the 4 most-used destinations
-const primaryTabs: TabItem[] = [
-  { icon: LayoutDashboard, label: "Home",      path: "/" },
-  { icon: PieChart,        label: "Cap Table",  path: "/cap-table" },
-  { icon: Rocket,          label: "Rounds",     path: "/funding-rounds" },
-  { icon: BarChart3,       label: "Analysis",   path: "/waterfall" },
-];
-
 export default function MobileBottomNav() {
   const [location, setLocation] = useLocation();
   const [showMore, setShowMore] = useState(false);
+  const { t } = useTranslation("nav");
+
+  const mobileSections: TabSection[] = useMemo(() => [
+    {
+      section: t("equity"),
+      items: [
+        { icon: PieChart,  label: t("equity.capTable"),   path: "/cap-table" },
+        { icon: BookOpen,  label: t("equity.register"),   path: "/register" },
+        { icon: Sparkles,  label: t("equity.esop"),       path: "/esop" },
+        { icon: PenLine,   label: t("equity.esign"),      path: "/esign" },
+      ],
+    },
+    {
+      section: t("fundraising"),
+      items: [
+        { icon: Rocket,    label: t("fundraising.rounds"),      path: "/funding-rounds" },
+        { icon: Users,     label: t("fundraising.investors"),   path: "/investors" },
+        { icon: FileText,  label: t("fundraising.instruments"), path: "/instruments" },
+      ],
+    },
+    {
+      section: t("analysis"),
+      items: [
+        { icon: Droplets,   label: t("analysis.waterfall"),    path: "/waterfall" },
+        { icon: Calculator, label: t("analysis.valuation"),    path: "/valuation" },
+        { icon: TrendingUp, label: t("analysis.projections"),  path: "/projections" },
+        { icon: Shield,     label: t("analysis.antiDilution"), path: "/anti-dilution" },
+      ],
+    },
+    {
+      section: t("settings"),
+      items: [
+        { icon: UserCheck,     label: t("investorPortal"),     path: "/investor-portal" },
+        { icon: Settings,      label: t("settings.company"),   path: "/settings" },
+        { icon: UserCog,       label: t("settings.team"),      path: "/team" },
+        { icon: Upload,        label: t("settings.import"),    path: "/import" },
+        { icon: Camera,        label: t("settings.snapshots"), path: "/snapshots" },
+        { icon: ClipboardList, label: t("settings.auditLog"),  path: "/audit-log" },
+      ],
+    },
+  ], [t]);
+
+  const primaryTabs: TabItem[] = useMemo(() => [
+    { icon: LayoutDashboard, label: t("dashboard"),         path: "/" },
+    { icon: PieChart,        label: t("equity.capTable"),   path: "/cap-table" },
+    { icon: Rocket,          label: t("fundraising.rounds"), path: "/funding-rounds" },
+    { icon: BarChart3,       label: t("analysis"),          path: "/waterfall" },
+  ], [t]);
 
   const isInPrimary = primaryTabs.some((t) => t.path === location);
 
@@ -173,12 +174,12 @@ export default function MobileBottomNav() {
             className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-1 transition-colors ${
               showMore || !isInPrimary ? "text-primary" : "text-muted-foreground"
             }`}
-            aria-label="More"
+            aria-label={t("more")}
           >
             <MoreHorizontal
               className={`h-5 w-5 ${showMore || !isInPrimary ? "stroke-[2.5]" : ""}`}
             />
-            <span className="text-[10px] font-medium">More</span>
+            <span className="text-[10px] font-medium">{t("more")}</span>
           </button>
         </div>
       </nav>

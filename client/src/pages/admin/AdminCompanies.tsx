@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -59,6 +60,8 @@ function CompanyListView({
   setSearch: (s: string) => void;
   onSelect: (id: number) => void;
 }) {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("admin");
   const { data: companies, isLoading } = trpc.admin.listCompanies.useQuery(
     { search: search || undefined },
     { placeholderData: (prev) => prev }
@@ -69,10 +72,10 @@ function CompanyListView({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" /> Companies
+            <Building2 className="h-6 w-6 text-primary" /> {tPages("admin.companies.title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage all registered companies
+            {tPages("admin.companies.desc")}
           </p>
         </div>
       </div>
@@ -81,7 +84,7 @@ function CompanyListView({
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search companies..."
+          placeholder={t("companies.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -97,17 +100,17 @@ function CompanyListView({
             </div>
           ) : !companies || companies.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              No companies found.
+              {t("companies.noCompanies")}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Members</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead>{t("companies.colCompany")}</TableHead>
+                  <TableHead>{t("companies.colPlan")}</TableHead>
+                  <TableHead>{t("companies.colMembers")}</TableHead>
+                  <TableHead>{t("companies.colStatus")}</TableHead>
+                  <TableHead>{t("companies.colCreated")}</TableHead>
                   <TableHead className="w-16"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -124,7 +127,7 @@ function CompanyListView({
                     </TableCell>
                     <TableCell>
                       <Badge className={PLAN_COLORS[c.plan] ?? ""}>
-                        {c.plan === "custom" ? "Custom" : c.plan === "paid" ? "Paid" : "Free"}
+                        {c.plan === "custom" ? t("companies.planCustom") : c.plan === "paid" ? t("companies.planPaid") : t("companies.planFree")}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -135,9 +138,9 @@ function CompanyListView({
                     </TableCell>
                     <TableCell>
                       {c.isSuspended ? (
-                        <Badge variant="destructive">Suspended</Badge>
+                        <Badge variant="destructive">{t("companies.suspended")}</Badge>
                       ) : (
-                        <Badge className="bg-green-100 text-green-700 border-transparent">Active</Badge>
+                        <Badge className="bg-green-100 text-green-700 border-transparent">{t("companies.active")}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -162,6 +165,8 @@ function CompanyListView({
 // ─── Company Detail ──────────────────────────────────────────────────────────
 
 function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: () => void }) {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("admin");
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.admin.companyDetail.useQuery({ companyId });
   const { data: auditLogs, isLoading: logsLoading } = trpc.admin.companyAuditLogs.useQuery(
@@ -201,9 +206,9 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
     return (
       <div className="p-8 max-w-5xl mx-auto">
         <Button variant="ghost" onClick={onBack} className="mb-4 gap-1">
-          <ChevronLeft className="h-4 w-4" /> Back
+          <ChevronLeft className="h-4 w-4" /> {t("companies.back")}
         </Button>
-        <p className="text-sm text-muted-foreground">Company not found.</p>
+        <p className="text-sm text-muted-foreground">{t("companies.notFound")}</p>
       </div>
     );
   }
@@ -215,7 +220,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
       {/* Header */}
       <div>
         <Button variant="ghost" onClick={onBack} className="mb-2 gap-1 -ml-2">
-          <ChevronLeft className="h-4 w-4" /> All Companies
+          <ChevronLeft className="h-4 w-4" /> {t("companies.allCompanies")}
         </Button>
         <div className="flex items-center justify-between">
           <div>
@@ -224,7 +229,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
               <p className="text-sm text-muted-foreground">{company.nameEn}</p>
             )}
           </div>
-          <Button onClick={openEdit} size="sm">Edit Plan</Button>
+          <Button onClick={openEdit} size="sm">{t("companies.editPlan")}</Button>
         </div>
       </div>
 
@@ -232,11 +237,11 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Subscription</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">{t("companies.subscription")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Badge className={`${PLAN_COLORS[company.plan]} text-base px-3 py-1`}>
-              {company.plan === "custom" ? "Custom" : company.plan === "paid" ? "Paid" : "Free"}
+              {company.plan === "custom" ? t("companies.planCustom") : company.plan === "paid" ? t("companies.planPaid") : t("companies.planFree")}
             </Badge>
             {company.planNote && (
               <p className="text-xs text-muted-foreground mt-2">{company.planNote}</p>
@@ -246,24 +251,24 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Status</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">{t("companies.status")}</CardTitle>
           </CardHeader>
           <CardContent>
             {company.isSuspended ? (
-              <Badge variant="destructive" className="text-base px-3 py-1">Suspended</Badge>
+              <Badge variant="destructive" className="text-base px-3 py-1">{t("companies.suspended")}</Badge>
             ) : (
-              <Badge className="bg-green-100 text-green-700 border-transparent text-base px-3 py-1">Active</Badge>
+              <Badge className="bg-green-100 text-green-700 border-transparent text-base px-3 py-1">{t("companies.active")}</Badge>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Contact</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">{t("companies.contact")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm">{company.contactEmail || "—"}</p>
-            <p className="text-xs text-muted-foreground mt-1">Since {formatDate(company.createdAt)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("companies.since", { date: formatDate(company.createdAt) })}</p>
           </CardContent>
         </Card>
       </div>
@@ -271,17 +276,17 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
       {/* Team members */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Team Members</CardTitle>
-          <CardDescription>{members.length} member{members.length !== 1 ? "s" : ""}</CardDescription>
+          <CardTitle className="text-base">{t("companies.teamMembers")}</CardTitle>
+          <CardDescription>{t("companies.memberCount", { count: members.length })}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Joined</TableHead>
+                <TableHead>{t("companies.colName")}</TableHead>
+                <TableHead>{t("companies.colEmail")}</TableHead>
+                <TableHead>{t("companies.colRole")}</TableHead>
+                <TableHead>{t("companies.colJoined")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -303,8 +308,8 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
       {/* Audit Logs */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Recent Activity</CardTitle>
-          <CardDescription>Audit log for this company (last 50 entries)</CardDescription>
+          <CardTitle className="text-base">{t("companies.recentActivity")}</CardTitle>
+          <CardDescription>{t("companies.auditDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {logsLoading ? (
@@ -312,15 +317,15 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
               {[1, 2, 3].map(i => <div key={i} className="h-8 bg-muted rounded animate-pulse" />)}
             </div>
           ) : !auditLogs || auditLogs.length === 0 ? (
-            <div className="p-4 text-sm text-muted-foreground">No activity logged yet.</div>
+            <div className="p-4 text-sm text-muted-foreground">{t("companies.noActivity")}</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Action</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Resource</TableHead>
-                  <TableHead>Time</TableHead>
+                  <TableHead>{t("companies.colAction")}</TableHead>
+                  <TableHead>{t("companies.colUser")}</TableHead>
+                  <TableHead>{t("companies.colResource")}</TableHead>
+                  <TableHead>{t("companies.colTime")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -329,7 +334,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
                     <TableCell>
                       <Badge variant="outline" className="text-xs">{log.action}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{log.userName || "System"}</TableCell>
+                    <TableCell className="text-sm">{log.userName || t("companies.system")}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {log.resourceType ? `${log.resourceType}${log.resourceName ? `: ${log.resourceName}` : ""}` : "—"}
                     </TableCell>
@@ -348,22 +353,22 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Subscription — {company.name}</DialogTitle>
+            <DialogTitle>{t("companies.editSubscription", { name: company.name })}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Plan</Label>
+              <Label>{t("companies.plan")}</Label>
               <Select value={editPlan} onValueChange={setEditPlan}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
+                  <SelectItem value="free">{t("companies.planFree")}</SelectItem>
+                  <SelectItem value="paid">{t("companies.planPaid")}</SelectItem>
+                  <SelectItem value="custom">{t("companies.planCustom")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Note</Label>
+              <Label>{t("companies.note")}</Label>
               <Textarea
                 value={editNote}
                 onChange={(e) => setEditNote(e.target.value)}
@@ -380,12 +385,12 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
                 className="h-4 w-4 rounded border-border"
               />
               <Label htmlFor="suspended" className="text-sm">
-                Suspend this company (blocks access)
+                {t("companies.suspendCompany")}
               </Label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>{t("companies.cancel")}</Button>
             <Button
               onClick={() => updateMut.mutate({
                 companyId,
@@ -395,7 +400,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
               })}
               disabled={updateMut.isPending}
             >
-              Save Changes
+              {t("companies.saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>

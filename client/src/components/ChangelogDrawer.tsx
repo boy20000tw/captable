@@ -1,28 +1,32 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Sparkles, Wrench, Rocket } from "lucide-react";
 import { CHANGELOG, CURRENT_VERSION, type ChangelogEntry } from "../../../shared/changelog";
 
-const TYPE_CONFIG: Record<ChangelogEntry["type"], { label: string; icon: typeof Sparkles; cls: string }> = {
-  major: { label: "major", icon: Rocket, cls: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
-  minor: { label: "feature", icon: Sparkles, cls: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-  patch: { label: "fix", icon: Wrench, cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
-};
-
 export function VersionBadge({ collapsed }: { collapsed?: boolean }) {
+  const { t } = useTranslation("common");
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center justify-between w-full px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors group"
+        className={`rounded-md hover:bg-sidebar-accent transition-colors group ${
+          collapsed
+            ? "flex items-center justify-center w-full py-2"
+            : "flex items-center justify-between w-full px-2 py-1.5"
+        }`}
       >
-        <span className="text-[10px] font-mono text-sidebar-foreground/40 group-hover:text-sidebar-foreground/60 transition-colors">
+        <span
+          className={`text-[10px] font-mono text-sidebar-foreground/40 group-hover:text-sidebar-foreground/60 transition-colors ${
+            collapsed ? "[writing-mode:vertical-lr] rotate-180" : ""
+          }`}
+        >
           v{CURRENT_VERSION}
         </span>
         {!collapsed && (
           <span className="text-[10px] text-sidebar-foreground/30 group-hover:text-sidebar-foreground/50 transition-colors">
-            What's new
+            {t("changelog.whatsNew")}
           </span>
         )}
       </button>
@@ -33,6 +37,14 @@ export function VersionBadge({ collapsed }: { collapsed?: boolean }) {
 }
 
 function ChangelogDrawer({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation("common");
+
+  const TYPE_CONFIG: Record<ChangelogEntry["type"], { label: string; icon: typeof Sparkles; cls: string }> = {
+    major: { label: t("changelog.typeMajor"), icon: Rocket, cls: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" },
+    minor: { label: t("changelog.typeFeature"), icon: Sparkles, cls: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+    patch: { label: t("changelog.typeFix"), icon: Wrench, cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" },
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -46,9 +58,9 @@ function ChangelogDrawer({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold">Changelog</h2>
+            <h2 className="text-base font-semibold">{t("changelog.title")}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Current version: <span className="font-mono font-medium">v{CURRENT_VERSION}</span>
+              {t("changelog.currentVersion")} <span className="font-mono font-medium">v{CURRENT_VERSION}</span>
             </p>
           </div>
           <button
@@ -109,7 +121,7 @@ function ChangelogDrawer({ onClose }: { onClose: () => void }) {
         {/* Footer */}
         <div className="px-6 py-3 border-t border-border text-center shrink-0">
           <p className="text-[10px] text-muted-foreground">
-            Caploom — Cap Table Manager
+            {t("changelog.footer")}
           </p>
         </div>
       </div>

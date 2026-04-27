@@ -26,6 +26,10 @@ import {
   getCompanyById, createCompany, updateCompany,
   getUserCompanyMemberships, listCompanyMembers,
   addCompanyMember, updateCompanyMemberRole, removeCompanyMember,
+  // 409A Valuations
+  get409aValuations, get409aValuationById, getActive409aValuation, create409aValuation, update409aValuation, delete409aValuation,
+  // 83(b) Elections
+  get83bElections, get83bElectionById, getPending83bElections, create83bElection, update83bElection, delete83bElection,
   // V1
   getAllInvestors, getInvestorById, createInvestor, updateInvestor, deleteInvestor,
   getAllocationsByCompany, getAllocationById, createAllocation, updateAllocation, deleteAllocation,
@@ -48,6 +52,19 @@ import {
   adminListCompanies, adminGetCompanyDetail, adminUpdateCompanyPlan,
   adminGetCompanyAuditLogs, createAdminAuditLog, getAdminAuditLogs,
   adminGetPlatformStats,
+  // Notifications
+  getNotifications, getUnreadNotificationCount, createNotification,
+  markNotificationRead, markAllNotificationsRead, deleteNotification,
+  // Share Transfers
+  getShareTransfers, getShareTransferById, createShareTransfer,
+  updateShareTransfer, deleteShareTransfer,
+  // Tech Share Tax (TW)
+  getTechShareTaxRecords, getTechShareTaxRecordById, getDeferralExpiringRecords,
+  createTechShareTaxRecord, updateTechShareTaxRecord, deleteTechShareTaxRecord,
+  // Closed Company (TW)
+  getClosedCompanyProvision, upsertClosedCompanyProvision,
+  getClosedCompanyShareRights, getClosedCompanyShareRightById,
+  createClosedCompanyShareRight, updateClosedCompanyShareRight, deleteClosedCompanyShareRight,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
@@ -1938,6 +1955,520 @@ const investorPortalRouter = router({
   }),
 });
 
+// ─── 409A Valuation Router ───────────────────────────────────────────────────────
+const valuation409aRouter = router({
+  list: companyProcedure.query(({ ctx }) => get409aValuations(ctx.companyId)),
+
+  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) =>
+    get409aValuationById(ctx.companyId, input.id)
+  ),
+
+  active: companyProcedure.query(({ ctx }) => getActive409aValuation(ctx.companyId)),
+
+  create: companyEditorProcedure.input(z.object({
+    valuationDate: z.string(),
+    expiryDate: z.string().optional(),
+    status: z.enum(["active", "expired", "superseded"]).default("active"),
+    fmvPerShare: z.string().optional(),
+    currency: z.string().default("USD"),
+    fmvPerShareNtd: z.string().optional(),
+    fmvPerShareUsd: z.string().optional(),
+    commonStockValueNtd: z.string().optional(),
+    preferredStockValueNtd: z.string().optional(),
+    totalCompanyValueNtd: z.string().optional(),
+    valuationFirm: z.string().optional(),
+    reportUrl: z.string().optional(),
+    method: z.enum(["dcf", "market_comparable", "asset_based", "409a_safe_harbor", "other"]).default("dcf"),
+    relatedRoundId: z.number().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await create409aValuation({
+      ...input,
+      companyId: ctx.companyId,
+      valuationDate: input.valuationDate as any,
+      expiryDate: input.expiryDate as any,
+    });
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "create",
+      resourceType: "409a_valuation",
+      resourceId: result?.id,
+      resourceName: `409A Valuation - ${input.valuationDate}`,
+      changesAfter: JSON.stringify(input),
+    });
+    return result;
+  }),
+
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      valuationDate: z.string().optional(),
+      expiryDate: z.string().optional(),
+      status: z.enum(["active", "expired", "superseded"]).optional(),
+      fmvPerShare: z.string().optional(),
+      currency: z.string().optional(),
+      fmvPerShareNtd: z.string().optional(),
+      fmvPerShareUsd: z.string().optional(),
+      commonStockValueNtd: z.string().optional(),
+      preferredStockValueNtd: z.string().optional(),
+      totalCompanyValueNtd: z.string().optional(),
+      valuationFirm: z.string().optional(),
+      reportUrl: z.string().optional(),
+      method: z.enum(["dcf", "market_comparable", "asset_based", "409a_safe_harbor", "other"]).optional(),
+      relatedRoundId: z.number().optional(),
+      notes: z.string().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    const updateData: any = { ...input.data };
+    if (input.data.valuationDate) updateData.valuationDate = input.data.valuationDate as any;
+    if (input.data.expiryDate) updateData.expiryDate = input.data.expiryDate as any;
+
+    const result = await update409aValuation(ctx.companyId, input.id, updateData);
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "update",
+      resourceType: "409a_valuation",
+      resourceId: input.id,
+      resourceName: `409A Valuation #${input.id}`,
+      changesAfter: JSON.stringify(input.data),
+    });
+    return result;
+  }),
+
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    const result = await delete409aValuation(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "delete",
+      resourceType: "409a_valuation",
+      resourceId: input.id,
+      resourceName: `409A Valuation #${input.id}`,
+    });
+    return result;
+  }),
+});
+
+// ─── 83(b) Election Router ───────────────────────────────────────────────────────
+const election83bRouter = router({
+  list: companyProcedure.query(({ ctx }) => get83bElections(ctx.companyId)),
+
+  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) =>
+    get83bElectionById(ctx.companyId, input.id)
+  ),
+
+  pending: companyProcedure.query(({ ctx }) => getPending83bElections(ctx.companyId)),
+
+  create: companyEditorProcedure.input(z.object({
+    grantId: z.number().optional(),
+    recipientName: z.string().min(1),
+    recipientEmail: z.string().email().optional(),
+    grantDate: z.string(),
+    filingDeadline: z.string(),
+    sharesSubject: z.number().min(1),
+    fmvPerShare: z.string().optional(),
+    amountPaid: z.string().optional(),
+    currency: z.string().default("USD"),
+    propertyDescription: z.string().optional(),
+    status: z.enum(["pending", "filed", "confirmed", "missed"]).default("pending"),
+    filedDate: z.string().optional(),
+    irsConfirmationDate: z.string().optional(),
+    employerCopyDate: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await create83bElection({
+      ...input,
+      companyId: ctx.companyId,
+      grantDate: input.grantDate as any,
+      filingDeadline: input.filingDeadline as any,
+      filedDate: input.filedDate as any,
+      irsConfirmationDate: input.irsConfirmationDate as any,
+      employerCopyDate: input.employerCopyDate as any,
+    });
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "create",
+      resourceType: "83b_election",
+      resourceId: result?.id,
+      resourceName: `83(b) Election - ${input.recipientName}`,
+      changesAfter: JSON.stringify(input),
+    });
+    return result;
+  }),
+
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      grantId: z.number().optional(),
+      recipientName: z.string().min(1).optional(),
+      recipientEmail: z.string().email().optional(),
+      grantDate: z.string().optional(),
+      filingDeadline: z.string().optional(),
+      sharesSubject: z.number().min(1).optional(),
+      fmvPerShare: z.string().optional(),
+      amountPaid: z.string().optional(),
+      currency: z.string().optional(),
+      propertyDescription: z.string().optional(),
+      status: z.enum(["pending", "filed", "confirmed", "missed"]).optional(),
+      filedDate: z.string().optional(),
+      irsConfirmationDate: z.string().optional(),
+      employerCopyDate: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    const updateData: any = { ...input.data };
+    if (input.data.grantDate) updateData.grantDate = input.data.grantDate as any;
+    if (input.data.filingDeadline) updateData.filingDeadline = input.data.filingDeadline as any;
+    if (input.data.filedDate) updateData.filedDate = input.data.filedDate as any;
+    if (input.data.irsConfirmationDate) updateData.irsConfirmationDate = input.data.irsConfirmationDate as any;
+    if (input.data.employerCopyDate) updateData.employerCopyDate = input.data.employerCopyDate as any;
+
+    const result = await update83bElection(ctx.companyId, input.id, updateData);
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "update",
+      resourceType: "83b_election",
+      resourceId: input.id,
+      resourceName: `83(b) Election #${input.id}`,
+      changesAfter: JSON.stringify(input.data),
+    });
+    return result;
+  }),
+
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    const result = await delete83bElection(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "delete",
+      resourceType: "83b_election",
+      resourceId: input.id,
+      resourceName: `83(b) Election #${input.id}`,
+    });
+    return result;
+  }),
+});
+
+// ─── Notifications Router ────────────────────────────────────────────────────
+const notificationsRouter = router({
+  list: companyProcedure
+    .input(z.object({ limit: z.number().min(1).max(200).default(50), offset: z.number().min(0).default(0) }).optional())
+    .query(({ ctx, input }) => getNotifications(ctx.companyId, ctx.user!.id, input?.limit ?? 50, input?.offset ?? 0)),
+
+  unreadCount: companyProcedure.query(({ ctx }) => getUnreadNotificationCount(ctx.companyId, ctx.user!.id)),
+
+  create: companyEditorProcedure.input(z.object({
+    userId: z.number().optional(),
+    type: z.enum(["funding_round", "document_signing", "vesting_milestone", "valuation_409a", "election_83b", "share_transfer", "general"]),
+    title: z.string().min(1),
+    message: z.string().optional(),
+    channel: z.enum(["in_app", "email", "both"]).default("both"),
+    linkUrl: z.string().optional(),
+    metadata: z.string().optional(),
+  })).mutation(({ input, ctx }) => createNotification({ ...input, companyId: ctx.companyId })),
+
+  markRead: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(({ input, ctx }) => markNotificationRead(ctx.companyId, input.id)),
+
+  markAllRead: companyProcedure
+    .mutation(({ ctx }) => markAllNotificationsRead(ctx.companyId, ctx.user!.id)),
+
+  delete: companyEditorProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(({ input, ctx }) => deleteNotification(ctx.companyId, input.id)),
+});
+
+// ─── Share Transfers Router ──────────────────────────────────────────────────
+const shareTransfersRouter = router({
+  list: companyProcedure.query(({ ctx }) => getShareTransfers(ctx.companyId)),
+
+  get: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .query(({ input, ctx }) => getShareTransferById(ctx.companyId, input.id)),
+
+  create: companyEditorProcedure.input(z.object({
+    sellerInvestorId: z.number(),
+    buyerInvestorId: z.number().optional(),
+    buyerName: z.string().optional(),
+    buyerEmail: z.string().optional(),
+    shareClass: z.string(),
+    shares: z.number().int().positive(),
+    pricePerShare: z.string().optional(),
+    totalPrice: z.string().optional(),
+    currency: z.string().default("USD"),
+    transferDate: z.string(),
+    status: z.enum(["pending", "rofr_notice", "approved", "completed", "rejected"]).default("pending"),
+    hasRofr: z.boolean().default(false),
+    rofrDeadline: z.string().optional(),
+    boardApprovalDate: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await createShareTransfer({ ...input, companyId: ctx.companyId });
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "create",
+      resourceType: "share_transfer",
+      resourceName: `Transfer: ${input.shares} ${input.shareClass} shares`,
+      changesAfter: JSON.stringify(input),
+    });
+    return result;
+  }),
+
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      buyerInvestorId: z.number().optional(),
+      buyerName: z.string().optional(),
+      buyerEmail: z.string().optional(),
+      shareClass: z.string().optional(),
+      shares: z.number().int().positive().optional(),
+      pricePerShare: z.string().optional(),
+      totalPrice: z.string().optional(),
+      currency: z.string().optional(),
+      transferDate: z.string().optional(),
+      status: z.enum(["pending", "rofr_notice", "approved", "completed", "rejected"]).optional(),
+      hasRofr: z.boolean().optional(),
+      rofrDeadline: z.string().optional(),
+      rofrWaivedAt: z.string().optional(),
+      boardApprovalDate: z.string().optional(),
+      registerEntryId: z.number().optional(),
+      notes: z.string().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await updateShareTransfer(ctx.companyId, input.id, input.data as any);
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "update",
+      resourceType: "share_transfer",
+      resourceId: input.id,
+      resourceName: `Share Transfer #${input.id}`,
+      changesAfter: JSON.stringify(input.data),
+    });
+    return result;
+  }),
+
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteShareTransfer(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "delete",
+      resourceType: "share_transfer",
+      resourceId: input.id,
+      resourceName: `Share Transfer #${input.id}`,
+    });
+    return { success: true };
+  }),
+});
+
+// ─── Tech Share Tax Router (台灣法規) ────────────────────────────────────────
+const techShareTaxRouter = router({
+  list: companyProcedure.query(({ ctx }) => getTechShareTaxRecords(ctx.companyId)),
+
+  get: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .query(({ input, ctx }) => getTechShareTaxRecordById(ctx.companyId, input.id)),
+
+  expiring: companyProcedure
+    .input(z.object({ withinDays: z.number().default(60) }).optional())
+    .query(({ input, ctx }) => getDeferralExpiringRecords(ctx.companyId, input?.withinDays ?? 60)),
+
+  create: companyEditorProcedure.input(z.object({
+    grantId: z.number().optional(),
+    holderName: z.string().min(1),
+    shareType: z.enum(["tech_share", "rsa"]),
+    acquisitionDate: z.string(),
+    sharesAcquired: z.number().int().positive(),
+    acquisitionFmv: z.string().optional(),
+    paidAmount: z.string().optional(),
+    isDeferralEligible: z.boolean().default(false),
+    deferralStartDate: z.string().optional(),
+    deferralExpiryDate: z.string().optional(),
+    holdingPeriodMet: z.boolean().default(false),
+    vestingDate: z.string().optional(),
+    vestingFmv: z.string().optional(),
+    dispositionDate: z.string().optional(),
+    dispositionFmv: z.string().optional(),
+    dispositionType: z.enum(["transfer", "resignation", "ipo", "other"]).optional(),
+    taxableIncome: z.string().optional(),
+    estimatedTax: z.string().optional(),
+    taxStatus: z.enum(["deferred", "taxable", "filed", "exempt"]).default("deferred"),
+    filingDeadline: z.string().optional(),
+    filingDate: z.string().optional(),
+    filingReference: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await createTechShareTaxRecord({ ...input, companyId: ctx.companyId });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "create", resourceType: "tech_share_tax",
+      resourceName: `${input.shareType === "rsa" ? "RSA" : "技術股"}: ${input.holderName}`,
+      changesAfter: JSON.stringify(input),
+    });
+    return result;
+  }),
+
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      holderName: z.string().optional(),
+      shareType: z.enum(["tech_share", "rsa"]).optional(),
+      acquisitionDate: z.string().optional(),
+      sharesAcquired: z.number().int().positive().optional(),
+      acquisitionFmv: z.string().optional(),
+      paidAmount: z.string().optional(),
+      isDeferralEligible: z.boolean().optional(),
+      deferralStartDate: z.string().optional(),
+      deferralExpiryDate: z.string().optional(),
+      holdingPeriodMet: z.boolean().optional(),
+      vestingDate: z.string().optional(),
+      vestingFmv: z.string().optional(),
+      dispositionDate: z.string().optional(),
+      dispositionFmv: z.string().optional(),
+      dispositionType: z.enum(["transfer", "resignation", "ipo", "other"]).optional(),
+      taxableIncome: z.string().optional(),
+      estimatedTax: z.string().optional(),
+      taxStatus: z.enum(["deferred", "taxable", "filed", "exempt"]).optional(),
+      filingDeadline: z.string().optional(),
+      filingDate: z.string().optional(),
+      filingReference: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await updateTechShareTaxRecord(ctx.companyId, input.id, input.data as any);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "tech_share_tax", resourceId: input.id,
+      resourceName: `Tech Share Tax #${input.id}`, changesAfter: JSON.stringify(input.data),
+    });
+    return result;
+  }),
+
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteTechShareTaxRecord(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "delete", resourceType: "tech_share_tax", resourceId: input.id,
+      resourceName: `Tech Share Tax #${input.id}`,
+    });
+    return { success: true };
+  }),
+});
+
+// ─── Closed Company Router (閉鎖性公司 — 台灣法規) ───────────────────────────
+const closedCompanyRouter = router({
+  // Company-level provisions (single record per company)
+  getProvision: companyProcedure.query(({ ctx }) => getClosedCompanyProvision(ctx.companyId)),
+
+  upsertProvision: companyEditorProcedure.input(z.object({
+    isClosedCompany: z.boolean(),
+    parValueType: z.enum(["par", "no_par"]).default("par"),
+    transferRestriction: z.enum(["none", "board_approval", "shareholder_approval", "custom"]).default("none"),
+    transferDescription: z.string().optional(),
+    articlesUrl: z.string().optional(),
+    effectiveDate: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await upsertClosedCompanyProvision({ ...input, companyId: ctx.companyId });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "closed_company_provision",
+      resourceName: "閉鎖性公司設定", changesAfter: JSON.stringify(input),
+    });
+    return result;
+  }),
+
+  // Share class rights (multiple records)
+  listRights: companyProcedure.query(({ ctx }) => getClosedCompanyShareRights(ctx.companyId)),
+
+  getRight: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .query(({ input, ctx }) => getClosedCompanyShareRightById(ctx.companyId, input.id)),
+
+  createRight: companyEditorProcedure.input(z.object({
+    shareClassId: z.number().optional(),
+    shareClassName: z.string().min(1),
+    votesPerShare: z.string().default("1.00"),
+    hasVetoRight: z.boolean().default(false),
+    vetoMatters: z.string().optional(),
+    guaranteedBoardSeats: z.number().int().default(0),
+    boardObserverRights: z.boolean().default(false),
+    dividendPriority: z.enum(["cumulative", "non_cumulative", "participating", "none"]).default("none"),
+    dividendRate: z.string().optional(),
+    liquidationPriority: z.number().int().default(1),
+    liquidationMultiple: z.string().optional(),
+    isConvertible: z.boolean().default(false),
+    conversionRatio: z.string().optional(),
+    conversionTrigger: z.string().optional(),
+    customProvisions: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await createClosedCompanyShareRight({ ...input, companyId: ctx.companyId });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "create", resourceType: "closed_company_share_right",
+      resourceName: `特別股條款: ${input.shareClassName}`, changesAfter: JSON.stringify(input),
+    });
+    return result;
+  }),
+
+  updateRight: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      shareClassId: z.number().optional(),
+      shareClassName: z.string().optional(),
+      votesPerShare: z.string().optional(),
+      hasVetoRight: z.boolean().optional(),
+      vetoMatters: z.string().optional(),
+      guaranteedBoardSeats: z.number().int().optional(),
+      boardObserverRights: z.boolean().optional(),
+      dividendPriority: z.enum(["cumulative", "non_cumulative", "participating", "none"]).optional(),
+      dividendRate: z.string().optional(),
+      liquidationPriority: z.number().int().optional(),
+      liquidationMultiple: z.string().optional(),
+      isConvertible: z.boolean().optional(),
+      conversionRatio: z.string().optional(),
+      conversionTrigger: z.string().optional(),
+      customProvisions: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await updateClosedCompanyShareRight(ctx.companyId, input.id, input.data as any);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "closed_company_share_right", resourceId: input.id,
+      resourceName: `特別股條款 #${input.id}`, changesAfter: JSON.stringify(input.data),
+    });
+    return result;
+  }),
+
+  deleteRight: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteClosedCompanyShareRight(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "delete", resourceType: "closed_company_share_right", resourceId: input.id,
+      resourceName: `特別股條款 #${input.id}`,
+    });
+    return { success: true };
+  }),
+});
+
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query(async (opts) => {
@@ -1963,6 +2494,12 @@ export const appRouter = router({
   auditLog: auditLogRouter,
   financialProjections: financialProjectionsRouter,
   dcf: dcfRouter,
+  valuation409a: valuation409aRouter,
+  election83b: election83bRouter,
+  notifications: notificationsRouter,
+  shareTransfers: shareTransfersRouter,
+  techShareTax: techShareTaxRouter,
+  closedCompany: closedCompanyRouter,
   v1: router({
     investors: v1InvestorsRouter,
     allocations: v1AllocationsRouter,

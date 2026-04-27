@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
 import {
@@ -112,21 +113,6 @@ type SimResponse = {
 
 // ─── Display helpers ────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<InstrumentType, string> = {
-  safe: "SAFE",
-  convertible_note: "Convertible Note",
-};
-const TYPE_COLORS: Record<InstrumentType, string> = {
-  safe: "bg-purple-100 text-purple-800",
-  convertible_note: "bg-amber-100 text-amber-800",
-};
-const STATUS_COLORS: Record<InstrumentStatus, string> = {
-  active: "bg-green-100 text-green-800",
-  converted: "bg-slate-100 text-slate-600",
-  cancelled: "bg-gray-100 text-gray-500",
-  matured: "bg-yellow-100 text-yellow-800",
-};
-
 function fmtNumber(n: number | string | null | undefined): string {
   if (n == null) return "—";
   const num = typeof n === "string" ? parseFloat(n) : n;
@@ -155,6 +141,8 @@ function fmtPct(n: number | string | null | undefined): string {
 // ─── Main content ───────────────────────────────────────────────────────────
 
 function InstrumentsContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("fundraising");
   const { canEdit } = usePermissions();
   const utils = trpc.useUtils();
 
@@ -173,13 +161,28 @@ function InstrumentsContent() {
   const [simulating, setSimulating] = useState(false);
   const [executing, setExecuting] = useState(false);
 
+  const TYPE_LABELS = (): Record<InstrumentType, string> => ({
+    safe: t("instruments.safe"),
+    convertible_note: t("instruments.convertibleNote"),
+  });
+  const TYPE_COLORS: Record<InstrumentType, string> = {
+    safe: "bg-purple-100 text-purple-800",
+    convertible_note: "bg-amber-100 text-amber-800",
+  };
+  const STATUS_COLORS: Record<InstrumentStatus, string> = {
+    active: "bg-green-100 text-green-800",
+    converted: "bg-slate-100 text-slate-600",
+    cancelled: "bg-gray-100 text-gray-500",
+    matured: "bg-yellow-100 text-yellow-800",
+  };
+
   const createInstrument = trpc.instruments.create.useMutation({
     onSuccess: () => {
       utils.instruments.list.invalidate();
       setShowForm(false);
       setEditingId(null);
       setForm(emptyForm);
-      toast.success("Instrument added");
+      toast.success(t("instruments.instrumentCreated"));
     },
     onError: (err) => toast.error(err.message),
   });
@@ -190,7 +193,7 @@ function InstrumentsContent() {
       setShowForm(false);
       setEditingId(null);
       setForm(emptyForm);
-      toast.success("Instrument updated");
+      toast.success(t("instruments.instrumentUpdated"));
     },
     onError: (err) => toast.error(err.message),
   });
@@ -198,7 +201,7 @@ function InstrumentsContent() {
   const deleteInstrument = trpc.instruments.delete.useMutation({
     onSuccess: () => {
       utils.instruments.list.invalidate();
-      toast.success("Instrument deleted");
+      toast.success(t("instruments.instrumentDeleted"));
     },
     onError: (err) => toast.error(err.message),
   });
@@ -206,7 +209,7 @@ function InstrumentsContent() {
   const executeConversion = trpc.instruments.executeConversion.useMutation({
     onSuccess: (r) => {
       utils.instruments.list.invalidate();
-      toast.success(`Converted ${r.count} instrument${r.count === 1 ? "" : "s"}`);
+      toast.success(t("instruments.conversionSuccess") || `Converted ${r.count} instrument${r.count === 1 ? "" : "s"}`);
       setSimResults(null);
       setShowSimulator(false);
       setSimInput(emptySim);
@@ -385,10 +388,10 @@ function InstrumentsContent() {
             style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
           >
             <Wrench className="h-7 w-7 text-primary" />
-            Instruments
+            {t("instruments.title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Track SAFEs and convertible notes. Simulate how they convert in your next round.
+            {t("instruments.desc")}
           </p>
         </div>
         {canEdit && (
@@ -397,7 +400,7 @@ function InstrumentsContent() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium"
           >
             <Plus className="h-4 w-4" />
-            Add Instrument
+            {t("instruments.addInstrument")}
           </button>
         )}
       </div>
@@ -405,35 +408,35 @@ function InstrumentsContent() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="border rounded-lg p-4 bg-card">
-          <div className="text-sm text-muted-foreground">Total</div>
+          <div className="text-sm text-muted-foreground">{t("instruments.totalInstruments") || "Total"}</div>
           <div className="text-2xl font-bold mt-1">{instruments?.length ?? 0}</div>
           <div className="text-xs text-muted-foreground mt-1">
-            {summary.active} active · {summary.converted} converted
+            {summary.active} {t("instruments.active")} · {summary.converted} {t("instruments.converted")}
           </div>
         </div>
         <div className="border rounded-lg p-4 bg-card">
-          <div className="text-sm text-muted-foreground">SAFEs</div>
+          <div className="text-sm text-muted-foreground">{t("instruments.safe")}</div>
           <div className="text-2xl font-bold mt-1 text-purple-700">{summary.safe}</div>
         </div>
         <div className="border rounded-lg p-4 bg-card">
-          <div className="text-sm text-muted-foreground">Convertible Notes</div>
+          <div className="text-sm text-muted-foreground">{t("instruments.convertibleNote")}</div>
           <div className="text-2xl font-bold mt-1 text-amber-700">{summary.convertible_note}</div>
         </div>
       </div>
 
       {/* Tab filter */}
       <div className="flex items-center gap-1 border-b">
-        {(["all", "safe", "convertible_note"] as const).map((t) => (
+        {(["all", "safe", "convertible_note"] as const).map((tabType) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabType}
+            onClick={() => setTab(tabType)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === t
+              tab === tabType
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "all" ? "All" : TYPE_LABELS[t]}
+            {tabType === "all" ? t("instruments.all") || "All" : TYPE_LABELS()[tabType]}
           </button>
         ))}
       </div>
@@ -442,36 +445,36 @@ function InstrumentsContent() {
       {showForm && canEdit && (
         <div className="border rounded-lg p-6 bg-card space-y-4">
           <h3 className="font-semibold text-lg">
-            {editingId != null ? "Edit Instrument" : "New Instrument"}
+            {editingId != null ? t("instruments.editDialog") : t("instruments.newDialog")}
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Name *</label>
+              <label className="text-sm font-medium">{t("instruments.name")} *</label>
               <input
                 type="text"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                placeholder="e.g. ACME SAFE #1"
+                placeholder={t("instruments.namePlaceholder") || "e.g. ACME SAFE #1"}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Type *</label>
+              <label className="text-sm font-medium">{t("instruments.type")} *</label>
               <select
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background disabled:opacity-60"
                 value={form.type}
                 disabled={editingId != null}
                 onChange={(e) => setForm({ ...form, type: e.target.value as InstrumentType })}
               >
-                <option value="safe">SAFE</option>
-                <option value="convertible_note">Convertible Note</option>
+                <option value="safe">{t("instruments.safe")}</option>
+                <option value="convertible_note">{t("instruments.convertibleNote")}</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Investor *</label>
+              <label className="text-sm font-medium">{t("instruments.investor")} *</label>
               <select
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background disabled:opacity-60"
                 value={form.investorId}
@@ -480,7 +483,7 @@ function InstrumentsContent() {
                   setForm({ ...form, investorId: e.target.value ? Number(e.target.value) : "" })
                 }
               >
-                <option value="">Select investor…</option>
+                <option value="">{t("instruments.selectInvestor") || "Select investor…"}</option>
                 {(investors ?? []).map((i) => (
                   <option key={i.id} value={i.id}>
                     {i.name}
@@ -490,7 +493,7 @@ function InstrumentsContent() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Funding Round</label>
+              <label className="text-sm font-medium">{t("instruments.fundingRound")}</label>
               <select
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 value={form.fundingRoundId}
@@ -498,7 +501,7 @@ function InstrumentsContent() {
                   setForm({ ...form, fundingRoundId: e.target.value ? Number(e.target.value) : "" })
                 }
               >
-                <option value="">— None —</option>
+                <option value="">{t("instruments.noRound") || "— None —"}</option>
                 {(rounds ?? []).map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -508,22 +511,22 @@ function InstrumentsContent() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Investment Amount (NTD) *</label>
+              <label className="text-sm font-medium">{t("instruments.investmentAmount")} *</label>
               <input
                 type="number"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                placeholder="e.g. 5000000"
+                placeholder={t("instruments.investmentAmountPlaceholder") || "e.g. 5000000"}
                 value={form.investmentAmountNtd}
                 onChange={(e) => setForm({ ...form, investmentAmountNtd: e.target.value })}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Investment Amount (USD)</label>
+              <label className="text-sm font-medium">{t("instruments.investmentAmountUsd") || "Investment Amount (USD)"}</label>
               <input
                 type="number"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                placeholder="optional"
+                placeholder={t("instruments.optional") || "optional"}
                 value={form.investmentAmountUsd}
                 onChange={(e) => setForm({ ...form, investmentAmountUsd: e.target.value })}
               />
@@ -533,36 +536,36 @@ function InstrumentsContent() {
             {form.type === "safe" && (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Valuation Cap (NTD)</label>
+                  <label className="text-sm font-medium">{t("instruments.valuationCap")}</label>
                   <input
                     type="number"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                    placeholder="e.g. 50000000"
+                    placeholder={t("instruments.valuationCapPlaceholder") || "e.g. 50000000"}
                     value={form.valuationCapNtd}
                     onChange={(e) => setForm({ ...form, valuationCapNtd: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Discount Rate (decimal)</label>
+                  <label className="text-sm font-medium">{t("instruments.discountRate")}</label>
                   <input
                     type="number"
                     step="0.0001"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                    placeholder="e.g. 0.2 for 20%"
+                    placeholder={t("instruments.discountRatePlaceholder") || "e.g. 0.2 for 20%"}
                     value={form.discountRate}
                     onChange={(e) => setForm({ ...form, discountRate: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">SAFE Type</label>
+                  <label className="text-sm font-medium">{t("instruments.safeType") || "SAFE Type"}</label>
                   <select
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                     value={form.safeType}
                     onChange={(e) => setForm({ ...form, safeType: e.target.value as SafeType | "" })}
                   >
-                    <option value="post_money">Post-Money (YC)</option>
-                    <option value="pre_money">Pre-Money</option>
-                    <option value="mfn">MFN</option>
+                    <option value="post_money">{t("instruments.postMoneyYC") || "Post-Money (YC)"}</option>
+                    <option value="pre_money">{t("instruments.preMoney") || "Pre-Money"}</option>
+                    <option value="mfn">{t("instruments.mfn") || "MFN"}</option>
                   </select>
                 </div>
               </>
@@ -572,7 +575,7 @@ function InstrumentsContent() {
             {form.type === "convertible_note" && (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Valuation Cap (NTD)</label>
+                  <label className="text-sm font-medium">{t("instruments.valuationCap")}</label>
                   <input
                     type="number"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -581,7 +584,7 @@ function InstrumentsContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Discount Rate (decimal)</label>
+                  <label className="text-sm font-medium">{t("instruments.discountRate")}</label>
                   <input
                     type="number"
                     step="0.0001"
@@ -591,18 +594,18 @@ function InstrumentsContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Interest Rate (decimal)</label>
+                  <label className="text-sm font-medium">{t("instruments.interestRate")}</label>
                   <input
                     type="number"
                     step="0.0001"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                    placeholder="e.g. 0.05 for 5%"
+                    placeholder={t("instruments.interestRatePlaceholder") || "e.g. 0.05 for 5%"}
                     value={form.interestRate}
                     onChange={(e) => setForm({ ...form, interestRate: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Maturity Date</label>
+                  <label className="text-sm font-medium">{t("instruments.maturityDate")}</label>
                   <input
                     type="date"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -614,7 +617,7 @@ function InstrumentsContent() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Board Approval Date</label>
+              <label className="text-sm font-medium">{t("instruments.boardApprovalDate") || "Board Approval Date"}</label>
               <input
                 type="date"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -623,7 +626,7 @@ function InstrumentsContent() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Document URL</label>
+              <label className="text-sm font-medium">{t("instruments.documentUrl") || "Document URL"}</label>
               <input
                 type="text"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -633,7 +636,7 @@ function InstrumentsContent() {
               />
             </div>
             <div className="md:col-span-2 space-y-1.5">
-              <label className="text-sm font-medium">Notes</label>
+              <label className="text-sm font-medium">{t("instruments.notes") || "Notes"}</label>
               <textarea
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                 rows={2}
@@ -650,7 +653,7 @@ function InstrumentsContent() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50"
             >
               <Check className="h-4 w-4" />
-              {createInstrument.isPending || updateInstrument.isPending ? "Saving…" : "Save"}
+              {createInstrument.isPending || updateInstrument.isPending ? t("instruments.saving") || "Saving…" : (editingId != null ? t("instruments.saveChanges") : t("instruments.createInstrument"))}
             </button>
             <button
               onClick={() => {
@@ -661,7 +664,7 @@ function InstrumentsContent() {
               className="inline-flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent text-sm"
             >
               <X className="h-4 w-4" />
-              Cancel
+              {t("instruments.cancel")}
             </button>
           </div>
         </div>
@@ -672,12 +675,12 @@ function InstrumentsContent() {
         <table className="w-full text-sm min-w-[800px]">
           <thead className="bg-muted/50">
             <tr>
-              <th className="text-left px-4 py-3 font-medium">Name</th>
-              <th className="text-left px-4 py-3 font-medium">Type</th>
-              <th className="text-left px-4 py-3 font-medium">Investor</th>
-              <th className="text-right px-4 py-3 font-medium">Amount (NTD)</th>
-              <th className="text-right px-4 py-3 font-medium">Cap / Discount</th>
-              <th className="text-center px-4 py-3 font-medium">Status</th>
+              <th className="text-left px-4 py-3 font-medium">{t("instruments.name")}</th>
+              <th className="text-left px-4 py-3 font-medium">{t("instruments.type")}</th>
+              <th className="text-left px-4 py-3 font-medium">{t("instruments.investor")}</th>
+              <th className="text-right px-4 py-3 font-medium">{t("instruments.amount")}</th>
+              <th className="text-right px-4 py-3 font-medium">{t("instruments.capDiscount") || "Cap / Discount"}</th>
+              <th className="text-center px-4 py-3 font-medium">{t("instruments.status")}</th>
               {canEdit && <th className="text-center px-4 py-3 font-medium w-24"></th>}
             </tr>
           </thead>
@@ -689,9 +692,9 @@ function InstrumentsContent() {
                   className="text-center py-12 text-muted-foreground"
                 >
                   <Wrench className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No instruments yet</p>
+                  <p className="font-medium">{t("instruments.noInstruments") || "No instruments yet"}</p>
                   <p className="text-sm mt-1">
-                    Track SAFEs and convertible notes until they convert at the next round.
+                    {t("instruments.noInstrumentsDesc") || "Track SAFEs and convertible notes until they convert at the next round."}
                   </p>
                   {canEdit && (
                     <button
@@ -699,7 +702,7 @@ function InstrumentsContent() {
                       className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium"
                     >
                       <Plus className="h-4 w-4" />
-                      Add First Instrument
+                      {t("instruments.addFirstInstrument") || "Add First Instrument"}
                     </button>
                   )}
                 </td>
@@ -714,7 +717,7 @@ function InstrumentsContent() {
                         TYPE_COLORS[inst.type as InstrumentType]
                       }`}
                     >
-                      {TYPE_LABELS[inst.type as InstrumentType]}
+                      {TYPE_LABELS()[inst.type as InstrumentType]}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -725,9 +728,9 @@ function InstrumentsContent() {
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-xs">
                     {inst.valuationCapNtd ? (
-                      <div>Cap: {fmtMoneyNtd(inst.valuationCapNtd)}</div>
+                      <div>{t("instruments.cap") || "Cap"}: {fmtMoneyNtd(inst.valuationCapNtd)}</div>
                     ) : null}
-                    {inst.discountRate ? <div>Disc: {fmtPct(inst.discountRate)}</div> : null}
+                    {inst.discountRate ? <div>{t("instruments.disc") || "Disc"}: {fmtPct(inst.discountRate)}</div> : null}
                     {!inst.valuationCapNtd && !inst.discountRate ? "—" : null}
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -781,11 +784,11 @@ function InstrumentsContent() {
           >
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Conversion Simulator</span>
+              <span className="font-semibold">{t("instruments.conversionSimulator")}</span>
               <span className="text-xs text-muted-foreground ml-2">
-                Preview conversion of {activeConvertiblesCount} active SAFE
-                {activeConvertiblesCount === 1 ? "" : "s"}/note
-                {activeConvertiblesCount === 1 ? "" : "s"} at a hypothetical round
+                {t("instruments.conversionSimulatorDesc")} {activeConvertiblesCount} {t("instruments.activeSafe") || "active SAFE"}
+                {activeConvertiblesCount === 1 ? "" : "s"}/{t("instruments.note") || "note"}
+                {activeConvertiblesCount === 1 ? "" : "s"} {t("instruments.atHypotheticalRound") || "at a hypothetical round"}
               </span>
             </div>
             {showSimulator ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -796,14 +799,13 @@ function InstrumentsContent() {
               <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 flex items-start gap-2">
                 <Info className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>
-                  Simulator is read-only. Nothing is written until you click{" "}
-                  <strong>Execute Conversion</strong>.
+                  {t("instruments.simulatorInfo") || "Simulator is read-only. Nothing is written until you click"} <strong>{t("instruments.executeConversion")}</strong>.
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Next Round Price / Share (NTD)</label>
+                  <label className="text-sm font-medium">{t("instruments.nextRoundPrice") || "Next Round Price / Share (NTD)"}</label>
                   <input
                     type="number"
                     step="0.000001"
@@ -815,7 +817,7 @@ function InstrumentsContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Pre-Money Valuation (NTD)</label>
+                  <label className="text-sm font-medium">{t("instruments.simulatorPreMoney") || "Pre-Money Valuation (NTD)"}</label>
                   <input
                     type="number"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -826,7 +828,7 @@ function InstrumentsContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Post-Money Valuation (NTD)</label>
+                  <label className="text-sm font-medium">{t("instruments.simulatorPostMoney") || "Post-Money Valuation (NTD)"}</label>
                   <input
                     type="number"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -837,7 +839,7 @@ function InstrumentsContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Conversion Round</label>
+                  <label className="text-sm font-medium">{t("instruments.conversionRound") || "Conversion Round"}</label>
                   <select
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                     value={simInput.conversionRoundId}
@@ -848,7 +850,7 @@ function InstrumentsContent() {
                       })
                     }
                   >
-                    <option value="">Select round…</option>
+                    <option value="">{t("instruments.selectRound") || "Select round…"}</option>
                     {(rounds ?? []).map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name}
@@ -865,7 +867,7 @@ function InstrumentsContent() {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50"
                 >
                   <Play className="h-4 w-4" />
-                  {simulating ? "Calculating…" : "Run Simulation"}
+                  {simulating ? t("instruments.calculating") || "Calculating…" : t("instruments.runSimulation")}
                 </button>
                 {canEdit && simResults && simResults.results.length > 0 && (
                   <button
@@ -874,12 +876,12 @@ function InstrumentsContent() {
                     className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium disabled:opacity-50"
                     title={
                       !simInput.conversionRoundId
-                        ? "Select the conversion round first"
-                        : "Commit conversions to the database"
+                        ? t("instruments.selectRoundFirst") || "Select the conversion round first"
+                        : t("instruments.commitConversions") || "Commit conversions to the database"
                     }
                   >
                     <Zap className="h-4 w-4" />
-                    {executing ? "Executing…" : "Execute Conversion"}
+                    {executing ? t("instruments.executing") || "Executing…" : t("instruments.executeConversion")}
                   </button>
                 )}
               </div>
@@ -888,12 +890,12 @@ function InstrumentsContent() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="border rounded-lg p-4 bg-muted/30">
-                      <div className="text-xs text-muted-foreground">Instruments Converting</div>
+                      <div className="text-xs text-muted-foreground">{t("instruments.instrumentsConverting") || "Instruments Converting"}</div>
                       <div className="text-lg font-bold mt-1">{simResults.results.length}</div>
                     </div>
                     <div className="border rounded-lg p-4 bg-muted/30">
                       <div className="text-xs text-muted-foreground">
-                        Total New Shares from Conversion
+                        {t("instruments.totalNewShares") || "Total New Shares from Conversion"}
                       </div>
                       <div className="text-lg font-bold mt-1 text-primary">
                         {fmtNumber(simResults.totalConversionShares)}
@@ -905,15 +907,15 @@ function InstrumentsContent() {
                   <table className="w-full text-sm min-w-[800px]">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="text-left px-3 py-2 font-medium">Instrument</th>
-                        <th className="text-left px-3 py-2 font-medium">Investor</th>
-                        <th className="text-left px-3 py-2 font-medium">Type</th>
-                        <th className="text-right px-3 py-2 font-medium">Principal</th>
-                        <th className="text-right px-3 py-2 font-medium">Disc Price</th>
-                        <th className="text-right px-3 py-2 font-medium">Cap Price</th>
-                        <th className="text-right px-3 py-2 font-medium">Conv. Price</th>
-                        <th className="text-center px-3 py-2 font-medium">Method</th>
-                        <th className="text-right px-3 py-2 font-medium">Shares</th>
+                        <th className="text-left px-3 py-2 font-medium">{t("instruments.name")}</th>
+                        <th className="text-left px-3 py-2 font-medium">{t("instruments.investor")}</th>
+                        <th className="text-left px-3 py-2 font-medium">{t("instruments.type")}</th>
+                        <th className="text-right px-3 py-2 font-medium">{t("instruments.principal") || "Principal"}</th>
+                        <th className="text-right px-3 py-2 font-medium">{t("instruments.discPrice") || "Disc Price"}</th>
+                        <th className="text-right px-3 py-2 font-medium">{t("instruments.capPrice") || "Cap Price"}</th>
+                        <th className="text-right px-3 py-2 font-medium">{t("instruments.convPrice") || "Conv. Price"}</th>
+                        <th className="text-center px-3 py-2 font-medium">{t("instruments.method") || "Method"}</th>
+                        <th className="text-right px-3 py-2 font-medium">{t("instruments.shares") || "Shares"}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -924,13 +926,13 @@ function InstrumentsContent() {
                             {investorMap.get(r.investorId) ?? `#${r.investorId}`}
                           </td>
                           <td className="px-3 py-2 text-xs">
-                            {TYPE_LABELS[r.instrumentType]}
+                            {TYPE_LABELS()[r.instrumentType]}
                           </td>
                           <td className="px-3 py-2 text-right font-mono">
                             {fmtMoneyNtd(r.principal)}
                             {r.accruedInterest > 0 && (
                               <div className="text-xs text-muted-foreground">
-                                + {fmtMoneyNtd(r.accruedInterest)} int.
+                                + {fmtMoneyNtd(r.accruedInterest)} {t("instruments.int") || "int."}
                               </div>
                             )}
                           </td>
@@ -973,24 +975,24 @@ function InstrumentsContent() {
       <div className="border rounded-lg p-5 bg-muted/20 space-y-3">
         <h3 className="font-semibold flex items-center gap-2">
           <Info className="h-4 w-4" />
-          Conversion Math
+          {t("instruments.conversionMath") || "Conversion Math"}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
           <div>
-            <p className="font-medium text-foreground mb-1">Discount Price</p>
-            <p>disc_price = next_round_price × (1 − discount_rate)</p>
+            <p className="font-medium text-foreground mb-1">{t("instruments.discountPriceLabel") || "Discount Price"}</p>
+            <p>{t("instruments.discountPriceFormula") || "disc_price = next_round_price × (1 − discount_rate)"}</p>
           </div>
           <div>
-            <p className="font-medium text-foreground mb-1">Cap Price</p>
-            <p>cap_price = next_round_price × (valuation_cap / pre_money)</p>
+            <p className="font-medium text-foreground mb-1">{t("instruments.capPriceLabel") || "Cap Price"}</p>
+            <p>{t("instruments.capPriceFormula") || "cap_price = next_round_price × (valuation_cap / pre_money)"}</p>
           </div>
           <div>
-            <p className="font-medium text-foreground mb-1">Conversion Price</p>
-            <p>conv_price = min(disc_price, cap_price)</p>
+            <p className="font-medium text-foreground mb-1">{t("instruments.conversionPriceLabel") || "Conversion Price"}</p>
+            <p>{t("instruments.conversionPriceFormula") || "conv_price = min(disc_price, cap_price)"}</p>
           </div>
           <div>
-            <p className="font-medium text-foreground mb-1">Shares</p>
-            <p>shares = floor(principal / conv_price). Convertible-note principal = investment + accrued interest.</p>
+            <p className="font-medium text-foreground mb-1">{t("instruments.sharesLabel") || "Shares"}</p>
+            <p>{t("instruments.sharesFormula") || "shares = floor(principal / conv_price). Convertible-note principal = investment + accrued interest."}</p>
           </div>
         </div>
       </div>

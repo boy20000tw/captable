@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Plus, Edit2, Trash2, Users, Search } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -77,24 +78,26 @@ const EMPTY_FORM: InvestorForm = {
   notes: "",
 };
 
-const STATUS_OPTIONS: { value: InvestorStatus; label: string }[] = [
-  { value: "prospect", label: "Prospect" },
-  { value: "meeting", label: "Meeting" },
-  { value: "term_sheet", label: "Term Sheet" },
-  { value: "invested", label: "Invested" },
-  { value: "passed", label: "Passed" },
-];
+function getStatusOptions(t: any): { value: InvestorStatus; label: string }[] {
+  return [
+    { value: "prospect", label: t("investors.prospect") },
+    { value: "meeting", label: t("investors.meeting") },
+    { value: "term_sheet", label: t("investors.termSheet") },
+    { value: "invested", label: t("investors.invested") },
+    { value: "passed", label: t("investors.passed") },
+  ];
+}
 
-function statusBadge(status: InvestorStatus) {
-  const map: Record<InvestorStatus, { cls: string; label: string }> = {
-    prospect: { cls: "bg-gray-100 text-gray-700 border-transparent", label: "Prospect" },
-    meeting: { cls: "bg-blue-100 text-blue-700 border-transparent", label: "Meeting" },
-    term_sheet: { cls: "bg-yellow-100 text-yellow-700 border-transparent", label: "Term Sheet" },
-    invested: { cls: "bg-green-100 text-green-700 border-transparent", label: "Invested" },
-    passed: { cls: "bg-red-100 text-red-700 border-transparent", label: "Passed" },
+function statusBadge(status: InvestorStatus, t: any) {
+  const map: Record<InvestorStatus, { cls: string; key: string }> = {
+    prospect: { cls: "bg-gray-100 text-gray-700 border-transparent", key: "investors.prospect" },
+    meeting: { cls: "bg-blue-100 text-blue-700 border-transparent", key: "investors.meeting" },
+    term_sheet: { cls: "bg-yellow-100 text-yellow-700 border-transparent", key: "investors.termSheet" },
+    invested: { cls: "bg-green-100 text-green-700 border-transparent", key: "investors.invested" },
+    passed: { cls: "bg-red-100 text-red-700 border-transparent", key: "investors.passed" },
   };
   const info = map[status];
-  return <Badge className={info.cls}>{info.label}</Badge>;
+  return <Badge className={info.cls}>{t(info.key)}</Badge>;
 }
 
 function entityBadge(kind: EntityKind) {
@@ -105,6 +108,8 @@ function entityBadge(kind: EntityKind) {
 }
 
 function V1InvestorsContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("fundraising");
   const { canEdit, canDelete } = usePermissions();
   const utils = trpc.useUtils();
   const { data: investors, isLoading } = trpc.v1.investors.list.useQuery();
@@ -120,7 +125,7 @@ function V1InvestorsContent() {
   const createMut = trpc.v1.investors.create.useMutation({
     onSuccess: () => {
       utils.v1.investors.list.invalidate();
-      toast.success("Investor created");
+      toast.success(t("investors.investorCreated"));
       closeDialog();
     },
     onError: (e) => toast.error(e.message),
@@ -129,7 +134,7 @@ function V1InvestorsContent() {
   const updateMut = trpc.v1.investors.update.useMutation({
     onSuccess: () => {
       utils.v1.investors.list.invalidate();
-      toast.success("Investor updated");
+      toast.success(t("investors.investorUpdated"));
       closeDialog();
     },
     onError: (e) => toast.error(e.message),
@@ -138,7 +143,7 @@ function V1InvestorsContent() {
   const deleteMut = trpc.v1.investors.delete.useMutation({
     onSuccess: () => {
       utils.v1.investors.list.invalidate();
-      toast.success("Investor deleted");
+      toast.success(t("investors.investorDeleted"));
     },
     onError: (e) => toast.error(e.message),
   });
@@ -212,7 +217,7 @@ function V1InvestorsContent() {
 
   function handleDelete(inv: NonNullable<typeof investors>[number], e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete "${inv.name}"? This cannot be undone.`)) return;
+    if (!confirm(t("investors.deleteConfirm", { name: inv.name }) || `Delete "${inv.name}"? This cannot be undone.`)) return;
     deleteMut.mutate({ id: inv.id });
   }
 
@@ -241,15 +246,15 @@ function V1InvestorsContent() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Users className="h-7 w-7 text-primary" />
-            Investors
+            {tPages("investors.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Pipeline + current investors
+            {tPages("investors.desc")}
           </p>
         </div>
         {canEdit && (
           <Button onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" /> New Investor
+            <Plus className="h-4 w-4 mr-1" /> {t("investors.newInvestor")}
           </Button>
         )}
       </div>
@@ -259,7 +264,7 @@ function V1InvestorsContent() {
         <div className="flex-1 min-w-[220px] relative">
           <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <Input
-            placeholder="Search by name..."
+            placeholder={t("investors.searchPlaceholder") || "Search by name..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -270,8 +275,8 @@ function V1InvestorsContent() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {STATUS_OPTIONS.map((opt) => (
+            <SelectItem value="all">{t("investors.allStatuses") || "All statuses"}</SelectItem>
+            {getStatusOptions(t).map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -283,9 +288,9 @@ function V1InvestorsContent() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All kinds</SelectItem>
-            <SelectItem value="individual">Individual</SelectItem>
-            <SelectItem value="entity">Entity</SelectItem>
+            <SelectItem value="all">{t("investors.allKinds") || "All kinds"}</SelectItem>
+            <SelectItem value="individual">{t("investors.individual") || "Individual"}</SelectItem>
+            <SelectItem value="entity">{t("investors.entity") || "Entity"}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -295,7 +300,7 @@ function V1InvestorsContent() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>All Investors</CardTitle>
+              <CardTitle>{t("investors.allInvestors")}</CardTitle>
               <CardDescription>
                 {filtered.length} of {baseInvestors.length}
               </CardDescription>
@@ -305,34 +310,33 @@ function V1InvestorsContent() {
         <CardContent>
           {isLoading ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              Loading...
+              {t("common.loading") || "Loading..."}
             </div>
           ) : isEmpty ? (
             <div className="py-12 text-center space-y-3">
               <p className="text-muted-foreground text-sm">
-                No investors yet. Add your first prospect to start building your
-                pipeline.
+                {t("investors.emptyDesc")}
               </p>
               {canEdit && (
                 <Button onClick={openCreate}>
-                  <Plus className="h-4 w-4 mr-1" /> New Investor
+                  <Plus className="h-4 w-4 mr-1" /> {t("investors.newInvestor")}
                 </Button>
               )}
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              No investors match the current filters.
+              {t("investors.noMatch") || "No investors match the current filters."}
             </div>
           ) : (
             <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Entity Kind</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Last Contact</TableHead>
+                  <TableHead>{t("investors.name")}</TableHead>
+                  <TableHead>{t("investors.entityKind")}</TableHead>
+                  <TableHead>{t("investors.status")}</TableHead>
+                  <TableHead>{t("investors.email")}</TableHead>
+                  <TableHead>{t("investors.phone")}</TableHead>
+                  <TableHead>{t("investors.lastContact") || "Last Contact"}</TableHead>
                   <TableHead className="w-[100px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -348,7 +352,7 @@ function V1InvestorsContent() {
                       )}
                     </TableCell>
                     <TableCell>{entityBadge(inv.entityKind as EntityKind)}</TableCell>
-                    <TableCell>{statusBadge(inv.status as InvestorStatus)}</TableCell>
+                    <TableCell>{statusBadge(inv.status as InvestorStatus, t)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {inv.email ?? "—"}
                     </TableCell>
@@ -395,27 +399,27 @@ function V1InvestorsContent() {
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editId != null ? "Edit Investor" : "New Investor"}
+              {editId != null ? t("investors.editDialog") : t("investors.newDialog")}
             </DialogTitle>
             <DialogDescription>
               {editId != null
-                ? "Update investor details."
-                : "Add a new investor to your pipeline."}
+                ? t("investors.editDesc")
+                : t("investors.newDesc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5 md:col-span-2">
-              <Label>Name *</Label>
+              <Label>{t("investors.nameRequired")}</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Acme Ventures"
+                placeholder={t("investors.namePlaceholder")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Entity Kind</Label>
+              <Label>{t("investors.entityKind")}</Label>
               <Select
                 value={form.entityKind}
                 onValueChange={(v) =>
@@ -426,14 +430,14 @@ function V1InvestorsContent() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="individual">Individual</SelectItem>
-                  <SelectItem value="entity">Entity</SelectItem>
+                  <SelectItem value="individual">{t("investors.individual") || "Individual"}</SelectItem>
+                  <SelectItem value="entity">{t("investors.entity") || "Entity"}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Status</Label>
+              <Label>{t("investors.status")}</Label>
               <Select
                 value={form.status}
                 onValueChange={(v) =>
@@ -444,7 +448,7 @@ function V1InvestorsContent() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_OPTIONS.map((opt) => (
+                  {getStatusOptions(t).map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
@@ -454,66 +458,66 @@ function V1InvestorsContent() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Email</Label>
+              <Label>{t("investors.email")}</Label>
               <Input
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                placeholder="name@example.com"
+                placeholder={t("investors.emailPlaceholder")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Phone</Label>
+              <Label>{t("investors.phone")}</Label>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                placeholder="+886 ..."
+                placeholder={t("investors.phonePlaceholder") || "+886 ..."}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Nationality</Label>
+              <Label>{t("investors.nationality") || "Nationality"}</Label>
               <Input
                 value={form.nationality}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, nationality: e.target.value }))
                 }
-                placeholder="e.g. Taiwan"
+                placeholder={t("investors.nationalityPlaceholder") || "e.g. Taiwan"}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Also Known As</Label>
+              <Label>{t("investors.aka") || "Also Known As"}</Label>
               <Input
                 value={form.aka}
                 onChange={(e) => setForm((f) => ({ ...f, aka: e.target.value }))}
-                placeholder="Alias / short name"
+                placeholder={t("investors.akaPlaceholder") || "Alias / short name"}
               />
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
-              <Label>Website</Label>
+              <Label>{t("investors.website")}</Label>
               <Input
                 value={form.website}
                 onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
-                placeholder="https://..."
+                placeholder={t("investors.websitePlaceholder")}
               />
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
-              <Label>LinkedIn URL</Label>
+              <Label>{t("investors.linkedinUrl") || "LinkedIn URL"}</Label>
               <Input
                 value={form.linkedinUrl}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, linkedinUrl: e.target.value }))
                 }
-                placeholder="https://linkedin.com/in/..."
+                placeholder={t("investors.linkedinPlaceholder") || "https://linkedin.com/in/..."}
               />
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
-              <Label>Notes</Label>
+              <Label>{t("investors.notes")}</Label>
               <Textarea
                 rows={3}
                 value={form.notes}
@@ -525,13 +529,13 @@ function V1InvestorsContent() {
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeDialog}>
-              Cancel
+              {t("investors.cancel")}
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={createMut.isPending || updateMut.isPending || !form.name.trim()}
             >
-              {editId != null ? "Save Changes" : "Create Investor"}
+              {editId != null ? t("investors.saveChanges") : t("investors.createInvestor")}
             </Button>
           </div>
         </DialogContent>

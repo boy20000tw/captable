@@ -425,10 +425,16 @@ export type ShareholderDocument = typeof shareholderDocuments.$inferSelect;
 export type InsertShareholderDocument = typeof shareholderDocuments.$inferInsert;
 
 // ─── 409A Valuations ──────────────────────────────────────────────────────────
+export const valuation409aStatusEnum = pgEnum("valuation_409a_status", ["active", "expired", "superseded"]);
+
 export const valuations409a = pgTable("valuations_409a", {
     id: serial("id").primaryKey(),
     companyId: integer("companyId"),
     valuationDate: date("valuationDate").notNull(),
+    expiryDate: date("expiryDate"),                // typically 12 months after valuationDate
+    status: valuation409aStatusEnum("status").default("active").notNull(),
+    fmvPerShare: decimal("fmvPerShare", { precision: 18, scale: 6 }),
+    currency: varchar("currency", { length: 8 }).default("USD"),
     fmvPerShareNtd: decimal("fmvPerShareNtd", { precision: 18, scale: 4 }),
     fmvPerShareUsd: decimal("fmvPerShareUsd", { precision: 18, scale: 6 }),
     commonStockValueNtd: decimal("commonStockValueNtd", { precision: 20, scale: 2 }),
@@ -443,6 +449,32 @@ export const valuations409a = pgTable("valuations_409a", {
 });
 export type Valuation409a = typeof valuations409a.$inferSelect;
 export type InsertValuation409a = typeof valuations409a.$inferInsert;
+
+// ─── 83(b) Elections ──────────────────────────────────────────────────────────
+export const election83bStatusEnum = pgEnum("election_83b_status", ["pending", "filed", "confirmed", "missed"]);
+
+export const elections83b = pgTable("elections_83b", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    grantId: integer("grantId"),                    // links to esop_grants_v1
+    recipientName: varchar("recipientName", { length: 255 }).notNull(),
+    recipientEmail: varchar("recipientEmail", { length: 320 }),
+    grantDate: date("grantDate").notNull(),
+    filingDeadline: date("filingDeadline").notNull(), // grantDate + 30 days
+    sharesSubject: integer("sharesSubject").notNull(),
+    fmvPerShare: decimal("fmvPerShare", { precision: 18, scale: 6 }),
+    amountPaid: decimal("amountPaid", { precision: 18, scale: 4 }),
+    currency: varchar("currency", { length: 8 }).default("USD"),
+    propertyDescription: text("propertyDescription"), // "shares of Common Stock of [Company]"
+    status: election83bStatusEnum("status").default("pending").notNull(),
+    filedDate: date("filedDate"),
+    irsConfirmationDate: date("irsConfirmationDate"),
+    employerCopyDate: date("employerCopyDate"),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Election83b = typeof elections83b.$inferSelect;
+export type InsertElection83b = typeof elections83b.$inferInsert;
 
 // ─── Liquidation Preferences ──────────────────────────────────────────────────
 export const liquidationPreferences = pgTable("liquidation_preferences", {
@@ -919,3 +951,157 @@ export const signingTemplates = pgTable("signing_templates", {
 });
 export type SigningTemplate = typeof signingTemplates.$inferSelect;
 export type InsertSigningTemplate = typeof signingTemplates.$inferInsert;
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+export const notificationChannelEnum = pgEnum("notification_channel", ["in_app", "email", "both"]);
+export const notificationTypeEnum = pgEnum("notification_type", [
+    "funding_round",     // new round created / closed
+    "document_signing",  // signing request sent / completed
+    "vesting_milestone", // cliff reached, fully vested
+    "valuation_409a",    // 409A expiring soon
+    "election_83b",      // 83(b) filing deadline approaching
+    "share_transfer",    // shares transferred
+    "general",           // manual / system notification
+]);
+
+export const notifications = pgTable("notifications", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    userId: integer("userId"),                    // target user (null = company-wide)
+    type: notificationTypeEnum("type").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    message: text("message"),
+    channel: notificationChannelEnum("channel").default("both").notNull(),
+    isRead: boolean("is_read").default(false).notNull(),
+    emailSent: boolean("email_sent").default(false).notNull(),
+    emailSentAt: timestamp("email_sent_at"),
+    linkUrl: varchar("link_url", { length: 500 }),   // in-app link to related page
+    metadata: text("metadata"),                       // JSON: { grantId, roundId, etc. }
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+
+// ─── Share Transfers (Secondary Trading) ──────────────────────────────────────
+export const shareTransferStatusEnum = pgEnum("share_transfer_status", ["pending", "rofr_notice", "approved", "completed", "rejected"]);
+
+export const shareTransfers = pgTable("share_transfers", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    sellerInvestorId: integer("seller_investor_id").notNull(),
+    buyerInvestorId: integer("buyer_investor_id"),         // null if buyer is new / external
+    buyerName: varchar("buyer_name", { length: 255 }),
+    buyerEmail: varchar("buyer_email", { length: 320 }),
+    shareClass: varchar("share_class", { length: 64 }).notNull(),
+    shares: integer("shares").notNull(),
+    pricePerShare: decimal("price_per_share", { precision: 18, scale: 6 }),
+    totalPrice: decimal("total_price", { precision: 20, scale: 4 }),
+    currency: varchar("currency", { length: 8 }).default("USD"),
+    transferDate: date("transfer_date").notNull(),
+    status: shareTransferStatusEnum("status").default("pending").notNull(),
+    hasRofr: boolean("has_rofr").default(false).notNull(),   // right of first refusal applicable
+    rofrDeadline: date("rofr_deadline"),
+    rofrWaivedAt: timestamp("rofr_waived_at"),
+    boardApprovalDate: date("board_approval_date"),
+    registerEntryId: integer("register_entry_id"),           // links to share_register after completion
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ShareTransfer = typeof shareTransfers.$inferSelect;
+export type InsertShareTransfer = typeof shareTransfers.$inferInsert;
+
+// ─── Tech Share / RSA Tax Tracking (台灣法規) ─────────────────────────────────
+export const techShareTypeEnum = pgEnum("tech_share_type", ["tech_share", "rsa"]);
+export const techShareTaxStatusEnum = pgEnum("tech_share_tax_status", ["deferred", "taxable", "filed", "exempt"]);
+export const dispositionTypeEnum = pgEnum("disposition_type", ["transfer", "resignation", "ipo", "other"]);
+
+export const techShareTaxRecords = pgTable("tech_share_tax_records", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    grantId: integer("grantId"),                                // FK to esop grants / allocations
+    holderName: varchar("holder_name", { length: 255 }).notNull(),
+    shareType: techShareTypeEnum("share_type").notNull(),
+    // 取得資訊
+    acquisitionDate: date("acquisition_date").notNull(),
+    sharesAcquired: integer("shares_acquired").notNull(),
+    acquisitionFmv: decimal("acquisition_fmv", { precision: 18, scale: 6 }),  // TWD per share
+    paidAmount: decimal("paid_amount", { precision: 18, scale: 6 }),          // RSA 認購價
+    // 緩課條件 (產創 §19-1)
+    isDeferralEligible: boolean("is_deferral_eligible").default(false).notNull(),
+    deferralStartDate: date("deferral_start_date"),
+    deferralExpiryDate: date("deferral_expiry_date"),       // 取得日 + 5 年
+    holdingPeriodMet: boolean("holding_period_met").default(false).notNull(),  // 滿 2 年
+    // RSA 解限
+    vestingDate: date("vesting_date"),
+    vestingFmv: decimal("vesting_fmv", { precision: 18, scale: 6 }),
+    // 處分 / 轉讓
+    dispositionDate: date("disposition_date"),
+    dispositionFmv: decimal("disposition_fmv", { precision: 18, scale: 6 }),
+    dispositionType: dispositionTypeEnum("disposition_type"),
+    // 稅務
+    taxableIncome: decimal("taxable_income", { precision: 20, scale: 4 }),
+    estimatedTax: decimal("estimated_tax", { precision: 20, scale: 4 }),
+    taxStatus: techShareTaxStatusEnum("tax_status").default("deferred").notNull(),
+    // 申報追蹤
+    filingDeadline: date("filing_deadline"),
+    filingDate: date("filing_date"),
+    filingReference: varchar("filing_reference", { length: 100 }),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type TechShareTaxRecord = typeof techShareTaxRecords.$inferSelect;
+export type InsertTechShareTaxRecord = typeof techShareTaxRecords.$inferInsert;
+
+// ─── Closed Company Provisions (閉鎖性公司 — 台灣法規) ────────────────────────
+export const transferRestrictionEnum = pgEnum("transfer_restriction", ["none", "board_approval", "shareholder_approval", "custom"]);
+export const parValueTypeEnum = pgEnum("par_value_type", ["par", "no_par"]);
+export const dividendPriorityEnum = pgEnum("dividend_priority", ["cumulative", "non_cumulative", "participating", "none"]);
+
+export const closedCompanyProvisions = pgTable("closed_company_provisions", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    isClosedCompany: boolean("is_closed_company").default(false).notNull(),
+    parValueType: parValueTypeEnum("par_value_type").default("par").notNull(),
+    transferRestriction: transferRestrictionEnum("transfer_restriction").default("none").notNull(),
+    transferDescription: text("transfer_description"),
+    articlesUrl: varchar("articles_url", { length: 500 }),
+    effectiveDate: date("effective_date"),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ClosedCompanyProvision = typeof closedCompanyProvisions.$inferSelect;
+export type InsertClosedCompanyProvision = typeof closedCompanyProvisions.$inferInsert;
+
+export const closedCompanyShareRights = pgTable("closed_company_share_rights", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    shareClassId: integer("share_class_id"),                   // FK to share_classes
+    shareClassName: varchar("share_class_name", { length: 128 }).notNull(),
+    // 表決權
+    votesPerShare: decimal("votes_per_share", { precision: 6, scale: 2 }).default("1.00").notNull(),
+    hasVetoRight: boolean("has_veto_right").default(false).notNull(),
+    vetoMatters: text("veto_matters"),                          // JSON: veto items
+    // 董事
+    guaranteedBoardSeats: integer("guaranteed_board_seats").default(0).notNull(),
+    boardObserverRights: boolean("board_observer_rights").default(false).notNull(),
+    // 股利
+    dividendPriority: dividendPriorityEnum("dividend_priority").default("none").notNull(),
+    dividendRate: decimal("dividend_rate", { precision: 6, scale: 4 }),
+    // 清算
+    liquidationPriority: integer("liquidation_priority").default(1).notNull(),
+    liquidationMultiple: decimal("liquidation_multiple", { precision: 6, scale: 2 }).default("1.00"),
+    // 轉換
+    isConvertible: boolean("is_convertible").default(false).notNull(),
+    conversionRatio: decimal("conversion_ratio", { precision: 10, scale: 4 }),
+    conversionTrigger: text("conversion_trigger"),
+    // 其他
+    customProvisions: text("custom_provisions"),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ClosedCompanyShareRight = typeof closedCompanyShareRights.$inferSelect;
+export type InsertClosedCompanyShareRight = typeof closedCompanyShareRights.$inferInsert;

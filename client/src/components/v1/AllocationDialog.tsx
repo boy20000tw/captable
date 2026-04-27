@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Check, ArrowRight, Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -139,6 +140,7 @@ export default function AllocationDialog({
   allocation,
   onSaved,
 }: AllocationDialogProps) {
+  const { t } = useTranslation("common");
   const isEdit = !!allocation;
   const utils = trpc.useUtils();
   const { data: investors } = trpc.v1.investors.list.useQuery();
@@ -191,7 +193,7 @@ export default function AllocationDialog({
   const createMut = trpc.v1.allocations.create.useMutation({
     onSuccess: () => {
       invalidateAll();
-      toast.success("Allocation created");
+      toast.success(t("allocation.created"));
       onOpenChange(false);
       onSaved?.();
     },
@@ -201,7 +203,7 @@ export default function AllocationDialog({
   const updateMut = trpc.v1.allocations.update.useMutation({
     onSuccess: () => {
       invalidateAll();
-      toast.success("Allocation updated");
+      toast.success(t("allocation.updated"));
       onSaved?.();
     },
     onError: (e) => toast.error(e.message),
@@ -223,7 +225,7 @@ export default function AllocationDialog({
   // ─── Submit handlers ──────────────────────────────────────────────────────
   function handleCreate() {
     if (!form.investorId) {
-      toast.error("Please select an investor");
+      toast.error(t("allocation.selectInvestorError"));
       return;
     }
     createMut.mutate({
@@ -274,13 +276,13 @@ export default function AllocationDialog({
         <DialogHeader>
           <DialogTitle>
             {isEdit
-              ? `Edit Allocation${investorName ? ` — ${investorName}` : ""}`
-              : "Add Allocation"}
+              ? (investorName ? t("allocation.editTitleWithName", { name: investorName }) : t("allocation.editTitle"))
+              : t("allocation.addTitle")}
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update allocation fields or advance to the next lifecycle stage."
-              : "Create a new investor commitment for this round. Starts as 'planned'."}
+              ? t("allocation.editDesc")
+              : t("allocation.createDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -296,7 +298,7 @@ export default function AllocationDialog({
                   disabled={advanceMut.isPending}
                 >
                   <ArrowRight className="h-3.5 w-3.5 mr-1" />
-                  Advance to {nextStatusLabel}
+                  {t("allocation.advanceTo", { status: nextStatusLabel })}
                 </Button>
               )}
             </div>
@@ -304,7 +306,7 @@ export default function AllocationDialog({
               <div className="flex items-start gap-2 text-xs bg-green-50 text-green-800 border border-green-200 rounded-sm p-2">
                 <Check className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span>
-                  Issued — register entry written. Allocation is now immutable.
+                  {t("allocation.issuedMessage")}
                 </span>
               </div>
             )}
@@ -315,7 +317,7 @@ export default function AllocationDialog({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Investor */}
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Investor</Label>
+            <Label>{t("allocation.investor")}</Label>
             {isEdit ? (
               <Input
                 value={investorName ?? ""}
@@ -328,7 +330,7 @@ export default function AllocationDialog({
                 onValueChange={(v) => setForm((f) => ({ ...f, investorId: v }))}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select investor..." />
+                  <SelectValue placeholder={t("allocation.selectInvestor")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(investors ?? []).map((inv) => (
@@ -343,7 +345,7 @@ export default function AllocationDialog({
 
           {/* Share Class */}
           <div className="space-y-1.5">
-            <Label>Share Class</Label>
+            <Label>{t("allocation.shareClass")}</Label>
             <Select
               value={form.shareClass}
               onValueChange={(v) =>
@@ -369,7 +371,7 @@ export default function AllocationDialog({
 
           {/* Currency */}
           <div className="space-y-1.5">
-            <Label>Currency</Label>
+            <Label>{t("allocation.currency")}</Label>
             <Select
               value={form.currency}
               onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}
@@ -390,7 +392,7 @@ export default function AllocationDialog({
 
           {/* Amount */}
           <div className="space-y-1.5">
-            <Label>Amount</Label>
+            <Label>{t("allocation.amount")}</Label>
             <Input
               type="number"
               value={form.amount}
@@ -402,7 +404,7 @@ export default function AllocationDialog({
 
           {/* FX to NTD */}
           <div className="space-y-1.5">
-            <Label>FX to NTD</Label>
+            <Label>{t("allocation.fxToNtd")}</Label>
             <Input
               type="number"
               value={form.fxToNtd}
@@ -414,7 +416,7 @@ export default function AllocationDialog({
 
           {/* Shares Allocated */}
           <div className="space-y-1.5">
-            <Label>Shares Allocated</Label>
+            <Label>{t("allocation.sharesAllocated")}</Label>
             <Input
               type="number"
               value={form.sharesAllocated}
@@ -428,7 +430,7 @@ export default function AllocationDialog({
 
           {/* Price per share */}
           <div className="space-y-1.5">
-            <Label>Price Per Share</Label>
+            <Label>{t("allocation.pricePerShare")}</Label>
             <Input
               type="number"
               value={form.pricePerShare}
@@ -442,7 +444,7 @@ export default function AllocationDialog({
 
           {/* Term sheet URL */}
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Term Sheet URL</Label>
+            <Label>{t("allocation.termSheetUrl")}</Label>
             <Input
               value={form.termSheetUrl}
               onChange={(e) =>
@@ -455,7 +457,7 @@ export default function AllocationDialog({
 
           {/* Agreement URL */}
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Agreement URL</Label>
+            <Label>{t("allocation.agreementUrl")}</Label>
             <Input
               value={form.agreementUrl}
               onChange={(e) =>
@@ -468,7 +470,7 @@ export default function AllocationDialog({
 
           {/* Notes */}
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Notes</Label>
+            <Label>{t("allocation.notes")}</Label>
             <Textarea
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
@@ -480,18 +482,15 @@ export default function AllocationDialog({
         </div>
 
         {!isEdit && (
-          <div className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/20 border border-border rounded-sm p-2">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>
-              New allocations start as <strong>planned</strong>. Fill in the
-              term sheet URL and amount to advance to committed.
-            </span>
-          </div>
+          <div
+            className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/20 border border-border rounded-sm p-2"
+            dangerouslySetInnerHTML={{ __html: t("allocation.newInfo") }}
+          />
         )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {isIssued ? "Close" : "Cancel"}
+            {isIssued ? t("btn.close") : t("btn.cancel")}
           </Button>
           {!isIssued &&
             (isEdit ? (
@@ -499,14 +498,14 @@ export default function AllocationDialog({
                 onClick={handleUpdate}
                 disabled={updateMut.isPending}
               >
-                Save Changes
+                {t("allocation.saveChanges")}
               </Button>
             ) : (
               <Button
                 onClick={handleCreate}
                 disabled={createMut.isPending || !form.investorId}
               >
-                Create Allocation
+                {t("allocation.createAllocation")}
               </Button>
             ))}
         </div>

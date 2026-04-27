@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation, useRoute } from "wouter";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -50,22 +51,22 @@ export default function V1RoundDetailPage() {
 
 type RoundStatus = "completed" | "projected" | "bridge";
 
-function statusBadge(status: RoundStatus) {
+function statusBadge(status: RoundStatus, t: any) {
   if (status === "completed")
     return (
       <Badge className="bg-green-100 text-green-700 border-transparent">
-        Completed
+        {t("rounds.completed")}
       </Badge>
     );
   if (status === "bridge")
     return (
       <Badge className="bg-orange-100 text-orange-700 border-transparent">
-        Bridge
+        {t("rounds.bridge")}
       </Badge>
     );
   return (
     <Badge className="bg-blue-100 text-blue-700 border-transparent">
-      Projected
+      {t("rounds.projected")}
     </Badge>
   );
 }
@@ -104,8 +105,20 @@ function StatusStepper({ status }: { status: AllocationStatus }) {
   );
 }
 
+function getStatusLabel(status: string, t: any): string {
+  const labels: Record<string, string> = {
+    "prospect": t("investors.prospect"),
+    "meeting": t("investors.meeting"),
+    "term_sheet": t("investors.termSheet"),
+    "invested": t("investors.invested"),
+    "passed": t("investors.passed"),
+  };
+  return labels[status] || status;
+}
+
 function V1RoundDetailContent() {
   // Match either path — both map to this component (see App.tsx).
+  const { t } = useTranslation("fundraising");
   const [matchNew, paramsNew] = useRoute<{ id: string }>("/funding-rounds/:id");
   const [, paramsLegacy] = useRoute<{ id: string }>("/v1/rounds/:id");
   const params = matchNew ? paramsNew : paramsLegacy;
@@ -187,7 +200,7 @@ function V1RoundDetailContent() {
   if (!hasId) {
     return (
       <div className="p-8 max-w-6xl mx-auto">
-        <p className="text-muted-foreground">Invalid round id.</p>
+        <p className="text-muted-foreground">{t("roundDetail.invalidId") || "Invalid round id."}</p>
       </div>
     );
   }
@@ -195,7 +208,7 @@ function V1RoundDetailContent() {
   if (roundLoading) {
     return (
       <div className="p-8 max-w-6xl mx-auto">
-        <p className="text-muted-foreground">Loading round...</p>
+        <p className="text-muted-foreground">{t("roundDetail.loading") || "Loading round..."}</p>
       </div>
     );
   }
@@ -208,9 +221,9 @@ function V1RoundDetailContent() {
           size="sm"
           onClick={() => setLocation("/funding-rounds")}
         >
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back to rounds
+          <ArrowLeft className="h-4 w-4 mr-1" /> {t("roundDetail.backToRounds")}
         </Button>
-        <p className="text-muted-foreground">Round not found.</p>
+        <p className="text-muted-foreground">{t("roundDetail.notFound") || "Round not found."}</p>
       </div>
     );
   }
@@ -226,7 +239,7 @@ function V1RoundDetailContent() {
         size="sm"
         onClick={() => setLocation("/funding-rounds")}
       >
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to rounds
+        <ArrowLeft className="h-4 w-4 mr-1" /> {t("roundDetail.backToRounds")}
       </Button>
 
       {/* Header */}
@@ -240,28 +253,28 @@ function V1RoundDetailContent() {
             {formatDate(round.roundDate)}
           </p>
         </div>
-        <div>{statusBadge(round.status as RoundStatus)}</div>
+        <div>{statusBadge(round.status as RoundStatus, t)}</div>
       </div>
 
       {/* Round Info Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Round Summary</CardTitle>
-          <CardDescription>Terms and valuation at a glance.</CardDescription>
+          <CardTitle>{t("roundDetail.summary")}</CardTitle>
+          <CardDescription>{t("roundDetail.summaryDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <InfoItem label="Pre-Money" value={formatValuation(round.preMoneyValuationNtd)} />
-            <InfoItem label="Post-Money" value={formatValuation(round.postMoneyValuationNtd)} />
+            <InfoItem label={t("roundDetail.preMoney")} value={formatValuation(round.preMoneyValuationNtd)} />
+            <InfoItem label={t("roundDetail.postMoney")} value={formatValuation(round.postMoneyValuationNtd)} />
             <InfoItem
-              label="Price / Share"
+              label={t("roundDetail.pricePerShare")}
               value={
                 round.pricePerShareNtd
                   ? `NT$ ${Number(round.pricePerShareNtd).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
                   : "—"
               }
             />
-            <InfoItem label="Money Raised" value={formatValuation(round.moneyRaisedNtd)} />
+            <InfoItem label={t("roundDetail.moneyRaised")} value={formatValuation(round.moneyRaisedNtd)} />
           </div>
           {round.notes && (
             <div className="mt-4 pt-4 border-t text-sm text-muted-foreground">
@@ -276,14 +289,14 @@ function V1RoundDetailContent() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Allocations ({allocs.length})</CardTitle>
+              <CardTitle>{t("roundDetail.allocations")} ({allocs.length})</CardTitle>
               <CardDescription>
-                Investor commitments and lifecycle status.
+                {t("roundDetail.allocationsDesc")}
               </CardDescription>
             </div>
             {canEdit && (
               <Button onClick={openCreate} size="sm">
-                <Plus className="h-4 w-4 mr-1" /> Add Allocation
+                <Plus className="h-4 w-4 mr-1" /> {t("roundDetail.addAllocation") || "Add Allocation"}
               </Button>
             )}
           </div>
@@ -291,17 +304,16 @@ function V1RoundDetailContent() {
         <CardContent>
           {allocLoading ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              Loading allocations...
+              {t("roundDetail.loadingAllocations") || "Loading allocations..."}
             </div>
           ) : isEmpty ? (
             <div className="py-12 text-center space-y-3">
               <p className="text-muted-foreground text-sm">
-                No allocations yet. Add the first investor commitment to get
-                started.
+                {t("roundDetail.emptyAllocations")}
               </p>
               {canEdit && (
                 <Button onClick={openCreate}>
-                  <Plus className="h-4 w-4 mr-1" /> Add Allocation
+                  <Plus className="h-4 w-4 mr-1" /> {t("roundDetail.addAllocation") || "Add Allocation"}
                 </Button>
               )}
             </div>
@@ -309,13 +321,13 @@ function V1RoundDetailContent() {
             <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Investor</TableHead>
-                  <TableHead>Share Class</TableHead>
-                  <TableHead className="text-right">Shares</TableHead>
-                  <TableHead className="text-right">Price / Share</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[180px] text-right">Actions</TableHead>
+                  <TableHead>{t("roundDetail.investor")}</TableHead>
+                  <TableHead>{t("roundDetail.shareClass") || "Share Class"}</TableHead>
+                  <TableHead className="text-right">{t("roundDetail.shares")}</TableHead>
+                  <TableHead className="text-right">{t("roundDetail.pricePerShare")}</TableHead>
+                  <TableHead className="text-right">{t("roundDetail.amount") || "Amount"}</TableHead>
+                  <TableHead>{t("roundDetail.status")}</TableHead>
+                  <TableHead className="w-[180px] text-right">{t("roundDetail.actions") || "Actions"}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -360,9 +372,9 @@ function V1RoundDetailContent() {
                               variant="outline"
                               onClick={(e) => handleAdvance(a, e)}
                               disabled={advanceMut.isPending}
-                              title="Advance to next status"
+                              title={t("roundDetail.advanceTooltip") || "Advance to next status"}
                             >
-                              Advance
+                              {t("roundDetail.advance") || "Advance"}
                             </Button>
                           )}
                           {canEdit && (

@@ -1,35 +1,8 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { ClipboardList, Search, Filter, ChevronDown, ChevronUp, User, Plus, Pencil, Trash2, Upload, Download, LogIn, Mail } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
-
-// ─── Action Config ────────────────────────────────────────────────────────────
-const ACTION_CONFIG: Record<string, { label: string; icon: React.ComponentType<any>; color: string }> = {
-  create:  { label: "Created",  icon: Plus,         color: "text-green-600 bg-green-50" },
-  update:  { label: "Updated",  icon: Pencil,        color: "text-blue-600 bg-blue-50" },
-  delete:  { label: "Deleted",  icon: Trash2,        color: "text-red-600 bg-red-50" },
-  import:  { label: "Imported", icon: Upload,        color: "text-purple-600 bg-purple-50" },
-  export:  { label: "Exported", icon: Download,      color: "text-stone-600 bg-stone-100" },
-  login:   { label: "Signed In",icon: LogIn,         color: "text-teal-600 bg-teal-50" },
-  invite:  { label: "Invited",  icon: Mail,          color: "text-amber-600 bg-amber-50" },
-};
-
-const RESOURCE_LABELS: Record<string, string> = {
-  shareholder:    "Shareholder",
-  funding_round:  "Funding Round",
-  esop_grant:     "ESOP Grant",
-  esop_pool:      "ESOP Pool",
-  share_holding:  "Share Holding",
-  share_transfer: "Share Transfer",
-  snapshot:       "Snapshot",
-  anti_dilution:  "Anti-Dilution",
-  document:       "Document",
-  valuation:      "FMV Valuation",
-  waterfall:      "Waterfall",
-  user:           "User",
-  invitation:     "Invitation",
-  import:         "Data Import",
-};
 
 function formatDateTime(d: Date | string) {
   return new Date(d).toLocaleString("en-US", {
@@ -38,8 +11,8 @@ function formatDateTime(d: Date | string) {
   });
 }
 
-function ActionBadge({ action }: { action: string }) {
-  const cfg = ACTION_CONFIG[action] ?? { label: action, icon: ClipboardList, color: "text-stone-600 bg-stone-100" };
+function ActionBadge({ action, actionConfig }: { action: string; actionConfig: Record<string, { label: string; icon: React.ComponentType<any>; color: string }> }) {
+  const cfg = actionConfig[action] ?? { label: action, icon: ClipboardList, color: "text-stone-600 bg-stone-100" };
   const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${cfg.color}`}>
@@ -49,7 +22,7 @@ function ActionBadge({ action }: { action: string }) {
   );
 }
 
-function ChangeDetail({ before, after }: { before?: string | null; after?: string | null }) {
+function ChangeDetail({ before, after, t }: { before?: string | null; after?: string | null; t: (key: string) => string }) {
   const [expanded, setExpanded] = useState(false);
   if (!before && !after) return null;
 
@@ -74,19 +47,19 @@ function ChangeDetail({ before, after }: { before?: string | null; after?: strin
         className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
       >
         {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        {expanded ? "Hide changes" : "View changes"}
+        {expanded ? t("auditLog.hideChanges") : t("auditLog.viewChanges")}
       </button>
       {expanded && (
         <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
           {beforeObj !== null && (
             <div className="rounded-sm border border-red-200 bg-red-50 p-3">
-              <div className="text-xs font-medium text-red-600 mb-1">Before</div>
+              <div className="text-xs font-medium text-red-600 mb-1">{t("auditLog.before")}</div>
               <pre className="text-xs text-red-800 whitespace-pre-wrap break-all">{renderValue(beforeObj)}</pre>
             </div>
           )}
           {afterObj !== null && (
             <div className="rounded-sm border border-green-200 bg-green-50 p-3">
-              <div className="text-xs font-medium text-green-600 mb-1">After</div>
+              <div className="text-xs font-medium text-green-600 mb-1">{t("auditLog.after")}</div>
               <pre className="text-xs text-green-800 whitespace-pre-wrap break-all">{renderValue(afterObj)}</pre>
             </div>
           )}
@@ -98,12 +71,43 @@ function ChangeDetail({ before, after }: { before?: string | null; after?: strin
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 function AuditLogContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("settings");
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("all");
   const [filterResource, setFilterResource] = useState("all");
   const [limit] = useState(200);
 
   const { data: logs, isLoading } = trpc.auditLog.list.useQuery({ limit, offset: 0 });
+
+  // Move ACTION_CONFIG inside component to use t()
+  const ACTION_CONFIG: Record<string, { label: string; icon: React.ComponentType<any>; color: string }> = {
+    create:  { label: t("auditLog.actionCreated"),  icon: Plus,         color: "text-green-600 bg-green-50" },
+    update:  { label: t("auditLog.actionUpdated"),  icon: Pencil,        color: "text-blue-600 bg-blue-50" },
+    delete:  { label: t("auditLog.actionDeleted"),  icon: Trash2,        color: "text-red-600 bg-red-50" },
+    import:  { label: t("auditLog.actionImported"), icon: Upload,        color: "text-purple-600 bg-purple-50" },
+    export:  { label: t("auditLog.actionExported"), icon: Download,      color: "text-stone-600 bg-stone-100" },
+    login:   { label: t("auditLog.actionSignedIn"),icon: LogIn,         color: "text-teal-600 bg-teal-50" },
+    invite:  { label: t("auditLog.actionInvited"),  icon: Mail,          color: "text-amber-600 bg-amber-50" },
+  };
+
+  // Move RESOURCE_LABELS inside component to use t()
+  const RESOURCE_LABELS: Record<string, string> = {
+    shareholder:    t("auditLog.resShareholder"),
+    funding_round:  t("auditLog.resFundingRound"),
+    esop_grant:     t("auditLog.resEsopGrant"),
+    esop_pool:      t("auditLog.resEsopPool"),
+    share_holding:  t("auditLog.resShareHolding"),
+    share_transfer: t("auditLog.resShareTransfer"),
+    snapshot:       t("auditLog.resSnapshot"),
+    anti_dilution:  t("auditLog.resAntiDilution"),
+    document:       t("auditLog.resDocument"),
+    valuation:      t("auditLog.resValuation"),
+    waterfall:      t("auditLog.resWaterfall"),
+    user:           t("auditLog.resUser"),
+    invitation:     t("auditLog.resInvitation"),
+    import:         t("auditLog.resImport"),
+  };
 
   const filtered = (logs ?? []).filter(log => {
     const matchSearch = !search ||
@@ -122,9 +126,9 @@ function AuditLogContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl font-bold tracking-tight">Audit Log</h1>
+          <h1 className="font-serif text-3xl font-bold tracking-tight">{tPages("settings.auditLog.title")}</h1>
           <p className="text-muted-foreground mt-1">
-            Complete history of all data changes for compliance and traceability.
+            {tPages("settings.auditLog.desc")}
           </p>
         </div>
         <button
@@ -153,17 +157,17 @@ function AuditLogContent() {
           disabled={!filtered.length}
           className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border border-border text-sm text-muted-foreground font-medium rounded-sm hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
-          <Download className="h-4 w-4" /> Export CSV
+          <Download className="h-4 w-4" /> {t("auditLog.exportCsv")}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Events", value: logs?.length ?? 0 },
-          { label: "Creates", value: (logs ?? []).filter(l => l.action === "create").length },
-          { label: "Updates", value: (logs ?? []).filter(l => l.action === "update").length },
-          { label: "Deletes", value: (logs ?? []).filter(l => l.action === "delete").length },
+          { label: t("auditLog.totalEvents"), value: logs?.length ?? 0 },
+          { label: t("auditLog.creates"), value: (logs ?? []).filter(l => l.action === "create").length },
+          { label: t("auditLog.updates"), value: (logs ?? []).filter(l => l.action === "update").length },
+          { label: t("auditLog.deletes"), value: (logs ?? []).filter(l => l.action === "delete").length },
         ].map(stat => (
           <div key={stat.label} className="border border-border rounded-sm p-4">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</div>
@@ -178,7 +182,7 @@ function AuditLogContent() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by user, resource..."
+            placeholder={t("auditLog.searchPlaceholder")}
             className="w-full pl-9 pr-3 py-2 border border-input rounded-sm text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
@@ -186,14 +190,14 @@ function AuditLogContent() {
           <Filter className="h-4 w-4 text-muted-foreground" />
           <select value={filterAction} onChange={e => setFilterAction(e.target.value)}
             className="border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="all">All Actions</option>
+            <option value="all">{t("auditLog.allActions")}</option>
             {Object.entries(ACTION_CONFIG).map(([k, v]) => (
               <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
           <select value={filterResource} onChange={e => setFilterResource(e.target.value)}
             className="border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="all">All Resources</option>
+            <option value="all">{t("auditLog.allResources")}</option>
             {uniqueResources.map(r => (
               <option key={r} value={r ?? ""}>{RESOURCE_LABELS[r ?? ""] ?? r}</option>
             ))}
@@ -207,15 +211,15 @@ function AuditLogContent() {
       {/* Log Timeline */}
       {isLoading ? (
         <div className="border border-border rounded-sm p-8 text-center text-muted-foreground text-sm">
-          Loading audit log...
+          {t("auditLog.loading")}
         </div>
       ) : !filtered.length ? (
         <div className="border border-border rounded-sm p-12 text-center">
           <ClipboardList className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No events found.</p>
+          <p className="text-muted-foreground">{t("auditLog.noEvents")}</p>
           {(logs ?? []).length === 0 && (
             <p className="text-xs text-muted-foreground mt-1">
-              Audit logging is active. Events will appear here as you make changes.
+              {t("auditLog.activeNotice")}
             </p>
           )}
         </div>
@@ -224,11 +228,11 @@ function AuditLogContent() {
           <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-secondary/30 border-b border-border">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">Timestamp</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">User</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">Action</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">Resource</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">Details</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">{t("auditLog.timestamp")}</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">{t("auditLog.user")}</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">{t("auditLog.action")}</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">{t("auditLog.resource")}</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">{t("auditLog.details")}</th>
               </tr>
             </thead>
             <tbody>
@@ -246,7 +250,7 @@ function AuditLogContent() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <ActionBadge action={log.action} />
+                    <ActionBadge action={log.action} actionConfig={ACTION_CONFIG} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-xs font-medium">{RESOURCE_LABELS[log.resourceType ?? ""] ?? log.resourceType ?? "Unknown"}</div>
@@ -255,7 +259,7 @@ function AuditLogContent() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <ChangeDetail before={log.changesBefore} after={log.changesAfter} />
+                    <ChangeDetail before={log.changesBefore} after={log.changesAfter} t={t} />
                   </td>
                 </tr>
               ))}

@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo, useRef } from "react";
 import {
@@ -71,6 +72,8 @@ const STATUS_CONFIG: Record<SigningStatus, { label: string; color: string; icon:
 type PageSection = "requests" | "templates";
 
 function ESignContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("equity");
   const [section, setSection] = useState<PageSection>("requests");
 
   return (
@@ -79,10 +82,10 @@ function ESignContent() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <PenLine className="h-6 w-6 text-primary" />
-          eSignature
+          {tPages("esign.title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Send equity documents for electronic signature via DocuSeal.
+          {tPages("esign.desc")}
         </p>
       </div>
 
@@ -96,7 +99,7 @@ function ESignContent() {
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          Signing Requests
+          {t("esign.signingRequests")}
         </button>
         <button
           onClick={() => setSection("templates")}
@@ -107,7 +110,7 @@ function ESignContent() {
           }`}
         >
           <FolderOpen className="h-3.5 w-3.5" />
-          Template Library
+          {t("esign.templateLibrary")}
         </button>
       </div>
 

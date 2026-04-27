@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Calculator, FlaskConical } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -15,6 +16,8 @@ import {
 import { EstimatedValuationContent } from "./EstimatedValuation";
 
 export default function ValuationPage() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("analysis");
   return (
     <DashboardLayout>
       <div className="p-8 max-w-6xl mx-auto space-y-6">
@@ -22,17 +25,17 @@ export default function ValuationPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Calculator className="h-7 w-7 text-primary" />
-            Valuation &amp; Scenario Modeling
+            {tPages("valuation.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Estimate per-round valuations today; model hypothetical future rounds.
+            {tPages("valuation.desc")}
           </p>
         </div>
 
         <Tabs defaultValue="estimated" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="estimated">Estimated Valuation</TabsTrigger>
-            <TabsTrigger value="scenario">Scenario Modeling</TabsTrigger>
+            <TabsTrigger value="estimated">{t("valuation.estimatedTab")}</TabsTrigger>
+            <TabsTrigger value="scenario">{t("valuation.scenarioTab")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="estimated" className="space-y-0">
@@ -47,7 +50,7 @@ export default function ValuationPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FlaskConical className="h-5 w-5" />
-                  Scenario Modeling — coming in V2
+                  {t("valuation.scenarioTab")} — {t("valuation.comingSoon")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-3">

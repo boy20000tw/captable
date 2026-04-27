@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Layers, Plus, Pencil, Trash2, ChevronDown, ChevronUp, Shield, Vote, DollarSign, ArrowDownUp } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -67,33 +68,35 @@ const emptyForm: ShareClassForm = {
   sortOrder: 0,
 };
 
-const LABELS = {
-  classType: { common: "Common", preferred: "Preferred" },
-  participationType: {
-    non_participating: "Non-Participating",
-    participating: "Full Participating",
-    capped_participating: "Capped Participating",
-  },
-  antiDilutionType: {
-    none: "None",
-    full_ratchet: "Full Ratchet",
-    broad_based_wa: "Broad-Based WA",
-    narrow_based_wa: "Narrow-Based WA",
-  },
-  dividendType: {
-    none: "None",
-    non_cumulative: "Non-Cumulative",
-    cumulative: "Cumulative",
-  },
-};
-
 function slugify(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 }
 
 function ShareClassesContent() {
+  const { t } = useTranslation("pages");
+  const { t: tc } = useTranslation("common");
   const { canEdit } = usePermissions();
   const utils = trpc.useUtils();
+
+  const LABELS = useMemo(() => ({
+    classType: { common: t("sc.common"), preferred: t("sc.preferred") },
+    participationType: {
+      non_participating: t("sc.participationNonParticipating"),
+      participating: t("sc.participationFullParticipating"),
+      capped_participating: t("sc.participationCappedParticipating"),
+    },
+    antiDilutionType: {
+      none: t("sc.antiDilutionNone"),
+      full_ratchet: t("sc.antiDilutionFullRatchet"),
+      broad_based_wa: t("sc.antiDilutionBroadBasedWa"),
+      narrow_based_wa: t("sc.antiDilutionNarrowBasedWa"),
+    },
+    dividendType: {
+      none: t("sc.dividendNone"),
+      non_cumulative: t("sc.dividendNonCumulative"),
+      cumulative: t("sc.dividendCumulative"),
+    },
+  }), [t]);
 
   const { data: classes, isLoading } = trpc.shareClasses.list.useQuery();
 
@@ -103,19 +106,19 @@ function ShareClassesContent() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const createMut = trpc.shareClasses.create.useMutation({
-    onSuccess: () => { utils.shareClasses.list.invalidate(); toast.success("Share class created"); resetForm(); },
+    onSuccess: () => { utils.shareClasses.list.invalidate(); toast.success(t("sc.classCreated")); resetForm(); },
     onError: (e) => toast.error(e.message),
   });
   const updateMut = trpc.shareClasses.update.useMutation({
-    onSuccess: () => { utils.shareClasses.list.invalidate(); toast.success("Share class updated"); resetForm(); },
+    onSuccess: () => { utils.shareClasses.list.invalidate(); toast.success(t("sc.classUpdated")); resetForm(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMut = trpc.shareClasses.delete.useMutation({
-    onSuccess: () => { utils.shareClasses.list.invalidate(); toast.success("Share class deleted"); },
+    onSuccess: () => { utils.shareClasses.list.invalidate(); toast.success(t("sc.classDeleted")); },
     onError: (e) => toast.error(e.message),
   });
   const seedMut = trpc.shareClasses.seed.useMutation({
-    onSuccess: () => { utils.shareClasses.list.invalidate(); toast.success("Default classes created"); },
+    onSuccess: () => { utils.shareClasses.list.invalidate(); toast.success(t("sc.defaultsCreated")); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -154,8 +157,8 @@ function ShareClassesContent() {
   }
 
   function handleSubmit() {
-    if (!form.name.trim()) { toast.error("Name is required"); return; }
-    if (!form.slug.trim()) { toast.error("Slug is required"); return; }
+    if (!form.name.trim()) { toast.error(t("sc.nameRequired")); return; }
+    if (!form.slug.trim()) { toast.error(t("sc.slugRequired")); return; }
 
     const payload = {
       name: form.name,
@@ -197,8 +200,8 @@ function ShareClassesContent() {
         <div className="flex items-center gap-3">
           <Layers className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Share Classes</h1>
-            <p className="text-sm text-muted-foreground">Define equity classes, preferred terms, and liquidation rights</p>
+            <h1 className="text-xl font-bold tracking-tight">{t("sc.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("sc.desc")}</p>
           </div>
         </div>
         {canEdit && (
@@ -209,14 +212,14 @@ function ShareClassesContent() {
                 disabled={seedMut.isPending}
                 className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50"
               >
-                Seed Defaults
+                {t("sc.seedDefaults")}
               </button>
             )}
             <button
               onClick={() => { resetForm(); setShowForm(!showForm); }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
             >
-              <Plus className="h-4 w-4" /> New Class
+              <Plus className="h-4 w-4" /> {t("sc.newClass")}
             </button>
           </div>
         )}
@@ -225,12 +228,12 @@ function ShareClassesContent() {
       {/* Create / Edit Form */}
       {showForm && canEdit && (
         <div className="border border-border rounded-xl p-6 bg-card space-y-5">
-          <h2 className="text-base font-semibold">{editingId ? "Edit Share Class" : "New Share Class"}</h2>
+          <h2 className="text-base font-semibold">{editingId ? t("sc.editShareClass") : t("sc.newShareClass")}</h2>
 
           {/* Row 1: Identity */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="sm:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.name")}</label>
               <input
                 value={form.name}
                 onChange={e => { setForm(f => ({ ...f, name: e.target.value, slug: editingId ? f.slug : slugify(e.target.value) })); }}
@@ -239,7 +242,7 @@ function ShareClassesContent() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Slug</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.slug")}</label>
               <input
                 value={form.slug}
                 onChange={e => setForm(f => ({ ...f, slug: e.target.value }))}
@@ -248,14 +251,14 @@ function ShareClassesContent() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Type</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.type")}</label>
               <select
                 value={form.classType}
                 onChange={e => setForm(f => ({ ...f, classType: e.target.value as ClassType }))}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
               >
-                <option value="common">Common</option>
-                <option value="preferred">Preferred</option>
+                <option value="common">{t("sc.common")}</option>
+                <option value="preferred">{t("sc.preferred")}</option>
               </select>
             </div>
           </div>
@@ -263,7 +266,7 @@ function ShareClassesContent() {
           {/* Row 2: Shares & Price */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Authorized Shares</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.authorizedShares")}</label>
               <input
                 type="number"
                 value={form.authorizedShares}
@@ -273,7 +276,7 @@ function ShareClassesContent() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Par Value</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.parValue")}</label>
               <input
                 value={form.parValue}
                 onChange={e => setForm(f => ({ ...f, parValue: e.target.value }))}
@@ -282,7 +285,7 @@ function ShareClassesContent() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Price / Share</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.pricePerShare")}</label>
               <input
                 value={form.pricePerShare}
                 onChange={e => setForm(f => ({ ...f, pricePerShare: e.target.value }))}
@@ -291,7 +294,7 @@ function ShareClassesContent() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Currency</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.currency")}</label>
               <select
                 value={form.currency}
                 onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
@@ -309,10 +312,10 @@ function ShareClassesContent() {
           {form.classType === "preferred" && (
             <>
               <div className="border-t border-border pt-4">
-                <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Liquidation Terms</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">{t("sc.liquidationTerms")}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Liquidation Multiple</label>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.liquidationMultiple")}</label>
                     <input
                       value={form.liquidationMultiple}
                       onChange={e => setForm(f => ({ ...f, liquidationMultiple: e.target.value }))}
@@ -321,7 +324,7 @@ function ShareClassesContent() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Participation Type</label>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.participationType")}</label>
                     <select
                       value={form.participationType}
                       onChange={e => setForm(f => ({ ...f, participationType: e.target.value as ParticipationType }))}
@@ -334,7 +337,7 @@ function ShareClassesContent() {
                   </div>
                   {form.participationType === "capped_participating" && (
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Participation Cap</label>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.participationCap")}</label>
                       <input
                         value={form.participationCap}
                         onChange={e => setForm(f => ({ ...f, participationCap: e.target.value }))}
@@ -344,7 +347,7 @@ function ShareClassesContent() {
                     </div>
                   )}
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Seniority Rank</label>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.seniorityRank")}</label>
                     <input
                       type="number"
                       value={form.seniorityRank}
@@ -357,7 +360,7 @@ function ShareClassesContent() {
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Anti-Dilution</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.antiDilution")}</label>
                   <select
                     value={form.antiDilutionType}
                     onChange={e => setForm(f => ({ ...f, antiDilutionType: e.target.value as AntiDilutionType }))}
@@ -369,7 +372,7 @@ function ShareClassesContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Dividend Type</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.dividendType")}</label>
                   <select
                     value={form.dividendType}
                     onChange={e => setForm(f => ({ ...f, dividendType: e.target.value as DividendType }))}
@@ -382,7 +385,7 @@ function ShareClassesContent() {
                 </div>
                 {form.dividendType !== "none" && (
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Dividend Rate (%)</label>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.dividendRate")}</label>
                     <input
                       value={form.dividendRate}
                       onChange={e => setForm(f => ({ ...f, dividendRate: e.target.value }))}
@@ -395,7 +398,7 @@ function ShareClassesContent() {
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Conversion Ratio</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.conversionRatio")}</label>
                   <input
                     value={form.conversionRatio}
                     onChange={e => setForm(f => ({ ...f, conversionRatio: e.target.value }))}
@@ -404,7 +407,7 @@ function ShareClassesContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Votes / Share</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.votesPerShare")}</label>
                   <input
                     value={form.votingMultiplier}
                     onChange={e => setForm(f => ({ ...f, votingMultiplier: e.target.value }))}
@@ -413,7 +416,7 @@ function ShareClassesContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Board Seats</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.boardSeats")}</label>
                   <input
                     type="number"
                     value={form.boardSeats}
@@ -429,7 +432,7 @@ function ShareClassesContent() {
                       onChange={e => setForm(f => ({ ...f, isConvertible: e.target.checked }))}
                       className="rounded border-input"
                     />
-                    Convertible to Common
+                    {t("sc.convertibleToCommon")}
                   </label>
                 </div>
               </div>
@@ -440,7 +443,7 @@ function ShareClassesContent() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="sm:col-span-3">
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                {form.classType === "preferred" ? "Protective Provisions / Notes" : "Notes"}
+                {form.classType === "preferred" ? t("sc.protectiveProvisions") : t("sc.notes")}
               </label>
               <textarea
                 value={form.classType === "preferred" ? form.protectiveProvisions : form.notes}
@@ -453,7 +456,7 @@ function ShareClassesContent() {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Sort Order</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("sc.sortOrder")}</label>
               <input
                 type="number"
                 value={form.sortOrder}
@@ -466,14 +469,14 @@ function ShareClassesContent() {
           {/* Buttons */}
           <div className="flex gap-2 justify-end">
             <button onClick={resetForm} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent transition-colors">
-              Cancel
+              {tc("btn.cancel")}
             </button>
             <button
               onClick={handleSubmit}
               disabled={createMut.isPending || updateMut.isPending}
               className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              {editingId ? "Update" : "Create"}
+              {editingId ? tc("btn.update") : tc("btn.create")}
             </button>
           </div>
         </div>
@@ -490,8 +493,8 @@ function ShareClassesContent() {
       {isEmpty && !showForm && (
         <div className="text-center py-16 text-muted-foreground">
           <Layers className="h-12 w-12 mx-auto mb-4 opacity-30" />
-          <p className="text-lg font-medium mb-1">No share classes defined</p>
-          <p className="text-sm mb-4">Create your first share class or seed the defaults (Common + ESOP)</p>
+          <p className="text-lg font-medium mb-1">{t("sc.noClasses")}</p>
+          <p className="text-sm mb-4">{t("sc.noClassesDesc")}</p>
         </div>
       )}
 
@@ -513,7 +516,7 @@ function ShareClassesContent() {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm">{sc.name}</span>
                       <Badge variant={isPreferred ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                        {isPreferred ? "Preferred" : "Common"}
+                        {isPreferred ? t("sc.preferred") : t("sc.common")}
                       </Badge>
                       <span className="text-xs text-muted-foreground font-mono">{sc.slug}</span>
                     </div>
@@ -532,7 +535,7 @@ function ShareClassesContent() {
                         {sc.votingMultiplier && sc.votingMultiplier !== "1.00" && (
                           <span className="flex items-center gap-1">
                             <Vote className="h-3 w-3" />
-                            {sc.votingMultiplier}x votes
+                            {t("sc.xVotes", {multiplier: sc.votingMultiplier})}
                           </span>
                         )}
                       </div>
@@ -541,7 +544,7 @@ function ShareClassesContent() {
                   <div className="flex items-center gap-3">
                     {sc.authorizedShares && (
                       <span className="text-xs text-muted-foreground">
-                        {Number(sc.authorizedShares).toLocaleString()} authorized
+                        {Number(sc.authorizedShares).toLocaleString()} {t("sc.authorized")}
                       </span>
                     )}
                     {sc.pricePerShare && (
@@ -558,7 +561,7 @@ function ShareClassesContent() {
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
                         <button
-                          onClick={e => { e.stopPropagation(); if (confirm(`Delete "${sc.name}"?`)) deleteMut.mutate({ id: sc.id }); }}
+                          onClick={e => { e.stopPropagation(); if (confirm(t("sc.deleteConfirm", {name: sc.name}))) deleteMut.mutate({ id: sc.id }); }}
                           className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
                         >
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -573,26 +576,26 @@ function ShareClassesContent() {
                 {isExpanded && isPreferred && (
                   <div className="border-t border-border px-5 py-4 bg-muted/20">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                      <DetailItem label="Liquidation Multiple" value={`${sc.liquidationMultiple}x`} />
-                      <DetailItem label="Participation" value={LABELS.participationType[sc.participationType as ParticipationType] ?? "—"} />
-                      {sc.participationCap && <DetailItem label="Participation Cap" value={`${sc.participationCap}x`} />}
-                      <DetailItem label="Seniority Rank" value={sc.seniorityRank?.toString() ?? "1"} />
-                      <DetailItem label="Anti-Dilution" value={LABELS.antiDilutionType[sc.antiDilutionType as AntiDilutionType] ?? "None"} />
-                      <DetailItem label="Convertible" value={sc.isConvertible ? `Yes (${sc.conversionRatio}:1)` : "No"} />
-                      <DetailItem label="Dividend" value={sc.dividendType === "none" ? "None" : `${sc.dividendRate ?? "—"}% ${LABELS.dividendType[sc.dividendType as DividendType]}`} />
-                      <DetailItem label="Votes / Share" value={`${sc.votingMultiplier ?? "1.00"}x`} />
-                      {sc.boardSeats > 0 && <DetailItem label="Board Seats" value={sc.boardSeats.toString()} />}
-                      {sc.parValue && <DetailItem label="Par Value" value={`${sc.currency} ${sc.parValue}`} />}
+                      <DetailItem label={t("sc.liquidationMultiple")} value={`${sc.liquidationMultiple}x`} />
+                      <DetailItem label={t("sc.participationType")} value={LABELS.participationType[sc.participationType as ParticipationType] ?? "—"} />
+                      {sc.participationCap && <DetailItem label={t("sc.participationCap")} value={`${sc.participationCap}x`} />}
+                      <DetailItem label={t("sc.seniorityRank")} value={sc.seniorityRank?.toString() ?? "1"} />
+                      <DetailItem label={t("sc.antiDilution")} value={LABELS.antiDilutionType[sc.antiDilutionType as AntiDilutionType] ?? t("sc.antiDilutionNone")} />
+                      <DetailItem label={t("sc.convertibleToCommon")} value={sc.isConvertible ? t("sc.convertibleYes", {ratio: sc.conversionRatio}) : t("sc.convertibleNo")} />
+                      <DetailItem label={t("sc.dividendType")} value={sc.dividendType === "none" ? t("sc.dividendNone") : `${sc.dividendRate ?? "—"}% ${LABELS.dividendType[sc.dividendType as DividendType]}`} />
+                      <DetailItem label={t("sc.votesPerShare")} value={`${sc.votingMultiplier ?? "1.00"}x`} />
+                      {sc.boardSeats > 0 && <DetailItem label={t("sc.boardSeats")} value={sc.boardSeats.toString()} />}
+                      {sc.parValue && <DetailItem label={t("sc.parValue")} value={`${sc.currency} ${sc.parValue}`} />}
                     </div>
                     {sc.protectiveProvisions && (
                       <div className="mt-3">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Protective Provisions</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{t("sc.protectiveProvisions")}</p>
                         <p className="text-sm text-foreground whitespace-pre-wrap">{sc.protectiveProvisions}</p>
                       </div>
                     )}
                     {sc.notes && (
                       <div className="mt-3">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{t("sc.notes")}</p>
                         <p className="text-sm text-foreground">{sc.notes}</p>
                       </div>
                     )}

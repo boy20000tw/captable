@@ -8,6 +8,7 @@
  */
 
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, CartesianGrid,
@@ -28,12 +29,13 @@ type VestingGrant = {
 };
 
 export function VestingTimeline({ grant }: { grant: VestingGrant }) {
+  const { t } = useTranslation("common");
   const { chartData, milestones, progress } = useMemo(() => computeVestingData(grant), [grant]);
 
   if (!grant.vestingStartDate || !grant.vestingTotalMonths || grant.vestingTotalMonths <= 0) {
     return (
       <div className="text-sm text-muted-foreground text-center py-6">
-        No vesting schedule configured for this grant.
+        {t("vesting.noSchedule")}
       </div>
     );
   }
@@ -45,8 +47,8 @@ export function VestingTimeline({ grant }: { grant: VestingGrant }) {
       {/* Progress bar */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Vesting progress</span>
-          <span>{progress.vestedPct.toFixed(1)}% vested</span>
+          <span>{t("vesting.progress")}</span>
+          <span>{t("vesting.vestedPct", { pct: progress.vestedPct.toFixed(1) })}</span>
         </div>
         <div className="h-3 rounded-full bg-muted overflow-hidden flex">
           {progress.exercisedPct > 0 && (
@@ -65,9 +67,9 @@ export function VestingTimeline({ grant }: { grant: VestingGrant }) {
           )}
         </div>
         <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" /> Exercised ({grant.sharesExercised.toLocaleString()})</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Vested ({(grant.sharesVested - grant.sharesExercised).toLocaleString()})</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted inline-block" /> Unvested ({(netGranted - grant.sharesVested).toLocaleString()})</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" /> {t("vesting.exercised")} ({grant.sharesExercised.toLocaleString()})</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> {t("vesting.vested")} ({(grant.sharesVested - grant.sharesExercised).toLocaleString()})</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted inline-block" /> {t("vesting.unvested")} ({(netGranted - grant.sharesVested).toLocaleString()})</span>
         </div>
       </div>
 
@@ -94,7 +96,7 @@ export function VestingTimeline({ grant }: { grant: VestingGrant }) {
                 border: "1px solid var(--border)",
                 background: "var(--background)",
               }}
-              formatter={(value: number) => [value.toLocaleString(), "Vested"]}
+              formatter={(value: number) => [value.toLocaleString(), t("vesting.vested")]}
             />
             <Area
               type="stepAfter"
@@ -109,7 +111,7 @@ export function VestingTimeline({ grant }: { grant: VestingGrant }) {
                 x={chartData[milestones.cliffMonth]?.label}
                 stroke="#f59e0b"
                 strokeDasharray="4 3"
-                label={{ value: "Cliff", fontSize: 10, fill: "#f59e0b", position: "top" }}
+                label={{ value: t("vesting.cliff"), fontSize: 10, fill: "#f59e0b", position: "top" }}
               />
             )}
             {milestones.todayMonth !== undefined && milestones.todayMonth < chartData.length && (
@@ -117,7 +119,7 @@ export function VestingTimeline({ grant }: { grant: VestingGrant }) {
                 x={chartData[milestones.todayMonth]?.label}
                 stroke="#3b82f6"
                 strokeWidth={2}
-                label={{ value: "Today", fontSize: 10, fill: "#3b82f6", position: "top" }}
+                label={{ value: t("vesting.today"), fontSize: 10, fill: "#3b82f6", position: "top" }}
               />
             )}
           </AreaChart>
@@ -128,25 +130,25 @@ export function VestingTimeline({ grant }: { grant: VestingGrant }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MilestoneCard
           icon={<CalendarDays className="h-3.5 w-3.5" />}
-          label="Vesting Start"
+          label={t("vesting.vestingStart")}
           value={formatShortDate(grant.vestingStartDate)}
         />
         <MilestoneCard
           icon={<Clock className="h-3.5 w-3.5" />}
-          label="Cliff End"
+          label={t("vesting.cliffEnd")}
           value={milestones.cliffDate ? formatShortDate(milestones.cliffDate) : "—"}
           highlight={milestones.cliffPassed ? "passed" : "pending"}
         />
         <MilestoneCard
           icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-          label="Fully Vested"
+          label={t("vesting.fullyVested")}
           value={milestones.fullVestDate ? formatShortDate(milestones.fullVestDate) : "—"}
           highlight={milestones.fullyVested ? "passed" : "pending"}
         />
         <MilestoneCard
           icon={<Play className="h-3.5 w-3.5" />}
-          label="Expiry"
-          value={grant.expiryDate ? formatShortDate(grant.expiryDate) : "No expiry"}
+          label={t("vesting.expiry")}
+          value={grant.expiryDate ? formatShortDate(grant.expiryDate) : t("vesting.noExpiry")}
         />
       </div>
     </div>

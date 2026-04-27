@@ -2,17 +2,12 @@
  * Admin Overview — platform stats at a glance.
  */
 
+import { useTranslation } from "react-i18next";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { formatNumber } from "@/lib/utils";
 import { Building2, Users, Crown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const PLAN_LABELS: Record<string, string> = {
-  free: "Free",
-  paid: "Paid",
-  custom: "Custom",
-};
 
 export default function AdminOverviewPage() {
   return (
@@ -23,6 +18,8 @@ export default function AdminOverviewPage() {
 }
 
 function AdminOverviewContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("admin");
   const { data: stats, isLoading } = trpc.admin.platformStats.useQuery();
 
   if (isLoading) {
@@ -36,9 +33,9 @@ function AdminOverviewContent() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Platform Overview</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{tPages("admin.overview.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          High-level stats across all companies on Caploom
+          {tPages("admin.overview.desc")}
         </p>
       </div>
 
@@ -47,7 +44,7 @@ function AdminOverviewContent() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Building2 className="h-4 w-4" /> Total Companies
+              <Building2 className="h-4 w-4" /> {t("overview.totalCompanies")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -58,7 +55,7 @@ function AdminOverviewContent() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" /> Total Users
+              <Users className="h-4 w-4" /> {t("overview.totalUsers")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -69,19 +66,21 @@ function AdminOverviewContent() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Crown className="h-4 w-4" /> Plans
+              <Crown className="h-4 w-4" /> {t("overview.plans")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
               {stats?.planBreakdown.map((p: any) => (
                 <div key={p.plan} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{PLAN_LABELS[p.plan] ?? p.plan}</span>
+                  <span className="text-muted-foreground">
+                    {p.plan === "free" ? t("overview.planFree") : p.plan === "paid" ? t("overview.planPaid") : p.plan === "custom" ? t("overview.planCustom") : p.plan}
+                  </span>
                   <span className="font-semibold">{p.count}</span>
                 </div>
               ))}
               {(!stats?.planBreakdown || stats.planBreakdown.length === 0) && (
-                <p className="text-sm text-muted-foreground">No companies yet</p>
+                <p className="text-sm text-muted-foreground">{t("overview.noCompanies")}</p>
               )}
             </div>
           </CardContent>

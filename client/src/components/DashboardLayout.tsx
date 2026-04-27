@@ -3,6 +3,8 @@ import { SignIn } from "@clerk/clerk-react";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { VersionBadge } from "./ChangelogDrawer";
 import MobileBottomNav from "./MobileBottomNav";
+import NotificationBell from "./NotificationBell";
+import LanguageToggle from "./LanguageToggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -54,12 +56,19 @@ import {
   UserCheck,
   ChevronRight,
   BarChart3,
-  FlaskConical,
+  Scale,
   DollarSign,
   FileCheck,
   ShieldCheck,
+  ArrowRightLeft,
+  Search,
+  X,
+  Receipt,
+  Landmark,
 } from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import React, { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 
@@ -67,79 +76,85 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   label: string;
   path: string;
+  section?: string;  // optional section header shown above this item
 };
 
 type NavGroup =
   | { type: "single"; icon: typeof LayoutDashboard; label: string; path: string }
   | { type: "group"; icon: typeof LayoutDashboard; label: string; items: NavItem[] };
 
-const navStructure: NavGroup[] = [
-  {
-    type: "single",
-    icon: LayoutDashboard,
-    label: "Dashboard",
-    path: "/",
-  },
-  {
-    type: "group",
-    icon: PieChart,
-    label: "Equity",
-    items: [
-      { icon: PieChart,  label: "Cap Table",       path: "/cap-table" },
-      { icon: BookOpen,  label: "Share Register",  path: "/register" },
-      { icon: Sparkles,  label: "ESOP",            path: "/esop" },
-      { icon: PenLine,   label: "eSignature",      path: "/esign" },
-    ],
-  },
-  {
-    type: "group",
-    icon: Rocket,
-    label: "Fundraising",
-    items: [
-      { icon: Rocket,    label: "Funding Rounds",  path: "/funding-rounds" },
-      { icon: Users,     label: "Investors",       path: "/investors" },
-      { icon: FileText,  label: "Instruments",     path: "/instruments" },
-    ],
-  },
-  {
-    type: "group",
-    icon: BarChart3,
-    label: "Analysis",
-    items: [
-      { icon: Droplets,   label: "Waterfall",          path: "/waterfall" },
-      { icon: Calculator, label: "Scenario Modeling",   path: "/valuation" },
-      { icon: TrendingUp, label: "Projections & DCF",   path: "/projections" },
-      { icon: Shield,     label: "Anti-Dilution",       path: "/anti-dilution" },
-    ],
-  },
-  {
-    type: "single",
-    icon: UserCheck,
-    label: "Investor Portal",
-    path: "/investor-portal",
-  },
-  {
-    type: "group",
-    icon: FlaskConical,
-    label: "Advanced",
-    items: [
-      { icon: DollarSign, label: "409A Valuation",   path: "/409a" },
-      { icon: FileCheck,  label: "83(b) Election",   path: "/83b" },
-    ],
-  },
-  {
-    type: "group",
-    icon: Settings,
-    label: "Settings",
-    items: [
-      { icon: Settings,       label: "Company",          path: "/settings" },
-      { icon: UserCog,        label: "Team",             path: "/team" },
-      { icon: Upload,         label: "Import & Analysis", path: "/import" },
-      { icon: Camera,         label: "Snapshots",        path: "/snapshots" },
-      { icon: ClipboardList,  label: "Audit Log",        path: "/audit-log" },
-    ],
-  },
-];
+function buildNavStructure(t: TFunction<"nav">): NavGroup[] {
+  return [
+    {
+      type: "single",
+      icon: LayoutDashboard,
+      label: t("dashboard"),
+      path: "/",
+    },
+    {
+      type: "group",
+      icon: PieChart,
+      label: t("equity"),
+      items: [
+        { icon: PieChart,  label: t("equity.capTable"),   path: "/cap-table" },
+        { icon: BookOpen,  label: t("equity.register"),   path: "/register" },
+        { icon: Sparkles,  label: t("equity.esop"),       path: "/esop" },
+        { icon: PenLine,   label: t("equity.esign"),      path: "/esign" },
+      ],
+    },
+    {
+      type: "group",
+      icon: Rocket,
+      label: t("fundraising"),
+      items: [
+        { icon: Rocket,    label: t("fundraising.rounds"),      path: "/funding-rounds" },
+        { icon: Users,     label: t("fundraising.investors"),   path: "/investors" },
+        { icon: FileText,  label: t("fundraising.instruments"), path: "/instruments" },
+      ],
+    },
+    {
+      type: "group",
+      icon: BarChart3,
+      label: t("analysis"),
+      items: [
+        { icon: Droplets,   label: t("analysis.waterfall"),      path: "/waterfall" },
+        { icon: Calculator, label: t("analysis.valuation"),      path: "/valuation" },
+        { icon: TrendingUp, label: t("analysis.projections"),    path: "/projections" },
+        { icon: Shield,     label: t("analysis.antiDilution"),   path: "/anti-dilution" },
+      ],
+    },
+    {
+      type: "single",
+      icon: UserCheck,
+      label: t("investorPortal"),
+      path: "/investor-portal",
+    },
+    {
+      type: "group",
+      icon: Scale,
+      label: t("compliance"),
+      items: [
+        { icon: Receipt,         label: t("compliance.tw.techShare"),     path: "/tech-share-tax",  section: t("compliance.tw") },
+        { icon: Landmark,        label: t("compliance.tw.closedCompany"), path: "/closed-company" },
+        { icon: DollarSign,      label: t("compliance.us.409a"),          path: "/409a",            section: t("compliance.us") },
+        { icon: FileCheck,       label: t("compliance.us.83b"),           path: "/83b" },
+        { icon: ArrowRightLeft,  label: t("compliance.us.transfers"),     path: "/transfers" },
+      ],
+    },
+    {
+      type: "group",
+      icon: Settings,
+      label: t("settings"),
+      items: [
+        { icon: Settings,       label: t("settings.company"),   path: "/settings" },
+        { icon: UserCog,        label: t("settings.team"),      path: "/team" },
+        { icon: Upload,         label: t("settings.import"),    path: "/import" },
+        { icon: Camera,         label: t("settings.snapshots"), path: "/snapshots" },
+        { icon: ClipboardList,  label: t("settings.auditLog"),  path: "/audit-log" },
+      ],
+    },
+  ];
+}
 
 /** Helper: check if current location is inside a group */
 function isGroupActive(group: NavGroup, loc: string): boolean {
@@ -148,8 +163,8 @@ function isGroupActive(group: NavGroup, loc: string): boolean {
 }
 
 /** Find the active label for mobile header */
-function getActiveLabel(loc: string): string {
-  for (const g of navStructure) {
+function getActiveLabel(nav: NavGroup[], loc: string): string {
+  for (const g of nav) {
     if (g.type === "single" && g.path === loc) return g.label;
     if (g.type === "group") {
       const item = g.items.find(i => i.path === loc);
@@ -237,6 +252,31 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const [menuFilter, setMenuFilter] = useState("");
+  const { t } = useTranslation("nav");
+
+  // Build nav structure from i18n translations (re-builds on language change)
+  const navStructure = useMemo(() => buildNavStructure(t), [t]);
+
+  // Filter nav items by search query
+  const filteredNav = useMemo(() => {
+    const q = menuFilter.trim().toLowerCase();
+    if (!q) return navStructure;
+    return navStructure
+      .map((nav) => {
+        if (nav.type === "single") {
+          return nav.label.toLowerCase().includes(q) ? nav : null;
+        }
+        // Group: filter items, keep group if any match or group label matches
+        if (nav.label.toLowerCase().includes(q)) return nav;
+        const matchedItems = nav.items.filter(
+          (item) => item.label.toLowerCase().includes(q)
+        );
+        if (matchedItems.length === 0) return null;
+        return { ...nav, items: matchedItems };
+      })
+      .filter(Boolean) as NavGroup[];
+  }, [menuFilter, navStructure]);
 
   useEffect(() => {
     if (isCollapsed) setIsResizing(false);
@@ -272,41 +312,74 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
         <Sidebar collapsible="icon" className="border-r-0" disableTransition={isResizing}>
           {/* Sidebar Header */}
           <SidebarHeader className="border-b border-sidebar-border">
-            <div className="h-16 flex items-center gap-2 px-3 w-full">
-              <button
-                onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-sidebar-accent rounded transition-colors focus:outline-none shrink-0"
-                aria-label="Toggle navigation"
-              >
-                <PanelLeft className="h-4 w-4 text-sidebar-foreground/60" />
-              </button>
-              {!isCollapsed && (
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <img
-                    src="/caploom-logo.png"
-                    alt="Caploom"
-                    className="h-7 w-auto object-contain"
+            {/* Row 1: CompanySwitcher (left, with user avatar) + Toggle (right) */}
+            <div className={`h-16 flex items-center gap-2 w-full ${isCollapsed ? "px-2 flex-col justify-center" : "px-3"}`}>
+              {isCollapsed ? (
+                <>
+                  <CompanySwitcher collapsed={isCollapsed} user={user} onSignOut={logout} />
+                  <button
+                    onClick={toggleSidebar}
+                    className="h-8 w-8 flex items-center justify-center hover:bg-sidebar-accent rounded transition-colors focus:outline-none shrink-0"
+                    aria-label="Toggle navigation"
+                  >
+                    <PanelLeft className="h-4 w-4 text-sidebar-foreground/60" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <CompanySwitcher collapsed={isCollapsed} user={user} onSignOut={logout} />
+                  </div>
+                  <button
+                    onClick={toggleSidebar}
+                    className="h-8 w-8 flex items-center justify-center hover:bg-sidebar-accent rounded transition-colors focus:outline-none shrink-0"
+                    aria-label="Toggle navigation"
+                  >
+                    <PanelLeft className="h-4 w-4 text-sidebar-foreground/60" />
+                  </button>
+                </>
+              )}
+            </div>
+            {/* Row 2: Filter menu */}
+            {isCollapsed ? (
+              <div className="flex justify-center pb-2">
+                <button
+                  onClick={toggleSidebar}
+                  className="h-8 w-8 flex items-center justify-center hover:bg-sidebar-accent rounded transition-colors focus:outline-none"
+                  aria-label={t("searchPlaceholder")}
+                  title={t("searchPlaceholder")}
+                >
+                  <Search className="h-4 w-4 text-sidebar-foreground/60" />
+                </button>
+              </div>
+            ) : (
+              <div className="px-3 pb-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder={t("searchPlaceholder")}
+                    value={menuFilter}
+                    onChange={(e) => setMenuFilter(e.target.value)}
+                    className="w-full h-8 pl-8 pr-7 text-xs rounded-md border border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground placeholder:text-sidebar-foreground/40 focus:outline-none focus:ring-1 focus:ring-sidebar-primary/30 transition-colors"
                   />
+                  {menuFilter && (
+                    <button
+                      onClick={() => setMenuFilter("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-sidebar-foreground transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
-              )}
-              {isCollapsed && (
-                <img
-                  src="/caploom-logo.png"
-                  alt="Caploom"
-                  className="h-6 w-auto object-contain"
-                />
-              )}
-            </div>
-            {/* Company Switcher */}
-            <div className={`${isCollapsed ? "px-2 pb-2 flex justify-center" : "px-2 pb-2"}`}>
-              <CompanySwitcher collapsed={isCollapsed} />
-            </div>
+              </div>
+            )}
           </SidebarHeader>
 
-          {/* Sidebar Navigation — 6 collapsible groups */}
+          {/* Sidebar Navigation — collapsible groups */}
           <SidebarContent className="gap-0 py-2">
             <SidebarMenu className="px-2 gap-0.5">
-              {navStructure.map((nav) => {
+              {filteredNav.map((nav) => {
                 if (nav.type === "single") {
                   const isActive = location === nav.path;
                   return (
@@ -335,6 +408,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                     key={nav.label}
                     asChild
                     defaultOpen={groupActive}
+                    open={menuFilter ? true : undefined}
                     className="group/collapsible"
                   >
                     <SidebarMenuItem>
@@ -357,20 +431,29 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                           {nav.items.map((item) => {
                             const isActive = location === item.path;
                             return (
-                              <SidebarMenuSubItem key={item.path}>
-                                <SidebarMenuSubButton
-                                  onClick={() => setLocation(item.path)}
-                                  isActive={isActive}
-                                  className={`cursor-pointer transition-colors ${
-                                    isActive
-                                      ? "bg-sidebar-primary/10 text-sidebar-primary font-medium"
-                                      : ""
-                                  }`}
-                                >
-                                  <item.icon className="h-3.5 w-3.5 shrink-0" />
-                                  <span>{item.label}</span>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
+                              <React.Fragment key={item.path}>
+                                {item.section && (
+                                  <li className="px-3 pt-2 pb-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                                      {item.section}
+                                    </span>
+                                  </li>
+                                )}
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton
+                                    onClick={() => setLocation(item.path)}
+                                    isActive={isActive}
+                                    className={`cursor-pointer transition-colors ${
+                                      isActive
+                                        ? "bg-sidebar-primary/10 text-sidebar-primary font-medium"
+                                        : ""
+                                    }`}
+                                  >
+                                    <item.icon className="h-3.5 w-3.5 shrink-0" />
+                                    <span>{item.label}</span>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              </React.Fragment>
                             );
                           })}
                         </SidebarMenuSub>
@@ -382,50 +465,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             </SidebarMenu>
           </SidebarContent>
 
-          {/* Sidebar Footer */}
+          {/* Sidebar Footer — only VersionBadge */}
           <SidebarFooter className="p-3 border-t border-sidebar-border">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded px-2 py-2 hover:bg-sidebar-accent transition-colors w-full text-left focus:outline-none">
-                  <Avatar className="h-8 w-8 border border-sidebar-border shrink-0">
-                    <AvatarFallback className="text-xs font-medium bg-sidebar-accent text-sidebar-accent-foreground">
-                      {user?.name?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  {!isCollapsed && (
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate text-sidebar-foreground leading-none">
-                        {user?.name || "User"}
-                      </p>
-                      <p className="text-[10px] text-sidebar-foreground/50 truncate mt-1">
-                        {user?.email || ""}
-                      </p>
-                    </div>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  onClick={logout}
-                  className="cursor-pointer text-destructive focus:text-destructive"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {/* Admin link — only visible to platform admins */}
-            {user?.role === "admin" && (
-              <button
-                onClick={() => setLocation("/admin")}
-                className={`flex items-center gap-2 w-full rounded-md text-xs transition-colors ${
-                  isCollapsed ? "justify-center px-2 py-2" : "px-3 py-2"
-                } text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent`}
-              >
-                <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                {!isCollapsed && <span>Admin Panel</span>}
-              </button>
-            )}
             <VersionBadge collapsed={isCollapsed} />
           </SidebarFooter>
         </Sidebar>
@@ -440,6 +481,32 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
       )}
 
       <SidebarInset>
+        {/* Desktop content header — Caploom logo + Admin/Language/Bell/Signout */}
+        {!isMobile && (
+          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-4 backdrop-blur sticky top-0 z-40">
+            <div className="flex items-center gap-2">
+              <img
+                src="/caploom-logo.png"
+                alt="Caploom"
+                className="h-7 w-auto object-contain"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              {user?.role === "admin" && (
+                <button
+                  onClick={() => setLocation("/admin")}
+                  className="flex items-center gap-2 rounded-md text-xs transition-colors px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-accent"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                  <span>Admin Panel</span>
+                </button>
+              )}
+              <LanguageToggle />
+              <NotificationBell />
+            </div>
+          </div>
+        )}
+        {/* Mobile header */}
         {isMobile && (
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-4 backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
@@ -449,9 +516,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 className="h-6 w-auto object-contain"
               />
             </div>
-            <span className="text-sm font-medium tracking-tight truncate max-w-[55%]">
-              {getActiveLabel(location)}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium tracking-tight truncate">
+                {getActiveLabel(navStructure, location)}
+              </span>
+              <LanguageToggle collapsed />
+              <NotificationBell />
+            </div>
           </div>
         )}
         <main className={`flex-1 min-h-screen ${isMobile ? "pb-20" : ""}`}>

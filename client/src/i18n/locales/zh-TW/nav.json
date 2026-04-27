@@ -1,0 +1,41 @@
+{
+  "dashboard": "總覽",
+
+  "equity": "股權管理",
+  "equity.capTable": "股權結構表 (Cap Table)",
+  "equity.register": "股東名冊",
+  "equity.esop": "員工認股 (ESOP)",
+  "equity.esign": "電子簽名 (eSignature)",
+
+  "fundraising": "募資管理",
+  "fundraising.rounds": "募資輪次 (Funding Rounds)",
+  "fundraising.investors": "投資人",
+  "fundraising.instruments": "金融工具 (Instruments)",
+
+  "analysis": "分析",
+  "analysis.waterfall": "瀑布分析 (Waterfall)",
+  "analysis.valuation": "情境模擬 (Scenario Modeling)",
+  "analysis.projections": "財務預測 & DCF",
+  "analysis.antiDilution": "反稀釋 (Anti-Dilution)",
+
+  "investorPortal": "投資人入口 (Investor Portal)",
+
+  "compliance": "合規 & 稅務",
+  "compliance.tw": "台灣法規",
+  "compliance.tw.techShare": "技術股 / RSA 課稅",
+  "compliance.tw.closedCompany": "閉鎖性公司管理",
+  "compliance.us": "US Advanced",
+  "compliance.us.409a": "409A Valuation",
+  "compliance.us.83b": "83(b) Election",
+  "compliance.us.transfers": "股份轉讓 (Share Transfers)",
+
+  "settings": "設定",
+  "settings.company": "公司設定",
+  "settings.team": "團隊管理",
+  "settings.import": "匯入 & 分析",
+  "settings.snapshots": "快照 (Snapshots)",
+  "settings.auditLog": "稽核日誌 (Audit Log)",
+
+  "searchPlaceholder": "搜尋選單...",
+  "more": "更多"
+}

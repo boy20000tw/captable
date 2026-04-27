@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Building2, Upload, Save } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -67,6 +68,7 @@ export default function CompanySettingsPage() {
 }
 
 function CompanySettingsContent() {
+  const { t } = useTranslation("pages");
   const { canEdit } = usePermissions();
   const utils = trpc.useUtils();
   const companyQuery = trpc.companies.get.useQuery();
@@ -172,10 +174,10 @@ function CompanySettingsContent() {
             style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
           >
             <Building2 className="h-7 w-7 text-primary" />
-            Company Settings
+            {t("settings.company.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your company profile, branding, and authorized signatory.
+            {t("settings.company.desc")}
           </p>
         </div>
         {canEdit && (

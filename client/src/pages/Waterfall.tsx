@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,11 +17,7 @@ import { toast } from "sonner";
 const formatNTD = (v: number) => formatCurrency(v, "NTD");
 const formatUSD = (v: number) => formatCurrency(v, "USD");
 
-const PREFERENCE_LABELS: Record<string, string> = {
-  non_participating: "Non-Participating",
-  participating: "Participating",
-  capped_participating: "Capped Participating",
-};
+// Moved into component to use t()
 
 const ROUND_COLORS = [
   "#1a1a1a", "#8b7355", "#6b8e6b", "#5b7fa6", "#9b6b9b",
@@ -28,6 +25,8 @@ const ROUND_COLORS = [
 ];
 
 export default function Waterfall() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("analysis");
   const [exitValueInput, setExitValueInput] = useState("500000000");
   const [exitValueNtd, setExitValueNtd] = useState(500_000_000);
   const [showSettings, setShowSettings] = useState(false);
@@ -44,6 +43,12 @@ export default function Waterfall() {
   });
 
   const prefMap = useMemo(() => new Map(prefs.map(p => [p.fundingRoundId, p])), [prefs]);
+
+  const PREFERENCE_LABELS: Record<string, string> = {
+    non_participating: t("waterfall.1xNonPart"),
+    participating: t("waterfall.1xPart"),
+    capped_participating: "Capped Participating",
+  };
 
   const handleCompute = () => {
     const val = parseFloat(exitValueInput.replace(/,/g, ""));
@@ -95,12 +100,12 @@ export default function Waterfall() {
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div>
               <p className="text-xs tracking-[0.2em] text-stone-400 uppercase mb-2">Financial Analysis</p>
-              <h1 className="font-display text-4xl font-bold text-stone-900">Waterfall Analysis</h1>
-              <p className="text-stone-500 mt-2 text-sm">Simulate exit distributions based on liquidation preferences and seniority</p>
+              <h1 className="font-display text-4xl font-bold text-stone-900">{tPages("waterfall.title")}</h1>
+              <p className="text-stone-500 mt-2 text-sm">{tPages("waterfall.desc")}</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)} className="gap-2">
               <Settings className="w-4 h-4" />
-              Configure Preferences
+              {t("waterfall.configurePrefs")}
             </Button>
           </div>
         </div>
@@ -110,7 +115,7 @@ export default function Waterfall() {
           <CardContent className="pt-6">
             <div className="flex items-end gap-4">
               <div className="flex-1 max-w-xs">
-                <Label className="text-xs tracking-widest uppercase text-stone-500 mb-2 block">Exit Value (NTD)</Label>
+                <Label className="text-xs tracking-widest uppercase text-stone-500 mb-2 block">{t("waterfall.exitValue")}</Label>
                 <Input
                   value={exitValueInput}
                   onChange={e => setExitValueInput(e.target.value)}
@@ -120,7 +125,7 @@ export default function Waterfall() {
               </div>
               <Button onClick={handleCompute} className="bg-stone-900 text-white hover:bg-stone-700">
                 <TrendingUp className="w-4 h-4 mr-2" />
-                Run Analysis
+                {t("waterfall.runAnalysis")}
               </Button>
               <div className="text-sm text-stone-500">
                 <span className="font-medium">{formatNTD(exitValueNtd)}</span>
@@ -135,12 +140,12 @@ export default function Waterfall() {
           <Card className="mb-8 border-stone-200 bg-stone-50">
             <CardHeader>
               <CardTitle className="text-sm font-semibold tracking-widest uppercase text-stone-600">
-                Liquidation Preference Settings
+                {t("waterfall.prefsDialog")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {rounds.length === 0 ? (
-                <p className="text-stone-400 text-sm">No funding rounds found. Add rounds first.</p>
+                <p className="text-stone-400 text-sm">{t("waterfall.emptyState")}</p>
               ) : (
                 <div className="space-y-3">
                   {rounds.map((round, i) => {
@@ -162,13 +167,13 @@ export default function Waterfall() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="non_participating">Non-Participating</SelectItem>
-                            <SelectItem value="participating">Participating</SelectItem>
+                            <SelectItem value="non_participating">{t("waterfall.1xNonPart")}</SelectItem>
+                            <SelectItem value="participating">{t("waterfall.1xPart")}</SelectItem>
                             <SelectItem value="capped_participating">Capped Participating</SelectItem>
                           </SelectContent>
                         </Select>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-stone-500">Multiple:</span>
+                          <span className="text-xs text-stone-500">{t("waterfall.multiple")}:</span>
                           <Input
                             className="w-20 h-8 text-xs font-mono"
                             defaultValue={String(pref?.liquidationMultiple || "1.00")}
@@ -182,7 +187,7 @@ export default function Waterfall() {
                           <span className="text-xs text-stone-400">x</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-stone-500">Seniority:</span>
+                          <span className="text-xs text-stone-500">{t("waterfall.seniority")}:</span>
                           <Input
                             className="w-16 h-8 text-xs font-mono"
                             type="number"
@@ -206,7 +211,7 @@ export default function Waterfall() {
         )}
 
         {isLoading && (
-          <div className="text-center py-20 text-stone-400">Computing waterfall...</div>
+          <div className="text-center py-20 text-stone-400">Computing waterfall</div>
         )}
 
         {waterfallData && !isLoading && (
@@ -215,14 +220,14 @@ export default function Waterfall() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card className="border-stone-200">
                 <CardContent className="pt-6">
-                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">Exit Value</p>
+                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">{t("waterfall.exitValue")}</p>
                   <p className="text-2xl font-bold text-stone-900">{formatNTD(exitValueNtd)}</p>
                   <p className="text-xs text-stone-400 mt-1">≈ {formatUSD(exitValueNtd / 32)}</p>
                 </CardContent>
               </Card>
               <Card className="border-stone-200">
                 <CardContent className="pt-6">
-                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">Preference Tranches</p>
+                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">Preference Tranches (hardcoded - no i18n key)</p>
                   <p className="text-2xl font-bold text-stone-900">{waterfallData.tranches.length}</p>
                   <p className="text-xs text-stone-400 mt-1">
                     {formatNTD(waterfallData.tranches.reduce((s, t) => s + t.distributed, 0))} total
@@ -231,7 +236,7 @@ export default function Waterfall() {
               </Card>
               <Card className="border-stone-200">
                 <CardContent className="pt-6">
-                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">Remaining for Common</p>
+                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">Remaining for Common (hardcoded - no i18n key)</p>
                   <p className="text-2xl font-bold text-stone-900">{formatNTD((waterfallData.remainingForCommon ?? 0))}</p>
                   <p className="text-xs text-stone-400 mt-1">
                     {formatPercent((waterfallData.remainingForCommon ?? 0) / exitValueNtd)} of exit
@@ -244,14 +249,14 @@ export default function Waterfall() {
             <Card className="mb-8 border-stone-200">
               <CardHeader>
                 <CardTitle className="text-sm font-semibold tracking-widest uppercase text-stone-600">
-                  Distribution by Tranche
+                  Distribution by Tranche (hardcoded - no i18n key)
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {chartData.length === 0 ? (
                   <div className="flex items-center gap-2 text-stone-400 text-sm py-8 justify-center">
                     <Info className="w-4 h-4" />
-                    No liquidation preferences configured. All proceeds go to common shareholders.
+                    {t("waterfall.emptyDesc")}
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={300}>
@@ -279,7 +284,7 @@ export default function Waterfall() {
               <Card className="mb-8 border-stone-200">
                 <CardHeader>
                   <CardTitle className="text-sm font-semibold tracking-widest uppercase text-stone-600">
-                    Preference Tranche Details
+                    Preference Tranche Details (hardcoded - no i18n key)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -339,14 +344,14 @@ export default function Waterfall() {
             <Card className="border-stone-200">
               <CardHeader>
                 <CardTitle className="text-sm font-semibold tracking-widest uppercase text-stone-600">
-                  Total Distribution per Shareholder
+                  Total Distribution per Shareholder (hardcoded - no i18n key)
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {shareholderTotals.length === 0 ? (
                   <div className="flex items-center gap-2 text-stone-400 text-sm py-8 justify-center">
                     <AlertCircle className="w-4 h-4" />
-                    No shareholder data available. Import cap table data first.
+                    No shareholder data available. Import cap table data first. (hardcoded - no i18n key)
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -398,7 +403,7 @@ export default function Waterfall() {
         {!waterfallData && !isLoading && (
           <div className="text-center py-20">
             <Droplets className="w-12 h-12 text-stone-300 mx-auto mb-4" />
-            <p className="text-stone-400">Enter an exit value and click "Run Analysis" to compute the waterfall distribution.</p>
+            <p className="text-stone-400">Enter an exit value and click Run Analysis to compute the waterfall distribution. (hardcoded - no i18n key)</p>
           </div>
         )}
       </div>

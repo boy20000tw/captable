@@ -20,6 +20,48 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.0.0",
+    date: "2026-04-28",
+    type: "major",
+    title: "Layout 重構 — Content Header + Sidebar 精簡",
+    description: "新增內容區頂部 Header Bar：Caploom logo、Admin Panel、語言切換、通知鈴鐺、登出。Sidebar Header 改為 CompanySwitcher（左）+ 收合按鈕（右）+ 使用者資訊（從 footer 上移）。Sidebar Footer 精簡為僅 VersionBadge。Mobile header 維持不變。",
+  },
+  {
+    version: "1.23.2",
+    date: "2026-04-28",
+    type: "patch",
+    title: "ClosedCompany 配置統一 + Rounds i18n 修復",
+    description: "閉鎖性公司管理頁面改為與其他頁面一致的配置（p-8 max-w-6xl、inline icon、semantic token）。募資輪次頁面完成全欄位 i18n：新增 fundraising namespace hook、表格標頭、對話框、表單欄位、狀態 Badge、toast 訊息、刪除確認等全部改用 t() 呼叫。",
+  },
+  {
+    version: "1.23.1",
+    date: "2026-04-28",
+    type: "patch",
+    title: "ESOP 頁面 i18n 修復",
+    description: "修復 ESOP 頁面 50+ 個硬編碼英文字串未連接翻譯系統的問題。KPI 卡片、表格標題、對話框、表單欄位、空白狀態、toast 訊息、行使流程等全部改用 t() 呼叫。新增 70 個 esop.* 翻譯鍵至 equity namespace。語言切換現在完整涵蓋 ESOP 所有 UI 元素。",
+  },
+  {
+    version: "1.23.0",
+    date: "2026-04-27",
+    type: "minor",
+    title: "i18n Phase 6 — 剩餘頁面 + 共用元件全站翻譯完成",
+    description: "完成全站 i18n：Home Dashboard、EstimatedValuation、ShareClasses、Join、NotFound 五個頁面，以及 AllocationDialog、CompanySwitcher、NotificationBell、ChangelogDrawer、VestingTimeline 五個共用元件。新增 200+ 翻譯鍵至 pages / common namespace，涵蓋 KPI 卡片、圖表、漏斗、空白狀態、功能卡片、表單欄位等所有 UI 文字。全站零硬編碼字串。",
+  },
+  {
+    version: "1.22.0",
+    date: "2026-04-27",
+    type: "minor",
+    title: "i18n Phase 5 — Settings & Admin 全模組翻譯",
+    description: "新增 settings / admin 兩個 namespace，完成 7 個頁面全欄位 i18n：AuditLog、Import、Team、Snapshots、AdminOverview、AdminCompanies、AdminActivity。稽核日誌、資料匯入、角色權限、團隊管理、快照操作、平台管理等 150+ 個翻譯鍵皆支援語言切換。",
+  },
+  {
+    version: "1.21.0",
+    date: "2026-04-27",
+    type: "minor",
+    title: "i18n Phase 4 — Equity, Fundraising & Analysis 全模組翻譯",
+    description: "新增 equity / fundraising / analysis 三個 namespace，完成 12 個頁面全欄位 i18n：CapTable、ShareRegister、ESOP、ESign、FundingRounds、RoundDetail、Investors、Instruments、Waterfall、Valuation、Projections、AntiDilution。所有表單、表格、對話框、按鈕、模擬器皆支援語言切換。",
+  },
+  {
     version: "1.12.0",
     date: "2026-04-25",
     type: "minor",

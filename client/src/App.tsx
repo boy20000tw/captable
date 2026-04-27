@@ -1,3 +1,4 @@
+import "./i18n"; // i18n must initialize before any component renders
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -27,6 +28,9 @@ import TeamPage from "./pages/Team";
 import JoinPage from "./pages/Join";
 import Valuation409APage from "./pages/Valuation409A";
 import Election83bPage from "./pages/Election83b";
+import ShareTransfersPage from "./pages/ShareTransfers";
+import TechShareTaxPage from "./pages/TechShareTax";
+import ClosedCompanyPage from "./pages/ClosedCompany";
 import AdminOverviewPage from "./pages/admin/AdminOverview";
 import AdminCompaniesPage from "./pages/admin/AdminCompanies";
 import AdminActivityPage from "./pages/admin/AdminActivity";
@@ -56,6 +60,9 @@ function Router() {
       <Route path="/join" component={JoinPage} />
       <Route path="/409a" component={Valuation409APage} />
       <Route path="/83b" component={Election83bPage} />
+      <Route path="/transfers" component={ShareTransfersPage} />
+      <Route path="/tech-share-tax" component={TechShareTaxPage} />
+      <Route path="/closed-company" component={ClosedCompanyPage} />
 
       {/* Admin panel routes */}
       <Route path="/admin" component={AdminOverviewPage} />

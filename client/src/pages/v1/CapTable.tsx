@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { PieChart, ArrowRight, Download, FileSpreadsheet, FileText } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -52,6 +53,8 @@ function fmtNum(n: number) {
 }
 
 function V1CapTableContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("equity");
   const [, setLocation] = useLocation();
   const { data, isLoading } = trpc.v1.capTable.current.useQuery();
   const [includeEsop, setIncludeEsop] = useState(false);
@@ -82,16 +85,16 @@ function V1CapTableContent() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <PieChart className="h-7 w-7 text-primary" />
-            Cap Table
+            {tPages("capTable.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Derived from share register. Not editable.
+            {tPages("capTable.desc")}
           </p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <label htmlFor="esop-toggle" className="text-sm text-muted-foreground whitespace-nowrap">
-              Include ESOP
+              {t("capTable.includeEsop")}
             </label>
             <Switch id="esop-toggle" checked={includeEsop} onCheckedChange={setIncludeEsop} />
           </div>
@@ -102,20 +105,20 @@ function V1CapTableContent() {
                 onClick={() => window.open(`/api/export/cap-table.pdf?companyId=${getActiveCompanyId()}`, "_blank")}
                 className="gap-1.5 text-xs"
               >
-                <FileText className="h-3.5 w-3.5" /> PDF
+                <FileText className="h-3.5 w-3.5" /> {t("capTable.pdf")}
               </Button>
               <Button
                 variant="outline" size="sm"
                 onClick={() => window.open(`/api/export/cap-table.xlsx?companyId=${getActiveCompanyId()}`, "_blank")}
                 className="gap-1.5 text-xs"
               >
-                <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+                <FileSpreadsheet className="h-3.5 w-3.5" /> {t("capTable.excel")}
               </Button>
             </div>
           )}
           {data?.generatedAt && (
             <p className="text-xs text-muted-foreground">
-              As of {new Date(data.generatedAt).toLocaleString()}
+              {t("capTable.asOf")} {new Date(data.generatedAt).toLocaleString()}
             </p>
           )}
         </div>
@@ -126,19 +129,19 @@ function V1CapTableContent() {
         <CardContent className="pt-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             <Metric
-              label={includeEsop ? "Total Shares (Fully Diluted)" : "Issued Shares (Excl. ESOP)"}
+              label={includeEsop ? t("capTable.issuedShares") : t("capTable.issuedShares")}
               value={data ? fmtNum(displayTotal) : "—"}
             />
             <Metric
-              label="Issued Shares"
+              label={t("capTable.issuedShares")}
               value={data ? fmtNum(data.totalIssuedShares) : "—"}
             />
             <Metric
-              label="ESOP Pool Allocated"
+              label={t("capTable.esopAllocated")}
               value={data ? fmtNum(data.esopPoolAllocated) : "—"}
             />
             <Metric
-              label="ESOP Pool Unallocated"
+              label={t("capTable.esopUnallocated")}
               value={data ? fmtNum(data.esopPoolUnallocated) : "—"}
             />
           </div>
@@ -148,9 +151,9 @@ function V1CapTableContent() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Holdings by Investor</CardTitle>
+          <CardTitle>{t("capTable.holdingsTitle")}</CardTitle>
           <CardDescription>
-            Sum of register entries, grouped by investor and share class.
+            {t("capTable.holdingsDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -161,10 +164,10 @@ function V1CapTableContent() {
           ) : isEmpty ? (
             <div className="py-16 text-center space-y-4">
               <p className="text-muted-foreground text-sm">
-                No shares issued yet.
+                {t("capTable.emptyState")}
               </p>
               <Button onClick={() => setLocation("/funding-rounds")}>
-                Go to Funding Rounds <ArrowRight className="h-4 w-4 ml-1" />
+                {t("capTable.goToRounds")} <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
                 Create an allocation under a round, then advance it through the
@@ -176,12 +179,12 @@ function V1CapTableContent() {
             <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Investor</TableHead>
-                  <TableHead>Entity Kind</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Total Shares</TableHead>
-                  <TableHead className="text-right">Ownership %</TableHead>
-                  <TableHead>By Share Class</TableHead>
+                  <TableHead>{t("register.investor")}</TableHead>
+                  <TableHead>{t("capTable.entity")}</TableHead>
+                  <TableHead>{t("register.status")}</TableHead>
+                  <TableHead className="text-right">{t("capTable.shares")}</TableHead>
+                  <TableHead className="text-right">{t("capTable.pctCapTable")}</TableHead>
+                  <TableHead>{t("register.shareClass")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -220,7 +223,7 @@ function V1CapTableContent() {
                 {includeEsop && data!.esopPoolUnallocated > 0 && (
                   <TableRow>
                     <TableCell className="font-medium text-muted-foreground">
-                      ESOP Pool (Unallocated)
+                      {t("capTable.esopUnallocated")}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       —
@@ -240,13 +243,13 @@ function V1CapTableContent() {
                       {esopUnallocatedPct}%
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      esop pool
+                      {t("capTable.esopPool")}
                     </TableCell>
                   </TableRow>
                 )}
                 <TableRow>
                   <TableCell colSpan={3} className="font-semibold">
-                    {includeEsop ? "Total (Fully Diluted)" : "Total (Excl. ESOP)"}
+                    {includeEsop ? t("capTable.totalFullyDiluted") : t("capTable.totalExclEsop")}
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">
                     {fmtNum(displayTotal)}

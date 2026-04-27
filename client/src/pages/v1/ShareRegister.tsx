@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BookOpen, UserPen, Edit2, FileSpreadsheet, Award } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -99,6 +100,8 @@ function allocationStatusBadge(status: AllocationStatus) {
 }
 
 function V1ShareRegisterContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("equity");
   const { data: entries, isLoading: entriesLoading } =
     trpc.v1.register.list.useQuery();
   const { data: allocations, isLoading: allocLoading } =
@@ -198,10 +201,10 @@ function V1ShareRegisterContent() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <BookOpen className="h-7 w-7 text-primary" />
-            Share Register
+            {tPages("register.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Append-only ledger of issued shares, plus the full allocations pipeline.
+            {tPages("register.desc")}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -211,15 +214,15 @@ function V1ShareRegisterContent() {
             onClick={() => window.open(`/api/export/share-register.xlsx?companyId=${getActiveCompanyId()}`, "_blank")}
             className="gap-1.5 text-xs"
           >
-            <FileSpreadsheet className="h-3.5 w-3.5" /> Export Excel
+            <FileSpreadsheet className="h-3.5 w-3.5" /> {t("capTable.excel")}
           </Button>
           {canEdit && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowTransferDialog(true)}>
-                Transfer Shares
+                {t("register.transferShares")}
               </Button>
               <Button size="sm" onClick={() => setShowIssuanceDialog(true)}>
-                New Issuance
+                {t("register.newIssuance")}
               </Button>
             </div>
           )}
@@ -228,8 +231,8 @@ function V1ShareRegisterContent() {
 
       <Tabs defaultValue="register" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="register">Share Register</TabsTrigger>
-          <TabsTrigger value="allocations">All Allocations</TabsTrigger>
+          <TabsTrigger value="register">{t("register.tabEntries")}</TabsTrigger>
+          <TabsTrigger value="allocations">{t("register.tabAllocations")}</TabsTrigger>
         </TabsList>
 
         {/* ── Tab 1: Share Register ─────────────────────────────────────── */}
@@ -252,7 +255,7 @@ function V1ShareRegisterContent() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Register Entries</CardTitle>
+              <CardTitle>{t("register.tabEntries")}</CardTitle>
               <CardDescription>
                 {filteredEntries.length} entr
                 {filteredEntries.length === 1 ? "y" : "ies"} · read-only, append-only.
@@ -268,7 +271,7 @@ function V1ShareRegisterContent() {
               ) : filteredEntries.length === 0 ? (
                 <div className="py-12 text-center space-y-2">
                   <p className="text-muted-foreground text-sm">
-                    No register entries yet.
+                    {t("register.emptyEntries")}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Entries are written when an allocation advances to{" "}
@@ -279,14 +282,14 @@ function V1ShareRegisterContent() {
                 <Table className="min-w-[640px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Effective Date</TableHead>
-                      <TableHead>Investor</TableHead>
-                      <TableHead>Event Type</TableHead>
-                      <TableHead>Share Class</TableHead>
-                      <TableHead className="text-right">Shares</TableHead>
-                      <TableHead className="text-right">Price / Share</TableHead>
-                      <TableHead className="text-right">Total Amount</TableHead>
-                      <TableHead>Source</TableHead>
+                      <TableHead>{t("register.date")}</TableHead>
+                      <TableHead>{t("register.investor")}</TableHead>
+                      <TableHead>{t("register.status")}</TableHead>
+                      <TableHead>{t("register.shareClass")}</TableHead>
+                      <TableHead className="text-right">{t("register.shares")}</TableHead>
+                      <TableHead className="text-right">{t("register.priceShare")}</TableHead>
+                      <TableHead className="text-right">{t("register.totalValue")}</TableHead>
+                      <TableHead>{t("register.registerEntry")}</TableHead>
                       {canEdit && <TableHead className="w-[80px]"></TableHead>}
                     </TableRow>
                   </TableHeader>
@@ -430,7 +433,7 @@ function V1ShareRegisterContent() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Allocations Pipeline</CardTitle>
+              <CardTitle>{t("register.tabAllocations")}</CardTitle>
               <CardDescription>
                 {filteredAllocations.length} allocation
                 {filteredAllocations.length === 1 ? "" : "s"} · click a row to
@@ -445,7 +448,7 @@ function V1ShareRegisterContent() {
               ) : filteredAllocations.length === 0 ? (
                 <div className="py-12 text-center space-y-2">
                   <p className="text-muted-foreground text-sm">
-                    No allocations match the current filters.
+                    {t("register.emptyAllocations")}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Create allocations from the Funding Round detail page.
@@ -455,14 +458,14 @@ function V1ShareRegisterContent() {
                 <Table className="min-w-[640px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Round</TableHead>
-                      <TableHead>Investor</TableHead>
-                      <TableHead>Share Class</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Shares</TableHead>
-                      <TableHead className="text-right">Price / Share</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Updated</TableHead>
+                      <TableHead>{t("register.roundCol")}</TableHead>
+                      <TableHead>{t("register.investor")}</TableHead>
+                      <TableHead>{t("register.shareClass")}</TableHead>
+                      <TableHead className="text-right">{t("register.amountCol")}</TableHead>
+                      <TableHead className="text-right">{t("register.shares")}</TableHead>
+                      <TableHead className="text-right">{t("register.priceShare")}</TableHead>
+                      <TableHead>{t("register.status")}</TableHead>
+                      <TableHead>{t("register.updatedCol")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -628,6 +631,7 @@ function InvestorEditDialog({
   onSave: (id: number, data: InvestorUpdateData) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation("equity");
   const investor = investors.find((i) => i.id === investorId);
 
   const [name, setName] = useState(investor?.name ?? "");
@@ -664,12 +668,12 @@ function InvestorEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Investor</DialogTitle>
+          <DialogTitle>{t("register.editInvestor")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="inv-name">Name *</Label>
+              <Label htmlFor="inv-name">{t("register.name")} *</Label>
               <Input id="inv-name" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
@@ -680,7 +684,7 @@ function InvestorEditDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="inv-kind">Entity Type</Label>
+              <Label htmlFor="inv-kind">{t("register.entityType")}</Label>
               <Select value={entityKind} onValueChange={(v) => setEntityKind(v as "individual" | "entity")}>
                 <SelectTrigger id="inv-kind">
                   <SelectValue />
@@ -692,18 +696,18 @@ function InvestorEditDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="inv-nationality">Nationality</Label>
+              <Label htmlFor="inv-nationality">{t("register.nationality")}</Label>
               <Input id="inv-nationality" value={nationality} onChange={(e) => setNationality(e.target.value)} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="inv-email">Email</Label>
+              <Label htmlFor="inv-email">{t("register.email")}</Label>
               <Input id="inv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="inv-phone">Phone</Label>
+              <Label htmlFor="inv-phone">{t("register.phone")}</Label>
               <Input id="inv-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
           </div>
@@ -714,7 +718,7 @@ function InvestorEditDialog({
               <Input id="inv-website" value={website} onChange={(e) => setWebsite(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="inv-linkedin">LinkedIn</Label>
+              <Label htmlFor="inv-linkedin">{t("register.linkedin")}</Label>
               <Input id="inv-linkedin" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} />
             </div>
           </div>
@@ -776,6 +780,7 @@ function RegisterWriteDialog({
   onSubmit: (data: RegisterWriteInput) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation("equity");
   const { data: shareClassesDynamic } = trpc.shareClasses.list.useQuery();
   const SHARE_CLASSES = shareClassesDynamic && shareClassesDynamic.length > 0
     ? shareClassesDynamic.map((sc: any) => sc.slug)
@@ -841,7 +846,7 @@ function RegisterWriteDialog({
   }
 
   const isTransfer = mode === "transfer";
-  const title = isTransfer ? "Transfer Shares" : "New Issuance";
+  const title = isTransfer ? t("register.transferShares") : t("register.newIssuance");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -852,7 +857,7 @@ function RegisterWriteDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className={isTransfer ? "grid grid-cols-2 gap-4" : ""}>
             <div className="space-y-1.5">
-              <Label>{isTransfer ? "From Investor *" : "Investor *"}</Label>
+              <Label>{isTransfer ? t("register.fromInvestor") + " *" : t("register.investor") + " *"}</Label>
               <Select value={investorId} onValueChange={setInvestorId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select investor" />
@@ -868,7 +873,7 @@ function RegisterWriteDialog({
             </div>
             {isTransfer && (
               <div className="space-y-1.5">
-                <Label>To Investor *</Label>
+                <Label>{t("register.toInvestor")} *</Label>
                 <Select value={toInvestorId} onValueChange={setToInvestorId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select investor" />
@@ -889,7 +894,7 @@ function RegisterWriteDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Share Class *</Label>
+              <Label>{t("register.shareClass")} *</Label>
               <Select value={shareClass} onValueChange={setShareClass}>
                 <SelectTrigger>
                   <SelectValue />

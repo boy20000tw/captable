@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatShares, formatDate, ROUND_CHART_COLORS } from "@/lib/utils";
@@ -35,6 +36,7 @@ export default function Home() {
 }
 
 function DashboardContent() {
+  const { t } = useTranslation("pages");
   const [, setLocation] = useLocation();
   const { formatAmount } = useCurrency();
 
@@ -160,7 +162,7 @@ function DashboardContent() {
             className="text-3xl font-bold tracking-tight"
             style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
           >
-            Equity Dashboard
+            {t("home.title")}
           </h1>
           <p
             className="text-sm text-muted-foreground"
@@ -168,9 +170,9 @@ function DashboardContent() {
           >
             {hasData
               ? activeRound
-                ? `Active round · ${activeRound.name}${activeRound.roundDate ? ` · ${formatDate(activeRound.roundDate)}` : ""}`
-                : "Overview"
-              : "No data yet — create your first funding round to get started"}
+                ? t("home.activeRoundLabelDate", {name: activeRound.name, date: activeRound.roundDate ? formatDate(activeRound.roundDate) : ""})
+                : t("home.overview")
+              : t("home.noDataYet")}
           </p>
         </div>
         {hasData && <CurrencyToggle />}
@@ -183,31 +185,31 @@ function DashboardContent() {
           {/* ─── KPI row ─────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
-              label="Total Shares"
+              label={t("home.totalShares")}
               value={formatShares(totalShares)}
               icon={<PieIcon className="h-4 w-4" />}
-              sub={`${holdings.length} investors with holdings`}
+              sub={t("home.investorsWithHoldings", {count: holdings.length})}
               onClick={() => setLocation("/cap-table")}
             />
             <KpiCard
-              label="Investors"
+              label={t("home.investors")}
               value={String(investorCount)}
               icon={<Users className="h-4 w-4" />}
-              sub={`${investedCount} invested · ${pipelineCount} in pipeline`}
+              sub={t("home.investedPipeline", {invested: investedCount, pipeline: pipelineCount})}
               onClick={() => setLocation("/investors")}
             />
             <KpiCard
-              label="Allocations in Flight"
+              label={t("home.allocationsInFlight")}
               value={String(inFlight)}
               icon={<Rocket className="h-4 w-4" />}
-              sub={`${funnel.issued} issued · ${registerEntryCount} register entries`}
+              sub={t("home.issuedRegister", {issued: funnel.issued, register: registerEntryCount})}
               onClick={() => setLocation("/register")}
             />
             <KpiCard
-              label="ESOP Pool"
+              label={t("home.esopPool")}
               value={formatShares(esopTotal)}
               icon={<Sparkles className="h-4 w-4" />}
-              sub={`${formatShares(esopUnallocated)} unallocated`}
+              sub={t("home.unallocated", {count: formatShares(esopUnallocated)})}
               onClick={() => setLocation("/esop")}
             />
           </div>
@@ -219,22 +221,22 @@ function DashboardContent() {
               <div className="flex items-start justify-between">
                 <div className="space-y-0.5">
                   <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-                    Ownership
+                    {t("home.ownership")}
                   </p>
                   <h3 className="text-lg font-semibold tracking-tight">
-                    Current Cap Table
+                    {t("home.currentCapTable")}
                   </h3>
                 </div>
                 <button
                   onClick={() => setLocation("/cap-table")}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                 >
-                  Full view <ArrowRight className="h-3 w-3" />
+                  {t("home.fullView")} <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
               {pieData.length === 0 ? (
                 <div className="h-52 flex items-center justify-center text-xs text-muted-foreground">
-                  No shares issued yet
+                  {t("home.noSharesIssued")}
                 </div>
               ) : (
                 <>
@@ -285,7 +287,7 @@ function DashboardContent() {
                       </div>
                     ))}
                     {pieData.length > 5 && (
-                      <p className="text-xs text-muted-foreground">+{pieData.length - 5} more</p>
+                      <p className="text-xs text-muted-foreground">{t("home.more", {count: pieData.length - 5})}</p>
                     )}
                   </div>
                 </>
@@ -297,22 +299,22 @@ function DashboardContent() {
               <div className="flex items-start justify-between">
                 <div className="space-y-0.5">
                   <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-                    Valuation History
+                    {t("home.valuationHistory")}
                   </p>
                   <h3 className="text-lg font-semibold tracking-tight">
-                    Post-Money by Round (NT$ M)
+                    {t("home.postMoneyByRound")}
                   </h3>
                 </div>
                 <button
                   onClick={() => setLocation("/funding-rounds")}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                 >
-                  Rounds <ArrowRight className="h-3 w-3" />
+                  {t("home.rounds")} <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
               {roundsChartData.length === 0 ? (
                 <div className="h-56 flex items-center justify-center text-xs text-muted-foreground">
-                  No valuations recorded yet
+                  {t("home.noValuations")}
                 </div>
               ) : (
                 <div className="h-56">
@@ -359,31 +361,31 @@ function DashboardContent() {
               <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                 <div className="space-y-0.5">
                   <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-                    Recent activity
+                    {t("home.recentActivity")}
                   </p>
-                  <h3 className="text-base font-semibold tracking-tight">Allocations</h3>
+                  <h3 className="text-base font-semibold tracking-tight">{t("home.allocations")}</h3>
                 </div>
                 <button
                   onClick={() => setLocation("/register")}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                 >
-                  Register <ArrowRight className="h-3 w-3" />
+                  {t("home.register")} <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
               {recentAllocations.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  No allocations yet. Create one from a funding round to start tracking commitments.
+                  {t("home.noAllocations")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                 <table className="cap-table w-full min-w-[640px]">
                   <thead>
                     <tr>
-                      <th>Investor</th>
-                      <th>Round</th>
-                      <th className="text-right">Shares</th>
-                      <th className="text-right">Amount</th>
-                      <th>Status</th>
+                      <th>{t("home.colInvestor")}</th>
+                      <th>{t("home.colRound")}</th>
+                      <th className="text-right">{t("home.colShares")}</th>
+                      <th className="text-right">{t("home.colAmount")}</th>
+                      <th>{t("home.colStatus")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -422,25 +424,25 @@ function DashboardContent() {
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-                  History
+                  {t("home.history")}
                 </p>
-                <h3 className="text-base font-semibold tracking-tight">Funding Rounds</h3>
+                <h3 className="text-base font-semibold tracking-tight">{t("home.fundingRounds")}</h3>
               </div>
               <button
                 onClick={() => setLocation("/funding-rounds")}
                 className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
               >
-                View all <ArrowRight className="h-3 w-3" />
+                {t("home.viewAll")} <ArrowRight className="h-3 w-3" />
               </button>
             </div>
             {sortedRounds.length === 0 ? (
               <div className="p-8 text-center text-sm text-muted-foreground">
-                No rounds yet.{" "}
+                {t("home.noRounds")}{" "}
                 <button
                   onClick={() => setLocation("/funding-rounds")}
                   className="text-primary hover:underline"
                 >
-                  Create your first round
+                  {t("home.createFirstRound")}
                 </button>
                 .
               </div>
@@ -449,12 +451,12 @@ function DashboardContent() {
               <table className="cap-table w-full min-w-[640px]">
                 <thead>
                   <tr>
-                    <th>Round</th>
-                    <th>Date</th>
-                    <th className="text-right">Price / Share</th>
-                    <th className="text-right">Raised</th>
-                    <th className="text-right">Post-Money</th>
-                    <th>Status</th>
+                    <th>{t("home.colRound")}</th>
+                    <th>{t("home.colDate")}</th>
+                    <th className="text-right">{t("home.colPricePerShare")}</th>
+                    <th className="text-right">{t("home.colRaised")}</th>
+                    <th className="text-right">{t("home.colPostMoney")}</th>
+                    <th>{t("home.colStatus")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -507,6 +509,20 @@ function DashboardContent() {
 
 // ─── Empty State ──────────────────────────────────────────────────────────
 function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
+  const { t } = useTranslation("pages");
+
+  const featureCards = useMemo(() => [
+    { icon: Rocket,     title: t("home.feature.fundingRounds"), desc: t("home.feature.fundingRoundsDesc"),             href: "/funding-rounds" },
+    { icon: Users,      title: t("home.feature.investors"), desc: t("home.feature.investorsDesc"),      href: "/investors" },
+    { icon: BookOpen,   title: t("home.feature.register"), desc: t("home.feature.registerDesc"),  href: "/register" },
+    { icon: PieIcon,    title: t("home.feature.capTable"), desc: t("home.feature.capTableDesc"),                        href: "/cap-table" },
+    { icon: Briefcase,  title: t("home.feature.esop"), desc: t("home.feature.esopDesc"),      href: "/esop" },
+    { icon: Calculator, title: t("home.feature.valuation"), desc: t("home.feature.valuationDesc"),             href: "/valuation" },
+    { icon: TrendingUp, title: t("home.feature.projections"), desc: t("home.feature.projectionsDesc"),                    href: "/projections" },
+    { icon: Shield,     title: t("home.feature.antiDilution"), desc: t("home.feature.antiDilutionDesc"),                         href: "/anti-dilution" },
+    { icon: Camera,     title: t("home.feature.snapshots"), desc: t("home.feature.snapshotsDesc"),            href: "/snapshots" },
+  ], [t]);
+
   return (
     <>
       <div className="border border-dashed border-border rounded-sm p-16 text-center space-y-6">
@@ -515,11 +531,10 @@ function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
             className="text-2xl font-bold"
             style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
           >
-            Begin Your Cap Table
+            {t("home.beginCapTable")}
           </p>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            Create your first funding round, add investors, then allocate shares.
-            The register and cap table update automatically as allocations reach Issued.
+            {t("home.beginCapTableDesc")}
           </p>
         </div>
         <div className="flex gap-4 justify-center flex-wrap">
@@ -527,19 +542,19 @@ function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
             onClick={() => setLocation("/funding-rounds")}
             className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
           >
-            <Rocket className="h-4 w-4" /> Create a Funding Round
+            <Rocket className="h-4 w-4" /> {t("home.createFundingRound")}
           </button>
           <button
             onClick={() => setLocation("/investors")}
             className="flex items-center gap-2 px-6 py-3 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
           >
-            <Users className="h-4 w-4" /> Add Investors
+            <Users className="h-4 w-4" /> {t("home.addInvestors")}
           </button>
           <button
             onClick={() => setLocation("/import")}
             className="flex items-center gap-2 px-6 py-3 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
           >
-            <FileText className="h-4 w-4" /> Import Excel
+            <FileText className="h-4 w-4" /> {t("home.importExcel")}
           </button>
         </div>
       </div>
@@ -547,14 +562,14 @@ function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
       <div className="space-y-4">
         <div className="space-y-0.5">
           <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-            Getting Started
+            {t("home.gettingStarted")}
           </p>
           <h2 className="font-serif text-xl font-semibold">
-            What you can do with Caploom
+            {t("home.whatYouCanDo")}
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {FEATURE_CARDS.map(item => {
+          {featureCards.map(item => {
             const Icon = item.icon;
             return (
               <button
@@ -576,18 +591,6 @@ function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
   );
 }
 
-const FEATURE_CARDS = [
-  { icon: Rocket,     title: "Funding Rounds & Allocations", desc: "Plan each raise, track commitments from Planned to Issued.",             href: "/funding-rounds" },
-  { icon: Users,      title: "Investors",                    desc: "Pipeline + invested. Prospects through invested, all in one place.",      href: "/investors" },
-  { icon: BookOpen,   title: "Share Register",               desc: "Append-only ledger of every issued share. Immutable law-of-record view.",  href: "/register" },
-  { icon: PieIcon,    title: "Cap Table",                    desc: "Derived from the register. Never directly edited.",                        href: "/cap-table" },
-  { icon: Briefcase,  title: "ESOP",                         desc: "Pool + grants + vesting. Unallocated shares show on the cap table.",      href: "/esop" },
-  { icon: Calculator, title: "Valuation & Scenario Modeling", desc: "Per-round estimates today; what-if scenario modeling in V2.",             href: "/valuation" },
-  { icon: TrendingUp, title: "Projections & DCF",            desc: "5-year forecast → DCF → implied pre-money valuation.",                    href: "/projections" },
-  { icon: Shield,     title: "Anti-Dilution & Waterfall",    desc: "Protection clauses today; exit simulation in V2.",                         href: "/anti-dilution" },
-  { icon: Camera,     title: "Snapshots",                    desc: "Auto-saved on every register write. Point-in-time cap tables.",            href: "/snapshots" },
-];
-
 // ─── Allocation Funnel ────────────────────────────────────────────────────
 function AllocationFunnel({
   funnel,
@@ -596,13 +599,16 @@ function AllocationFunnel({
   funnel: { planned: number; committed: number; signed: number; funded: number; issued: number };
   onClick: () => void;
 }) {
-  const steps: Array<[keyof typeof funnel, string, string]> = [
-    ["planned",   "Planned",   "bg-slate-200 text-slate-700"],
-    ["committed", "Committed", "bg-blue-100 text-blue-700"],
-    ["signed",    "Signed",    "bg-indigo-100 text-indigo-700"],
-    ["funded",    "Funded",    "bg-amber-100 text-amber-700"],
-    ["issued",    "Issued",    "bg-emerald-100 text-emerald-700"],
-  ];
+  const { t } = useTranslation("pages");
+
+  const steps: Array<[keyof typeof funnel, string, string]> = useMemo(() => [
+    ["planned",   t("home.planned"),   "bg-slate-200 text-slate-700"],
+    ["committed", t("home.committed"), "bg-blue-100 text-blue-700"],
+    ["signed",    t("home.signed"),    "bg-indigo-100 text-indigo-700"],
+    ["funded",    t("home.funded"),    "bg-amber-100 text-amber-700"],
+    ["issued",    t("home.issued"),    "bg-emerald-100 text-emerald-700"],
+  ], [t]);
+
   const total = Object.values(funnel).reduce((s, v) => s + v, 0);
 
   return (
@@ -610,20 +616,20 @@ function AllocationFunnel({
       <div className="flex items-start justify-between">
         <div className="space-y-0.5">
           <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-            Pipeline
+            {t("home.pipeline")}
           </p>
-          <h3 className="text-lg font-semibold tracking-tight">Allocation Funnel</h3>
+          <h3 className="text-lg font-semibold tracking-tight">{t("home.allocationFunnel")}</h3>
         </div>
         <button
           onClick={onClick}
           className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
         >
-          All <ArrowRight className="h-3 w-3" />
+          {t("home.all")} <ArrowRight className="h-3 w-3" />
         </button>
       </div>
       {total === 0 ? (
         <div className="py-8 text-center text-xs text-muted-foreground">
-          No allocations yet.
+          {t("home.noAllocationsShort")}
         </div>
       ) : (
         <div className="space-y-2.5">

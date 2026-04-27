@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { getActiveCompanyId, setActiveCompanyId } from "@/lib/activeCompany";
 import {
@@ -14,18 +15,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, LogOut, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 type Props = {
   collapsed: boolean;
+  user?: { name?: string | null; email?: string | null } | null;
+  onSignOut?: () => void;
 };
 
-export function CompanySwitcher({ collapsed }: Props) {
+export function CompanySwitcher({ collapsed, user, onSignOut }: Props) {
+  const { t } = useTranslation("common");
   const utils = trpc.useUtils();
   const myCompanies = trpc.companies.myCompanies.useQuery(undefined, {
     retry: false,
@@ -36,7 +41,7 @@ export function CompanySwitcher({ collapsed }: Props) {
       setActiveCompanyId(company.id);
       myCompanies.refetch();
       utils.invalidate();
-      toast.success(`Company "${company.name}" created`);
+      toast.success(t("company.created", { name: company.name }));
       setNewName("");
       setDialogOpen(false);
     },
@@ -91,8 +96,20 @@ export function CompanySwitcher({ collapsed }: Props) {
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setDialogOpen(true)} className="cursor-pointer">
             <Plus className="h-3.5 w-3.5 mr-2" />
-            New company
+            {t("company.newCompany")}
           </DropdownMenuItem>
+          {onSignOut && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={onSignOut}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="h-3.5 w-3.5 mr-2" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
         {renderDialog()}
       </DropdownMenu>
@@ -107,21 +124,44 @@ export function CompanySwitcher({ collapsed }: Props) {
             className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-sidebar-accent transition-colors w-full text-left focus:outline-none"
             aria-label="Switch company"
           >
-            <div className="h-7 w-7 flex items-center justify-center rounded bg-sidebar-accent text-sidebar-accent-foreground shrink-0">
-              <Building2 className="h-3.5 w-3.5" />
-            </div>
+            {/* User avatar as the leading icon */}
+            {user ? (
+              <Avatar className="h-7 w-7 border border-sidebar-border shrink-0">
+                <AvatarFallback className="text-[10px] font-medium bg-sidebar-accent text-sidebar-accent-foreground">
+                  {user.name?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <div className="h-7 w-7 flex items-center justify-center rounded bg-sidebar-accent text-sidebar-accent-foreground shrink-0">
+                <Building2 className="h-3.5 w-3.5" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium truncate text-sidebar-foreground leading-tight">
-                {active?.companyName ?? "No company"}
+                {active?.companyName ?? t("company.noCompanySelected")}
               </p>
-              <p className="text-[10px] text-sidebar-foreground/50 truncate capitalize mt-0.5">
-                {active?.role ?? "—"}
+              <p className="text-[10px] text-sidebar-foreground/50 truncate mt-0.5">
+                {user?.name || active?.role || "—"}
               </p>
             </div>
             <ChevronsUpDown className="h-3.5 w-3.5 text-sidebar-foreground/40 shrink-0" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
+          {/* User info header */}
+          {user && (
+            <>
+              <div className="px-2 py-2">
+                <p className="text-xs font-medium truncate text-foreground">
+                  {user.name || "User"}
+                </p>
+                <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                  {user.email || ""}
+                </p>
+              </div>
+              <DropdownMenuSeparator />
+            </>
+          )}
           {companies.map(c => (
             <DropdownMenuItem
               key={c.companyId}
@@ -135,14 +175,26 @@ export function CompanySwitcher({ collapsed }: Props) {
           ))}
           {companies.length === 0 && (
             <DropdownMenuItem disabled>
-              <span className="text-xs text-muted-foreground">No companies yet</span>
+              <span className="text-xs text-muted-foreground">{t("company.noCompanies")}</span>
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setDialogOpen(true)} className="cursor-pointer">
             <Plus className="h-3.5 w-3.5 mr-2" />
-            New company
+            {t("company.newCompany")}
           </DropdownMenuItem>
+          {onSignOut && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={onSignOut}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="h-3.5 w-3.5 mr-2" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       {renderDialog()}
@@ -154,10 +206,10 @@ export function CompanySwitcher({ collapsed }: Props) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create new company</DialogTitle>
+            <DialogTitle>{t("company.createNew")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="new-company-name">Company name</Label>
+            <Label htmlFor="new-company-name">{t("company.companyName")}</Label>
             <Input
               id="new-company-name"
               value={newName}
@@ -167,7 +219,7 @@ export function CompanySwitcher({ collapsed }: Props) {
             />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setDialogOpen(false)}>{t("btn.cancel")}</Button>
             <Button
               onClick={() => {
                 const name = newName.trim();
@@ -176,7 +228,7 @@ export function CompanySwitcher({ collapsed }: Props) {
               }}
               disabled={createCompany.isPending || !newName.trim()}
             >
-              {createCompany.isPending ? "Creating…" : "Create"}
+              {createCompany.isPending ? t("company.creating") : t("btn.create")}
             </Button>
           </DialogFooter>
         </DialogContent>

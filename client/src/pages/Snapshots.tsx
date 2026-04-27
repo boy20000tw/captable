@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { formatShares, formatDate, formatValuation } from "@/lib/utils";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Camera, ChevronDown, ChevronUp, Eye, Download, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -51,6 +52,8 @@ function readHoldings(row: SnapshotRow): CapTableHolding[] {
 }
 
 function SnapshotsContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("settings");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const { canSnapshot } = usePermissions();
@@ -123,10 +126,10 @@ function SnapshotsContent() {
             className="text-3xl font-bold tracking-tight"
             style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
           >
-            Cap Table Snapshots
+            {tPages("settings.snapshots.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Auto-saved on every register write, plus manual checkpoints. Append-only.
+            {tPages("settings.snapshots.desc")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -156,7 +159,7 @@ function SnapshotsContent() {
             disabled={!rowsTyped.length}
             className="flex items-center gap-1.5 text-xs font-medium border border-border text-muted-foreground rounded-sm px-3 py-1.5 hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            <Download className="h-3.5 w-3.5" /> Export CSV
+            <Download className="h-3.5 w-3.5" /> {t("snapshots.exportCsv")}
           </button>
           {rowsTyped.length >= 2 && (
             <button
@@ -165,7 +168,7 @@ function SnapshotsContent() {
                 showCompare ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Eye className="h-3.5 w-3.5" /> Compare Snapshots
+              <Eye className="h-3.5 w-3.5" /> {t("snapshots.compareSnapshots")}
             </button>
           )}
           {canSnapshot && (
@@ -173,7 +176,7 @@ function SnapshotsContent() {
               onClick={() => setShowCreateForm(v => !v)}
               className="flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-sm px-3 py-1.5 hover:opacity-90 transition-opacity"
             >
-              <Camera className="h-3.5 w-3.5" /> Take Snapshot
+              <Camera className="h-3.5 w-3.5" /> {t("snapshots.takeSnapshot")}
             </button>
           )}
         </div>
@@ -183,10 +186,10 @@ function SnapshotsContent() {
       {capTable && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Current Shares", value: formatShares(capTable.totalShares), sub: "fully diluted" },
-            { label: "Investors", value: String(capTable.holdings.length), sub: "with holdings" },
-            { label: "ESOP Pool", value: formatShares(capTable.esopPoolTotal), sub: "authorized" },
-            { label: "Latest Valuation", value: formatValuation(latestRound?.postMoneyValuationNtd, "NTD", exchangeRate), sub: latestRound?.name || "—" },
+            { label: t("snapshots.currentShares"), value: formatShares(capTable.totalShares), sub: t("snapshots.fullyDiluted") },
+            { label: t("snapshots.investors"), value: String(capTable.holdings.length), sub: t("snapshots.withHoldings") },
+            { label: t("snapshots.esopPool"), value: formatShares(capTable.esopPoolTotal), sub: t("snapshots.authorized") },
+            { label: t("snapshots.latestValuation"), value: formatValuation(latestRound?.postMoneyValuationNtd, "NTD", exchangeRate), sub: latestRound?.name || "—" },
           ].map(card => (
             <div key={card.label} className="bg-card border border-border rounded-sm p-5 space-y-2">
               <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{card.label}</p>
@@ -208,16 +211,16 @@ function SnapshotsContent() {
           <div className="flex items-center gap-3">
             <Camera className="h-5 w-5 text-muted-foreground" />
             <div>
-              <h3 className="text-base font-semibold tracking-tight">Take New Snapshot</h3>
+              <h3 className="text-base font-semibold tracking-tight">{t("snapshots.takeNew")}</h3>
               <p className="text-xs text-muted-foreground">
-                Captures the current cap table from the share register at this moment.
+                {t("snapshots.takeNewDesc")}
               </p>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                Snapshot Name *
+                {t("snapshots.snapshotName")}
               </label>
               <input
                 type="text"
@@ -229,14 +232,14 @@ function SnapshotsContent() {
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                Notes
+                {t("snapshots.notes")}
               </label>
               <input
                 type="text"
                 value={createForm.notes}
                 onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))}
                 className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder="Optional notes"
+                placeholder={t("snapshots.optionalNotes")}
               />
             </div>
           </div>
@@ -247,13 +250,13 @@ function SnapshotsContent() {
               className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               <Camera className="h-4 w-4" />
-              {createSnapshot.isPending ? "Capturing..." : "Capture Snapshot"}
+              {createSnapshot.isPending ? t("snapshots.capturing") : t("snapshots.captureBtn")}
             </button>
             <button
               onClick={() => setShowCreateForm(false)}
               className="px-5 py-2 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
             >
-              Cancel
+              {t("snapshots.cancel")}
             </button>
           </div>
         </div>
@@ -265,21 +268,21 @@ function SnapshotsContent() {
           <div className="flex items-center gap-3">
             <Eye className="h-5 w-5 text-muted-foreground" />
             <div>
-              <h3 className="text-base font-semibold tracking-tight">Compare Snapshots</h3>
-              <p className="text-xs text-muted-foreground">Select two snapshots to see ownership changes</p>
+              <h3 className="text-base font-semibold tracking-tight">{t("snapshots.compareTitle")}</h3>
+              <p className="text-xs text-muted-foreground">{t("snapshots.compareDesc")}</p>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                Snapshot A (Before)
+                {t("snapshots.snapshotA")}
               </label>
               <select
                 value={compareIds[0] ?? ""}
                 onChange={e => setCompareIds([e.target.value ? parseInt(e.target.value) : null, compareIds[1]])}
                 className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="">Select snapshot...</option>
+                <option value="">{t("snapshots.selectSnapshot")}</option>
                 {rowsTyped.map(s => (
                   <option key={s.id} value={s.id}>
                     {s.name} — {formatDate(s.createdAt as any)}
@@ -289,14 +292,14 @@ function SnapshotsContent() {
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
-                Snapshot B (After)
+                {t("snapshots.snapshotB")}
               </label>
               <select
                 value={compareIds[1] ?? ""}
                 onChange={e => setCompareIds([compareIds[0], e.target.value ? parseInt(e.target.value) : null])}
                 className="w-full border border-input rounded-sm px-3 py-2 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="">Select snapshot...</option>
+                <option value="">{t("snapshots.selectSnapshot")}</option>
                 {rowsTyped.filter(s => s.id !== compareIds[0]).map(s => (
                   <option key={s.id} value={s.id}>
                     {s.name} — {formatDate(s.createdAt as any)}
@@ -311,12 +314,12 @@ function SnapshotsContent() {
               <table className="cap-table w-full min-w-[640px]">
                 <thead>
                   <tr>
-                    <th>Investor</th>
-                    <th className="text-right">Shares (A)</th>
-                    <th className="text-right">Shares (B)</th>
-                    <th className="text-right">Ownership (A)</th>
-                    <th className="text-right">Ownership (B)</th>
-                    <th className="text-right">Change</th>
+                    <th>{t("snapshots.investor")}</th>
+                    <th className="text-right">{t("snapshots.sharesA")}</th>
+                    <th className="text-right">{t("snapshots.sharesB")}</th>
+                    <th className="text-right">{t("snapshots.ownershipA")}</th>
+                    <th className="text-right">{t("snapshots.ownershipB")}</th>
+                    <th className="text-right">{t("snapshots.change")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -361,20 +364,20 @@ function SnapshotsContent() {
       <div className="bg-card border border-border rounded-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-border flex items-center gap-3">
           <Camera className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold tracking-tight">Snapshot History</h3>
+          <h3 className="text-sm font-semibold tracking-tight">{t("snapshots.history")}</h3>
           <span className="text-xs text-muted-foreground ml-auto">
-            {rowsTyped.length} snapshots
+            {rowsTyped.length} {t("snapshots.shares")}
           </span>
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">{t("snapshots.loading")}</div>
         ) : !rowsTyped.length ? (
           <div className="p-12 text-center space-y-3">
             <Camera className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-            <p className="text-sm text-muted-foreground">No snapshots yet.</p>
+            <p className="text-sm text-muted-foreground">{t("snapshots.noSnapshots")}</p>
             <p className="text-xs text-muted-foreground">
-              Snapshots are auto-created when allocations reach Issued. You can also take a manual one.
+              {t("snapshots.autoCreate")}
             </p>
           </div>
         ) : (
@@ -415,17 +418,17 @@ function SnapshotsContent() {
                         <p className="font-medium text-foreground tabular-nums">
                           {formatShares(snapshot.totalShares)}
                         </p>
-                        <p>shares</p>
+                        <p>{t("snapshots.shares")}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium text-foreground">{snapshot.totalInvestors}</p>
-                        <p>investors</p>
+                        <p>{t("snapshots.investorsLabel")}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium text-foreground">
                           {formatDate(snapshot.createdAt as any)}
                         </p>
-                        <p>captured</p>
+                        <p>{t("snapshots.captured")}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -447,17 +450,17 @@ function SnapshotsContent() {
                     <div className="border-t border-border bg-secondary/10">
                       {data.length === 0 ? (
                         <div className="p-6 text-center text-sm text-muted-foreground">
-                          No holdings recorded in this snapshot.
+                          {t("snapshots.noHoldings")}
                         </div>
                       ) : (
                         <div className="overflow-x-auto">
                         <table className="cap-table w-full min-w-[640px]">
                           <thead>
                             <tr>
-                              <th>Investor</th>
-                              <th>Entity</th>
-                              <th className="text-right">Shares</th>
-                              <th className="text-right">Ownership %</th>
+                              <th>{t("snapshots.investor")}</th>
+                              <th>{t("snapshots.entity")}</th>
+                              <th className="text-right">{t("snapshots.shares")}</th>
+                              <th className="text-right">{t("snapshots.ownershipPct")}</th>
                             </tr>
                           </thead>
                           <tbody>

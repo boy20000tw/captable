@@ -1,0 +1,41 @@
+{
+  "dashboard": "Dashboard",
+
+  "equity": "Equity",
+  "equity.capTable": "Cap Table",
+  "equity.register": "Share Register",
+  "equity.esop": "ESOP",
+  "equity.esign": "eSignature",
+
+  "fundraising": "Fundraising",
+  "fundraising.rounds": "Funding Rounds",
+  "fundraising.investors": "Investors",
+  "fundraising.instruments": "Instruments",
+
+  "analysis": "Analysis",
+  "analysis.waterfall": "Waterfall",
+  "analysis.valuation": "Scenario Modeling",
+  "analysis.projections": "Projections & DCF",
+  "analysis.antiDilution": "Anti-Dilution",
+
+  "investorPortal": "Investor Portal",
+
+  "compliance": "Compliance & Tax",
+  "compliance.tw": "Taiwan Regulations",
+  "compliance.tw.techShare": "Tech Share / RSA Tax",
+  "compliance.tw.closedCompany": "Closed Company Mgmt",
+  "compliance.us": "US Advanced",
+  "compliance.us.409a": "409A Valuation",
+  "compliance.us.83b": "83(b) Election",
+  "compliance.us.transfers": "Share Transfers",
+
+  "settings": "Settings",
+  "settings.company": "Company",
+  "settings.team": "Team",
+  "settings.import": "Import & Analysis",
+  "settings.snapshots": "Snapshots",
+  "settings.auditLog": "Audit Log",
+
+  "searchPlaceholder": "Search menu...",
+  "more": "More"
+}

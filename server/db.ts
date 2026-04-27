@@ -17,6 +17,7 @@ import {
   antiDilutionProvisions, InsertAntiDilutionProvision,
   shareholderDocuments, InsertShareholderDocument,
   valuations409a, InsertValuation409a,
+  elections83b, InsertElection83b,
   liquidationPreferences, InsertLiquidationPreference,
   userInvitations, InsertUserInvitation,
   auditLogs, InsertAuditLog,
@@ -33,6 +34,11 @@ import {
   signingTemplates, InsertSigningTemplate,
   shareClasses, InsertShareClass,
   adminAuditLogs, InsertAdminAuditLog,
+  notifications, InsertNotification,
+  shareTransfers, InsertShareTransfer,
+  techShareTaxRecords, InsertTechShareTaxRecord,
+  closedCompanyProvisions, InsertClosedCompanyProvision,
+  closedCompanyShareRights, InsertClosedCompanyShareRight,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -687,28 +693,113 @@ export async function getAll409aValuations(companyId: number) {
   if (!db) return [];
   return db.select().from(valuations409a)
     .where(eq(valuations409a.companyId, companyId))
-    .orderBy(asc(valuations409a.valuationDate));
+    .orderBy(desc(valuations409a.valuationDate));
+}
+
+export async function get409aValuations(companyId: number) {
+  return getAll409aValuations(companyId);
+}
+
+export async function get409aValuationById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(valuations409a)
+    .where(and(eq(valuations409a.companyId, companyId), eq(valuations409a.id, id)))
+    .limit(1);
+  return rows[0];
+}
+
+export async function getActive409aValuation(companyId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(valuations409a)
+    .where(and(
+      eq(valuations409a.companyId, companyId),
+      eq(valuations409a.status, "active"),
+      isNotNull(valuations409a.expiryDate)
+    ))
+    .orderBy(desc(valuations409a.valuationDate))
+    .limit(1);
+  return rows[0];
 }
 
 export async function create409aValuation(data: InsertValuation409a) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const result = await db.insert(valuations409a).values(data).returning({ id: valuations409a.id });
+  const result = await db.insert(valuations409a).values(data).returning();
   return result[0];
 }
 
 export async function update409aValuation(companyId: number, id: number, data: Partial<InsertValuation409a>) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.update(valuations409a).set(data)
-    .where(and(eq(valuations409a.id, id), eq(valuations409a.companyId, companyId)));
+  const result = await db.update(valuations409a).set(data)
+    .where(and(eq(valuations409a.id, id), eq(valuations409a.companyId, companyId)))
+    .returning();
+  return result[0];
 }
 
 export async function delete409aValuation(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.delete(valuations409a)
-    .where(and(eq(valuations409a.id, id), eq(valuations409a.companyId, companyId)));
+  const result = await db.delete(valuations409a)
+    .where(and(eq(valuations409a.id, id), eq(valuations409a.companyId, companyId)))
+    .returning();
+  return result[0];
+}
+
+// ─── 83(b) Elections ──────────────────────────────────────────────────────────
+export async function get83bElections(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(elections83b)
+    .where(eq(elections83b.companyId, companyId))
+    .orderBy(desc(elections83b.filingDeadline));
+}
+
+export async function get83bElectionById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(elections83b)
+    .where(and(eq(elections83b.companyId, companyId), eq(elections83b.id, id)))
+    .limit(1);
+  return rows[0];
+}
+
+export async function getPending83bElections(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(elections83b)
+    .where(and(
+      eq(elections83b.companyId, companyId),
+      eq(elections83b.status, "pending")
+    ))
+    .orderBy(asc(elections83b.filingDeadline));
+}
+
+export async function create83bElection(data: InsertElection83b) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(elections83b).values(data).returning();
+  return result[0];
+}
+
+export async function update83bElection(companyId: number, id: number, data: Partial<InsertElection83b>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.update(elections83b).set(data)
+    .where(and(eq(elections83b.id, id), eq(elections83b.companyId, companyId)))
+    .returning();
+  return result[0];
+}
+
+export async function delete83bElection(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.delete(elections83b)
+    .where(and(eq(elections83b.id, id), eq(elections83b.companyId, companyId)))
+    .returning();
+  return result[0];
 }
 
 // ─── Liquidation Preferences ─────────────────────────────────────────────────
@@ -1637,4 +1728,242 @@ export async function adminGetPlatformStats() {
     totalUsers: userCount?.count ?? 0,
     planBreakdown,
   };
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────────
+
+/** Get notifications for a company (optionally filter by userId). */
+export async function getNotifications(companyId: number, userId?: number, limit = 50, offset = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(notifications.companyId, companyId)];
+  if (userId !== undefined) {
+    // user's own notifications + company-wide ones
+    conditions.push(sql`(${notifications.userId} = ${userId} OR ${notifications.userId} IS NULL)`);
+  }
+  return db.select().from(notifications)
+    .where(and(...conditions))
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit).offset(offset);
+}
+
+/** Count unread notifications for a user in a company. */
+export async function getUnreadNotificationCount(companyId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db.select({ count: sql<number>`count(*)::int` }).from(notifications)
+    .where(and(
+      eq(notifications.companyId, companyId),
+      eq(notifications.isRead, false),
+      sql`(${notifications.userId} = ${userId} OR ${notifications.userId} IS NULL)`,
+    ));
+  return result?.count ?? 0;
+}
+
+/** Create a notification. */
+export async function createNotification(data: InsertNotification) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.insert(notifications).values(data).returning();
+  return row;
+}
+
+/** Mark a notification as read. */
+export async function markNotificationRead(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.update(notifications)
+    .set({ isRead: true })
+    .where(and(eq(notifications.id, id), eq(notifications.companyId, companyId)))
+    .returning();
+  return row;
+}
+
+/** Mark all notifications as read for a user in a company. */
+export async function markAllNotificationsRead(companyId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(notifications)
+    .set({ isRead: true })
+    .where(and(
+      eq(notifications.companyId, companyId),
+      eq(notifications.isRead, false),
+      sql`(${notifications.userId} = ${userId} OR ${notifications.userId} IS NULL)`,
+    ));
+}
+
+/** Delete a notification. */
+export async function deleteNotification(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.companyId, companyId)));
+}
+
+// ─── Share Transfers (Secondary Trading) ───────────────────────────────────────
+
+/** List share transfers for a company. */
+export async function getShareTransfers(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(shareTransfers)
+    .where(eq(shareTransfers.companyId, companyId))
+    .orderBy(desc(shareTransfers.createdAt));
+}
+
+/** Get a single share transfer by id. */
+export async function getShareTransferById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(shareTransfers)
+    .where(and(eq(shareTransfers.id, id), eq(shareTransfers.companyId, companyId)));
+  return row ?? null;
+}
+
+/** Create a share transfer. */
+export async function createShareTransfer(data: InsertShareTransfer) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.insert(shareTransfers).values(data).returning();
+  return row;
+}
+
+/** Update a share transfer. */
+export async function updateShareTransfer(companyId: number, id: number, data: Partial<InsertShareTransfer>) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.update(shareTransfers)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(shareTransfers.id, id), eq(shareTransfers.companyId, companyId)))
+    .returning();
+  return row ?? null;
+}
+
+/** Delete a share transfer. */
+export async function deleteShareTransfer(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(shareTransfers).where(and(eq(shareTransfers.id, id), eq(shareTransfers.companyId, companyId)));
+}
+
+// ─── Tech Share / RSA Tax Records (台灣法規) ──────────────────────────────────
+
+export async function getTechShareTaxRecords(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(techShareTaxRecords)
+    .where(eq(techShareTaxRecords.companyId, companyId))
+    .orderBy(desc(techShareTaxRecords.createdAt));
+}
+
+export async function getTechShareTaxRecordById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(techShareTaxRecords)
+    .where(and(eq(techShareTaxRecords.id, id), eq(techShareTaxRecords.companyId, companyId)));
+  return row ?? null;
+}
+
+/** Get records with deferral expiring soon (within N days). */
+export async function getDeferralExpiringRecords(companyId: number, withinDays = 60) {
+  const db = await getDb();
+  if (!db) return [];
+  const deadline = new Date(Date.now() + withinDays * 86400000).toISOString().slice(0, 10);
+  return db.select().from(techShareTaxRecords)
+    .where(and(
+      eq(techShareTaxRecords.companyId, companyId),
+      eq(techShareTaxRecords.isDeferralEligible, true),
+      eq(techShareTaxRecords.taxStatus, "deferred"),
+      isNotNull(techShareTaxRecords.deferralExpiryDate),
+      sql`${techShareTaxRecords.deferralExpiryDate} <= ${deadline}`,
+    ))
+    .orderBy(asc(techShareTaxRecords.deferralExpiryDate));
+}
+
+export async function createTechShareTaxRecord(data: InsertTechShareTaxRecord) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.insert(techShareTaxRecords).values(data).returning();
+  return row;
+}
+
+export async function updateTechShareTaxRecord(companyId: number, id: number, data: Partial<InsertTechShareTaxRecord>) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.update(techShareTaxRecords)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(techShareTaxRecords.id, id), eq(techShareTaxRecords.companyId, companyId)))
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteTechShareTaxRecord(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(techShareTaxRecords).where(and(eq(techShareTaxRecords.id, id), eq(techShareTaxRecords.companyId, companyId)));
+}
+
+// ─── Closed Company Provisions (閉鎖性公司 — 台灣法規) ─────────────────────────
+
+export async function getClosedCompanyProvision(companyId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(closedCompanyProvisions)
+    .where(eq(closedCompanyProvisions.companyId, companyId));
+  return row ?? null;
+}
+
+export async function upsertClosedCompanyProvision(data: InsertClosedCompanyProvision) {
+  const db = await getDb();
+  if (!db) return null;
+  // Check if exists
+  const existing = await getClosedCompanyProvision(data.companyId);
+  if (existing) {
+    const [row] = await db.update(closedCompanyProvisions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(closedCompanyProvisions.id, existing.id))
+      .returning();
+    return row;
+  } else {
+    const [row] = await db.insert(closedCompanyProvisions).values(data).returning();
+    return row;
+  }
+}
+
+export async function getClosedCompanyShareRights(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(closedCompanyShareRights)
+    .where(eq(closedCompanyShareRights.companyId, companyId))
+    .orderBy(asc(closedCompanyShareRights.shareClassName));
+}
+
+export async function getClosedCompanyShareRightById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(closedCompanyShareRights)
+    .where(and(eq(closedCompanyShareRights.id, id), eq(closedCompanyShareRights.companyId, companyId)));
+  return row ?? null;
+}
+
+export async function createClosedCompanyShareRight(data: InsertClosedCompanyShareRight) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.insert(closedCompanyShareRights).values(data).returning();
+  return row;
+}
+
+export async function updateClosedCompanyShareRight(companyId: number, id: number, data: Partial<InsertClosedCompanyShareRight>) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.update(closedCompanyShareRights)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(closedCompanyShareRights.id, id), eq(closedCompanyShareRights.companyId, companyId)))
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteClosedCompanyShareRight(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(closedCompanyShareRights).where(and(eq(closedCompanyShareRights.id, id), eq(closedCompanyShareRights.companyId, companyId)));
 }

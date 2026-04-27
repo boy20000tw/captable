@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Sparkles, X, Download } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -27,6 +28,8 @@ type ImportResult = {
 };
 
 function ImportContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("settings");
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -148,20 +151,18 @@ function ImportContent() {
       <div className="space-y-1">
         <div className="h-px bg-foreground/20 w-16 mb-4" />
         <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}>
-          Import & Analysis
+          {tPages("settings.import.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Import your Excel cap table and get AI-powered insights
-        </p>
+        <p className="text-sm text-muted-foreground">{tPages("settings.import.desc")}</p>
       </div>
 
       {/* Import Section */}
       <div className="bg-card border border-border rounded-sm p-6 space-y-5">
         <div className="space-y-0.5">
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Data Import</p>
-          <h3 className="text-base font-semibold tracking-tight">Import Excel Cap Table</h3>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{t("import.sectionImport")}</p>
+          <h3 className="text-base font-semibold tracking-tight">{t("import.importTitle")}</h3>
           <p className="text-xs text-muted-foreground">
-            Supports the standard cap table format with sheets: Register of shareholders, Cap Table, Cap Table w ESOP, Projection Bridge
+            {t("import.importDesc")}
           </p>
         </div>
 
@@ -180,14 +181,14 @@ function ImportContent() {
             <div className="space-y-2">
               <FileSpreadsheet className="h-10 w-10 mx-auto text-primary" />
               <p className="font-medium text-sm">{file.name}</p>
-              <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB · Click to change</p>
+              <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB · {t("import.clickToChange")}</p>
             </div>
           ) : (
             <div className="space-y-3">
               <Upload className="h-10 w-10 mx-auto text-muted-foreground" />
               <div>
-                <p className="font-medium text-sm">Drop your Excel file here</p>
-                <p className="text-xs text-muted-foreground mt-1">or click to browse · .xlsx, .xls supported</p>
+                <p className="font-medium text-sm">{t("import.dropHere")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("import.orBrowse")}</p>
               </div>
             </div>
           )}
@@ -202,14 +203,14 @@ function ImportContent() {
               className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {importing ? "Importing..." : "Import Cap Table"}
+              {importing ? t("import.importing") : t("import.importCapTable")}
             </button>
           ) : (
-            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-sm px-4 py-2">You do not have permission to import data. Contact an admin or owner.</p>
+            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-sm px-4 py-2">{t("import.noPermission")}</p>
           )}
           {file && (
             <button onClick={() => { setFile(null); setResult(null); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-              <X className="h-3.5 w-3.5" /> Clear
+              <X className="h-3.5 w-3.5" /> {t("import.clear")}
             </button>
           )}
         </div>
@@ -229,11 +230,11 @@ function ImportContent() {
             {result.stats && (
               <div className="grid grid-cols-5 gap-3">
                 {[
-                  { label: "Shareholders", value: result.stats.shareholders },
-                  { label: "Rounds", value: result.stats.rounds },
-                  { label: "Holdings", value: result.stats.holdings },
-                  { label: "Transactions", value: result.stats.transactions },
-                  { label: "ESOP Pools", value: result.stats.esopPools },
+                  { label: t("import.shareholders"), value: result.stats.shareholders },
+                  { label: t("import.rounds"), value: result.stats.rounds },
+                  { label: t("import.holdings"), value: result.stats.holdings },
+                  { label: t("import.transactions"), value: result.stats.transactions },
+                  { label: t("import.esopPools"), value: result.stats.esopPools },
                 ].map(s => (
                   <div key={s.label} className="text-center bg-white/60 rounded p-2">
                     <p className="text-lg font-bold text-green-800">{s.value}</p>
@@ -244,7 +245,7 @@ function ImportContent() {
             )}
             {result.errors && result.errors.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-red-700">Warnings:</p>
+                <p className="text-xs font-medium text-red-700">{t("import.warnings")}</p>
                 {result.errors.map((e, i) => (
                   <p key={i} className="text-xs text-red-600">• {e}</p>
                 ))}
@@ -257,10 +258,10 @@ function ImportContent() {
       {/* LLM Analysis Section */}
       <div className="bg-card border border-border rounded-sm p-6 space-y-5">
         <div className="space-y-0.5">
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">AI Analysis</p>
-          <h3 className="text-base font-semibold tracking-tight">Funding Round Analysis</h3>
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{t("import.sectionAi")}</p>
+          <h3 className="text-base font-semibold tracking-tight">{t("import.aiTitle")}</h3>
           <p className="text-xs text-muted-foreground">
-            Get an AI-powered analysis of your cap table, valuation trends, dilution impact, and strategic recommendations.
+            {t("import.aiDesc")}
           </p>
         </div>
 
@@ -270,19 +271,19 @@ function ImportContent() {
           className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {analyzing ? "Analyzing..." : "Generate Analysis Report"}
+          {analyzing ? t("import.analyzing") : t("import.generateReport")}
         </button>
 
         {(analyzing || analysisText) && (
           <div className="border border-border rounded-sm p-6 bg-secondary/20 space-y-3">
             <div className="flex items-center gap-2 pb-3 border-b border-border">
               <Sparkles className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold">AI Analysis Report</p>
+              <p className="text-sm font-semibold">{t("import.aiReport")}</p>
             </div>
             {analyzing && !analysisText && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Analyzing your cap table data...</span>
+                <span>{t("import.analyzingData")}</span>
               </div>
             )}
             {analysisText && (
@@ -298,10 +299,10 @@ function ImportContent() {
       <div className="bg-card border border-border rounded-sm p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-0.5">
-            <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">Format Guide</p>
-            <h3 className="text-base font-semibold tracking-tight">Supported Excel Structure</h3>
+            <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">{t("import.sectionFormat")}</p>
+            <h3 className="text-base font-semibold tracking-tight">{t("import.formatTitle")}</h3>
             <p className="text-xs text-muted-foreground pt-1">
-              Download the sample template to see the exact format, or use it as a starting point for your own data.
+              {t("import.formatDesc")}
             </p>
           </div>
           <a
@@ -310,29 +311,29 @@ function ImportContent() {
             className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border border-primary/30 text-primary bg-primary/5 text-sm font-medium rounded-sm hover:bg-primary/10 transition-colors"
           >
             <Download className="h-4 w-4" />
-            Download Template
+            {t("import.downloadTemplate")}
           </a>
         </div>
         <div className="grid grid-cols-2 gap-4">
           {[
             {
-              sheet: "Register of shareholders",
-              desc: "Shareholder names, share counts, tax info, lock-up dates",
+              sheet: t("import.sheetRegister"),
+              desc: t("import.sheetRegisterDesc"),
               required: true,
             },
             {
-              sheet: "Cap Table",
-              desc: "Equity structure by round (Angel, Seed, Seed+, Pre-A, etc.)",
+              sheet: t("import.sheetCapTable"),
+              desc: t("import.sheetCapTableDesc"),
               required: true,
             },
             {
-              sheet: "Cap Table w ESOP",
-              desc: "Cap table including ESOP pool allocation",
+              sheet: t("import.sheetCapTableEsop"),
+              desc: t("import.sheetCapTableEsopDesc"),
               required: false,
             },
             {
-              sheet: "Projection Bridge",
-              desc: "Bridge and Series A round projections",
+              sheet: t("import.sheetProjection"),
+              desc: t("import.sheetProjectionDesc"),
               required: false,
             },
           ].map(item => (
@@ -341,7 +342,7 @@ function ImportContent() {
                 <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <p className="text-xs font-medium">{item.sheet}</p>
                 {item.required && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-medium">Required</span>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-medium">{t("import.required")}</span>
                 )}
               </div>
               <p className="text-xs text-muted-foreground pl-5">{item.desc}</p>

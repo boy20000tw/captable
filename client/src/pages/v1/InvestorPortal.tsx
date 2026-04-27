@@ -4,6 +4,7 @@
  */
 
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { PieChart, FileText, Award, Briefcase, Download, CheckCircle2, Clock, Eye } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -25,6 +26,7 @@ export default function InvestorPortalPage() {
 }
 
 function InvestorPortalContent() {
+  const { t } = useTranslation("pages");
   const { data: profile, isLoading: profileLoading } = trpc.investorPortal.myProfile.useQuery();
   const { data: holdingsData, isLoading: holdingsLoading } = trpc.investorPortal.myHoldings.useQuery();
   const { data: grants, isLoading: grantsLoading } = trpc.investorPortal.myGrants.useQuery();
@@ -79,10 +81,10 @@ function InvestorPortalContent() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <PieChart className="h-6 w-6 text-primary" />
-          Welcome, {profile.name}
+          {t("investorPortal.welcome", { name: profile.name })}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Your equity holdings and documents
+          {t("investorPortal.desc")}
         </p>
       </div>
 

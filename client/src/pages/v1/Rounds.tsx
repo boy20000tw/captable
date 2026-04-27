@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Plus, Edit2, Trash2, Rocket, ArrowRight } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -75,15 +76,17 @@ const EMPTY_FORM: RoundForm = {
   notes: "",
 };
 
-function statusBadge(status: RoundStatus) {
+function statusBadge(status: RoundStatus, t: (key: string) => string) {
   if (status === "completed")
-    return <Badge className="bg-green-100 text-green-700 border-transparent">Completed</Badge>;
+    return <Badge className="bg-green-100 text-green-700 border-transparent">{t("rounds.completed")}</Badge>;
   if (status === "bridge")
-    return <Badge className="bg-orange-100 text-orange-700 border-transparent">Bridge</Badge>;
-  return <Badge className="bg-blue-100 text-blue-700 border-transparent">Projected</Badge>;
+    return <Badge className="bg-orange-100 text-orange-700 border-transparent">{t("rounds.bridge")}</Badge>;
+  return <Badge className="bg-blue-100 text-blue-700 border-transparent">{t("rounds.projected")}</Badge>;
 }
 
 function V1RoundsContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("fundraising");
   const [, setLocation] = useLocation();
   const { canEdit, canDelete } = usePermissions();
   const { formatAmount } = useCurrency();
@@ -97,7 +100,7 @@ function V1RoundsContent() {
   const createMut = trpc.fundingRounds.create.useMutation({
     onSuccess: () => {
       utils.fundingRounds.list.invalidate();
-      toast.success("Round created");
+      toast.success(t("rounds.roundCreated"));
       closeDialog();
     },
     onError: (e) => toast.error(e.message),
@@ -106,7 +109,7 @@ function V1RoundsContent() {
   const updateMut = trpc.fundingRounds.update.useMutation({
     onSuccess: () => {
       utils.fundingRounds.list.invalidate();
-      toast.success("Round updated");
+      toast.success(t("rounds.roundUpdated"));
       closeDialog();
     },
     onError: (e) => toast.error(e.message),
@@ -115,7 +118,7 @@ function V1RoundsContent() {
   const deleteMut = trpc.fundingRounds.delete.useMutation({
     onSuccess: () => {
       utils.fundingRounds.list.invalidate();
-      toast.success("Round deleted");
+      toast.success(t("rounds.roundDeleted"));
     },
     onError: (e) => toast.error(e.message),
   });
@@ -150,7 +153,7 @@ function V1RoundsContent() {
 
   function handleSubmit() {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error(t("rounds.nameRequiredError"));
       return;
     }
     const payload = {
@@ -172,7 +175,7 @@ function V1RoundsContent() {
 
   function handleDelete(r: NonNullable<typeof rounds>[number], e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete "${r.name}"? This cannot be undone.`)) return;
+    if (!confirm(t("rounds.deleteConfirm", { name: r.name }))) return;
     deleteMut.mutate({ id: r.id });
   }
 
@@ -186,17 +189,17 @@ function V1RoundsContent() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Rocket className="h-7 w-7 text-primary" />
-            Funding Rounds
+            {tPages("rounds.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Plan and track each capital raise.
+            {tPages("rounds.desc")}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <CurrencyToggle />
           {canEdit && (
             <Button onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-1" /> New Round
+              <Plus className="h-4 w-4 mr-1" /> {t("rounds.newRound")}
             </Button>
           )}
         </div>
@@ -207,9 +210,9 @@ function V1RoundsContent() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>All Rounds</CardTitle>
+              <CardTitle>{t("rounds.allRounds")}</CardTitle>
               <CardDescription>
-                {sorted.length} round{sorted.length === 1 ? "" : "s"}
+                {t("rounds.roundCount", { count: sorted.length })}
               </CardDescription>
             </div>
           </div>
@@ -217,17 +220,16 @@ function V1RoundsContent() {
         <CardContent>
           {isLoading ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              Loading...
+              {t("rounds.loading")}
             </div>
           ) : isEmpty ? (
             <div className="py-12 text-center space-y-3">
               <p className="text-muted-foreground text-sm">
-                No funding rounds yet. Create your first round to start planning
-                allocations.
+                {t("rounds.emptyState")}{". "}{t("rounds.emptyDesc")}
               </p>
               {canEdit && (
                 <Button onClick={openCreate}>
-                  <Plus className="h-4 w-4 mr-1" /> New Round
+                  <Plus className="h-4 w-4 mr-1" /> {t("rounds.newRound")}
                 </Button>
               )}
             </div>
@@ -235,13 +237,13 @@ function V1RoundsContent() {
             <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Price / Share</TableHead>
-                  <TableHead className="text-right">Raised</TableHead>
-                  <TableHead className="text-right">Pre-Money</TableHead>
-                  <TableHead className="text-right font-semibold">Post-Money</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("rounds.name")}</TableHead>
+                  <TableHead>{t("rounds.date")}</TableHead>
+                  <TableHead className="text-right">{t("rounds.pricePerShare")}</TableHead>
+                  <TableHead className="text-right">{t("rounds.raised")}</TableHead>
+                  <TableHead className="text-right">{t("rounds.preMoney")}</TableHead>
+                  <TableHead className="text-right font-semibold">{t("rounds.postMoney")}</TableHead>
+                  <TableHead>{t("rounds.status")}</TableHead>
                   <TableHead className="w-[120px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -274,7 +276,7 @@ function V1RoundsContent() {
                     <TableCell className="text-right tabular-nums font-semibold">
                       {postMoney > 0 ? formatAmount(postMoney) : "—"}
                     </TableCell>
-                    <TableCell>{statusBadge(r.status as RoundStatus)}</TableCell>
+                    <TableCell>{statusBadge(r.status as RoundStatus, t)}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
                         {canEdit && (
@@ -324,27 +326,27 @@ function V1RoundsContent() {
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editId != null ? "Edit Round" : "New Funding Round"}
+              {editId != null ? t("rounds.editDialog") : t("rounds.newDialog")}
             </DialogTitle>
             <DialogDescription>
               {editId != null
-                ? "Update round details."
-                : "Create a new funding round. You can add allocations after saving."}
+                ? t("rounds.editDesc")
+                : t("rounds.newDialogDesc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5 md:col-span-2">
-              <Label>Name *</Label>
+              <Label>{t("rounds.nameRequired")}</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Series A"
+                placeholder={t("rounds.namePlaceholder")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Round Date</Label>
+              <Label>{t("rounds.roundDate")}</Label>
               <Input
                 type="date"
                 value={form.roundDate}
@@ -353,7 +355,7 @@ function V1RoundsContent() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Status</Label>
+              <Label>{t("rounds.status")}</Label>
               <Select
                 value={form.status}
                 onValueChange={(v) =>
@@ -364,81 +366,81 @@ function V1RoundsContent() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="projected">Projected</SelectItem>
-                  <SelectItem value="bridge">Bridge</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="projected">{t("rounds.projected")}</SelectItem>
+                  <SelectItem value="bridge">{t("rounds.bridge")}</SelectItem>
+                  <SelectItem value="completed">{t("rounds.completed")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Pre-Money Valuation (NTD)</Label>
+              <Label>{t("rounds.preMoneyVal")}</Label>
               <Input
                 type="number"
                 value={form.preMoneyValuationNtd}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, preMoneyValuationNtd: e.target.value }))
                 }
-                placeholder="e.g. 100000000"
+                placeholder={t("rounds.preMoneyPlaceholder")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Post-Money Valuation (NTD)</Label>
+              <Label>{t("rounds.postMoneyVal")}</Label>
               <Input
                 type="number"
                 value={form.postMoneyValuationNtd}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, postMoneyValuationNtd: e.target.value }))
                 }
-                placeholder="e.g. 120000000"
+                placeholder={t("rounds.postMoneyPlaceholder")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Price Per Share (NTD)</Label>
+              <Label>{t("rounds.pricePerShareVal")}</Label>
               <Input
                 type="number"
                 value={form.pricePerShareNtd}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, pricePerShareNtd: e.target.value }))
                 }
-                placeholder="e.g. 10.00"
+                placeholder={t("rounds.pricePlaceholder")}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Money Raised (NTD)</Label>
+              <Label>{t("rounds.moneyRaised")}</Label>
               <Input
                 type="number"
                 value={form.moneyRaisedNtd}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, moneyRaisedNtd: e.target.value }))
                 }
-                placeholder="e.g. 20000000"
+                placeholder={t("rounds.raisedPlaceholder")}
               />
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
-              <Label>Notes</Label>
+              <Label>{t("rounds.notes")}</Label>
               <Textarea
                 rows={3}
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Optional..."
+                placeholder={t("rounds.notesPlaceholder")}
               />
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeDialog}>
-              Cancel
+              {t("rounds.cancel")}
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={createMut.isPending || updateMut.isPending || !form.name.trim()}
             >
-              {editId != null ? "Save Changes" : "Create Round"}
+              {editId != null ? t("rounds.saveChanges") : t("rounds.createRound")}
             </Button>
           </div>
         </DialogContent>

@@ -3,6 +3,7 @@
  * Shows what admin users have done (viewed company, changed plan, etc.)
  */
 
+import { useTranslation } from "react-i18next";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { ClipboardList } from "lucide-react";
@@ -12,13 +13,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 
-const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  view_company:         { label: "Viewed company",      color: "bg-gray-100 text-gray-700" },
-  update_plan:          { label: "Updated plan",         color: "bg-blue-100 text-blue-700" },
-  update_permissions:   { label: "Updated permissions",  color: "bg-amber-100 text-amber-700" },
-  view_audit_log:       { label: "Viewed audit log",     color: "bg-gray-100 text-gray-700" },
-  suspend_company:      { label: "Suspended company",    color: "bg-red-100 text-red-700" },
-  reactivate_company:   { label: "Reactivated company",  color: "bg-green-100 text-green-700" },
+const ACTION_LABEL_COLORS: Record<string, string> = {
+  view_company:         "bg-gray-100 text-gray-700",
+  update_plan:          "bg-blue-100 text-blue-700",
+  update_permissions:   "bg-amber-100 text-amber-700",
+  view_audit_log:       "bg-gray-100 text-gray-700",
+  suspend_company:      "bg-red-100 text-red-700",
+  reactivate_company:   "bg-green-100 text-green-700",
 };
 
 export default function AdminActivityPage() {
@@ -30,23 +31,25 @@ export default function AdminActivityPage() {
 }
 
 function AdminActivityContent() {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("admin");
   const { data: logs, isLoading } = trpc.admin.adminAuditLogs.useQuery({ limit: 200, offset: 0 });
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <ClipboardList className="h-6 w-6 text-primary" /> Admin Activity
+          <ClipboardList className="h-6 w-6 text-primary" /> {tPages("admin.activity.title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Log of all platform admin actions — who did what, when
+          {tPages("admin.activity.desc")}
         </p>
       </div>
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Activity Log</CardTitle>
-          <CardDescription>Most recent admin actions</CardDescription>
+          <CardTitle className="text-base">{t("activity.activityLog")}</CardTitle>
+          <CardDescription>{t("activity.recentActions")}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -55,22 +58,34 @@ function AdminActivityContent() {
             </div>
           ) : !logs || logs.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              No admin activity logged yet.
+              {t("activity.noActivity")}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Admin</TableHead>
-                  <TableHead>Target Company</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead>Time</TableHead>
+                  <TableHead>{t("activity.colAction")}</TableHead>
+                  <TableHead>{t("activity.colAdmin")}</TableHead>
+                  <TableHead>{t("activity.colTarget")}</TableHead>
+                  <TableHead>{t("activity.colDetails")}</TableHead>
+                  <TableHead>{t("activity.colTime")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log: any) => {
-                  const actionInfo = ACTION_LABELS[log.action] ?? { label: log.action, color: "bg-gray-100 text-gray-700" };
+                  const getActionLabel = (action: string): string => {
+                    switch (action) {
+                      case "view_company": return t("activity.viewedCompany");
+                      case "update_plan": return t("activity.updatedPlan");
+                      case "update_permissions": return t("activity.updatedPermissions");
+                      case "view_audit_log": return t("activity.viewedAuditLog");
+                      case "suspend_company": return t("activity.suspendedCompany");
+                      case "reactivate_company": return t("activity.reactivatedCompany");
+                      default: return action;
+                    }
+                  };
+                  const actionLabel = getActionLabel(log.action);
+                  const actionColor = ACTION_LABEL_COLORS[log.action] ?? "bg-gray-100 text-gray-700";
                   let detailSummary = "";
                   if (log.details) {
                     try {
@@ -82,8 +97,8 @@ function AdminActivityContent() {
                   return (
                     <TableRow key={log.id}>
                       <TableCell>
-                        <Badge className={`${actionInfo.color} border-transparent text-xs`}>
-                          {actionInfo.label}
+                        <Badge className={`${actionColor} border-transparent text-xs`}>
+                          {actionLabel}
                         </Badge>
                       </TableCell>
                       <TableCell>
