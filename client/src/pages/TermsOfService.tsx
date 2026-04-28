@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
-import { FileText } from "lucide-react";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,21 +20,26 @@ export default function TermsOfServicePage() {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 space-y-6 p-6 md:p-10 max-w-3xl">
+      <div className="p-8 max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-400">
-            <FileText className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("terms.title")}</h1>
-            <p className="text-xs text-muted-foreground">{t("terms.lastUpdated", { date: lastUpdated })}</p>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+          <div className="space-y-1">
+            <div className="h-px bg-foreground/20 w-16 mb-4" />
+            <h1
+              className="text-3xl font-bold tracking-tight"
+              style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
+            >
+              {t("terms.title")}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {t("terms.lastUpdated", { date: lastUpdated })}
+            </p>
           </div>
         </div>
 
-        <p className="text-sm text-muted-foreground leading-relaxed">{t("terms.intro")}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">{t("terms.intro")}</p>
 
-        <hr className="border-border" />
+        <div className="max-w-3xl space-y-6">
 
         {/* 1. Service Description */}
         <Section title={t("terms.sections.serviceDescription.title")}>
@@ -122,6 +126,7 @@ export default function TermsOfServicePage() {
           <p>{t("terms.sections.contact.description")}</p>
           <p className="font-medium">{t("terms.sections.contact.email")}</p>
         </Section>
+        </div>
       </div>
     </DashboardLayout>
   );
