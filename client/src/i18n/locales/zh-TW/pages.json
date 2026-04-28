@@ -227,6 +227,9 @@
   "join.roleLawyer": "律師 (Lawyer)",
   "join.roleInvestor": "投資人 (Investor)",
   "join.roleViewer": "檢視者 (Viewer)",
+  "join.accepting": "正在接受邀請…",
+  "join.acceptFailedTitle": "無法接受邀請",
+  "join.acceptFailed": "接受邀請時發生錯誤。",
 
   "notFound.title": "404",
   "notFound.desc": "找不到此頁面",

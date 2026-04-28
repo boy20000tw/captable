@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Shield, Check, X, Clock, LogIn } from "lucide-react";
+import { Shield, Check, X, Clock, LogIn, Loader2 } from "lucide-react";
 
 export default function Join() {
   const { t } = useTranslation("pages");
@@ -22,10 +22,43 @@ export default function Join() {
     setToken(params.get("token"));
   }, []);
 
+  // Step 1: validate the token (public, read-only)
   const { data: inviteData, isLoading: inviteLoading } = trpc.invitations.accept.useQuery(
     { token: token! },
     { enabled: !!token }
   );
+
+  // Step 2: accept the invitation (authenticated mutation)
+  const acceptMutation = trpc.invitations.acceptInvitation.useMutation();
+  const [accepted, setAccepted] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+
+  // When user is logged in + invite is valid + not yet accepted → auto-accept
+  useEffect(() => {
+    if (
+      user &&
+      token &&
+      inviteData?.valid &&
+      !accepted &&
+      !acceptMutation.isPending &&
+      !acceptError
+    ) {
+      acceptMutation.mutate(
+        { token },
+        {
+          onSuccess: () => setAccepted(true),
+          onError: (err) => {
+            // If already accepted (e.g. page refresh), treat as success
+            if (err.message?.includes("accepted")) {
+              setAccepted(true);
+            } else {
+              setAcceptError(err.message ?? t("join.acceptFailed"));
+            }
+          },
+        }
+      );
+    }
+  }, [user, token, inviteData?.valid, accepted, acceptMutation.isPending, acceptError]);
 
   if (!token) {
     return (
@@ -71,8 +104,37 @@ export default function Join() {
 
   const invitation = (inviteData as any).invitation;
 
-  // If user is already logged in, show success state
+  // User is logged in — accepting or accepted
   if (user) {
+    // Still processing the accept mutation
+    if (acceptMutation.isPending || (!accepted && !acceptError)) {
+      return (
+        <div className="min-h-screen bg-[#FBF9F6] flex items-center justify-center p-4">
+          <div className="max-w-md w-full text-center space-y-4">
+            <Loader2 className="h-12 w-12 text-primary mx-auto animate-spin" />
+            <h1 className="font-serif text-2xl font-bold">{t("join.accepting")}</h1>
+          </div>
+        </div>
+      );
+    }
+
+    // Accept failed
+    if (acceptError) {
+      return (
+        <div className="min-h-screen bg-[#FBF9F6] flex items-center justify-center p-4">
+          <div className="max-w-md w-full text-center space-y-4">
+            <X className="h-12 w-12 text-red-400 mx-auto" />
+            <h1 className="font-serif text-2xl font-bold">{t("join.acceptFailedTitle")}</h1>
+            <p className="text-muted-foreground">{acceptError}</p>
+            <a href="/" className="inline-block px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90">
+              {t("join.goToDashboard")}
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    // Successfully accepted
     return (
       <div className="min-h-screen bg-[#FBF9F6] flex items-center justify-center p-4">
         <div className="max-w-md w-full space-y-6">

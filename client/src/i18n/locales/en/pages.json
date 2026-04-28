@@ -227,6 +227,9 @@
   "join.roleLawyer": "Lawyer",
   "join.roleInvestor": "Investor",
   "join.roleViewer": "Viewer",
+  "join.accepting": "Accepting invitation…",
+  "join.acceptFailedTitle": "Unable to Accept",
+  "join.acceptFailed": "Something went wrong while accepting the invitation.",
 
   "notFound.message": "Sorry, the page you are looking for doesn't exist. It may have been moved or deleted.",
   "notFound.goHome": "Go Home",

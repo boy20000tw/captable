@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.8.1",
+    date: "2026-04-28",
+    type: "patch",
+    title: "修復邀請加入後狀態停留 Pending 的問題",
+    description: "Join 頁面原本僅做 read-only 驗證，未呼叫 acceptInvitation mutation 更新 DB。新增 useEffect 於使用者驗證 + 邀請有效時自動觸發 mutation，將 invitation status 更新為 accepted 並加入 company_members。新增接受中 / 失敗 UI 狀態與雙語 i18n。",
+  },
+  {
     version: "2.8.0",
     date: "2026-04-28",
     type: "minor",
