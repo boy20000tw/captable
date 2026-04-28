@@ -20,11 +20,18 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.9.0",
+    date: "2026-04-28",
+    type: "minor",
+    title: "完整角色權限控管 (RBAC)",
+    description: "六種公司角色（Owner / Admin / CFO / Lawyer / Investor / Viewer）各自擁有獨立的側邊欄、可訪問路由與操作權限。新增 shared/rolePermissions.ts 作為單一權限定義來源，RoleGuard 負責路由層級重導，ActionGuard 負責按鈕層級隱藏。Investor 登入後自動跳轉 Investor Portal。後端 mutation 已驗證皆有正確的 procedure guard。",
+  },
+  {
     version: "2.8.2",
     date: "2026-04-28",
     type: "patch",
-    title: "右上角新增使用者頭像 + Logout 按鈕",
-    description: "Desktop header 右上角新增使用者頭像 dropdown，包含姓名、email 與登出按鈕。Logout 現在同時出現在右上角 header 與左側 sidebar Account 兩處。CompanySwitcher 的 Sign out 文字也改用 i18n。",
+    title: "Header 新增 Sign Out 圖示按鈕",
+    description: "Desktop header 右上角新增 LogOut icon 按鈕，點擊即登出。Logout 現在同時出現在右上角 header 與左側 sidebar Account 兩處。CompanySwitcher 的 Sign out 文字也改用 i18n。",
   },
   {
     version: "2.8.1",

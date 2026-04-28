@@ -39,6 +39,7 @@ import SubscriptionPage from "./pages/Subscription";
 import PricingPage from "./pages/Pricing";
 import ComparePlansPage from "./pages/ComparePlans";
 import HelpSupportPage from "./pages/HelpSupport";
+import RoleGuard from "./components/RoleGuard";
 
 function Router() {
   return (
@@ -94,7 +95,9 @@ function App() {
         <CurrencyProvider>
           <TooltipProvider>
             <Toaster />
-            <Router />
+            <RoleGuard>
+              <Router />
+            </RoleGuard>
           </TooltipProvider>
         </CurrencyProvider>
       </ThemeProvider>

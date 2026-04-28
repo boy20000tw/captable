@@ -73,6 +73,13 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
+import {
+  type CompanyRole,
+  type NavGroupKey,
+  ROLE_VISIBLE_NAV,
+  SETTINGS_PATH_MAP,
+  ROLE_VISIBLE_SETTINGS,
+} from "../../../shared/rolePermissions";
 
 type NavItem = {
   icon: typeof LayoutDashboard;
@@ -82,19 +89,25 @@ type NavItem = {
 };
 
 type NavGroup =
-  | { type: "single"; icon: typeof LayoutDashboard; label: string; path: string }
-  | { type: "group"; icon: typeof LayoutDashboard; label: string; items: NavItem[] };
+  | { type: "single"; key: NavGroupKey; icon: typeof LayoutDashboard; label: string; path: string }
+  | { type: "group"; key: NavGroupKey; icon: typeof LayoutDashboard; label: string; items: NavItem[] };
 
-function buildNavStructure(t: TFunction<"nav">): NavGroup[] {
-  return [
+function buildNavStructure(t: TFunction<"nav">, companyRole: CompanyRole | null): NavGroup[] {
+  const role = companyRole ?? "viewer";
+  const visibleNav = ROLE_VISIBLE_NAV[role];
+  const visibleSettings = ROLE_VISIBLE_SETTINGS[role];
+
+  const allGroups: NavGroup[] = [
     {
       type: "single",
+      key: "dashboard",
       icon: LayoutDashboard,
       label: t("dashboard"),
       path: "/",
     },
     {
       type: "group",
+      key: "equity",
       icon: PieChart,
       label: t("equity"),
       items: [
@@ -106,6 +119,7 @@ function buildNavStructure(t: TFunction<"nav">): NavGroup[] {
     },
     {
       type: "group",
+      key: "fundraising",
       icon: Rocket,
       label: t("fundraising"),
       items: [
@@ -116,6 +130,7 @@ function buildNavStructure(t: TFunction<"nav">): NavGroup[] {
     },
     {
       type: "group",
+      key: "analysis",
       icon: BarChart3,
       label: t("analysis"),
       items: [
@@ -127,12 +142,14 @@ function buildNavStructure(t: TFunction<"nav">): NavGroup[] {
     },
     {
       type: "single",
+      key: "investorPortal",
       icon: UserCheck,
       label: t("investorPortal"),
       path: "/investor-portal",
     },
     {
       type: "group",
+      key: "compliance",
       icon: Scale,
       label: t("compliance"),
       items: [
@@ -145,6 +162,7 @@ function buildNavStructure(t: TFunction<"nav">): NavGroup[] {
     },
     {
       type: "group",
+      key: "settings",
       icon: Settings,
       label: t("settings"),
       items: [
@@ -156,6 +174,22 @@ function buildNavStructure(t: TFunction<"nav">): NavGroup[] {
       ],
     },
   ];
+
+  // Filter nav groups by role visibility
+  return allGroups
+    .filter(g => visibleNav.includes(g.key))
+    .map(g => {
+      // For settings group, filter sub-items by role
+      if (g.key === "settings" && g.type === "group") {
+        const filteredItems = g.items.filter(item => {
+          const settingsKey = SETTINGS_PATH_MAP[item.path];
+          return settingsKey ? visibleSettings.includes(settingsKey) : true;
+        });
+        return filteredItems.length > 0 ? { ...g, items: filteredItems } : null;
+      }
+      return g;
+    })
+    .filter((g): g is NavGroup => g !== null);
 }
 
 /** Helper: check if current location is inside a group */
@@ -247,7 +281,7 @@ type DashboardLayoutContentProps = {
 };
 
 function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutContentProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, companyRole, canEdit, canManageTeam } = useAuth();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -259,8 +293,15 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation("nav");
 
+  // Investor auto-redirect: if investor role lands on dashboard, send to portal
+  useEffect(() => {
+    if (companyRole === "investor" && location === "/") {
+      setLocation("/investor-portal");
+    }
+  }, [companyRole, location, setLocation]);
+
   // Build nav structure from i18n translations (re-builds on language change)
-  const navStructure = useMemo(() => buildNavStructure(t), [t]);
+  const navStructure = useMemo(() => buildNavStructure(t, companyRole), [t, companyRole]);
 
   // Filter nav items by search query
   const filteredNav = useMemo(() => {

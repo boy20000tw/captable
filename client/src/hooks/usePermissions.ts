@@ -13,7 +13,7 @@ import { useMemo } from "react";
  * │ canEdit    │  ✓    │  ✓    │  ✓  │   ✗    │    ✗     │   ✗    │
  * │ canDelete  │  ✓    │  ✓    │  ✗  │   ✗    │    ✗     │   ✗    │
  * │ canImport  │  ✓    │  ✓    │  ✓  │   ✗    │    ✗     │   ✗    │
- * │ canExport  │  ✓    │  ✓    │  ✓  │   ✓    │    ✓     │   ✓    │
+ * │ canExport  │  ✓    │  ✓    │  ✓  │   ✓    │    ✗     │   ✓    │
  * │ canManageTeam│ ✓   │  ✓    │  ✗  │   ✗    │    ✗     │   ✗    │
  * │ canInvite  │  ✓    │  ✓    │  ✗  │   ✗    │    ✗     │   ✗    │
  * │ canSnapshot│  ✓    │  ✓    │  ✓  │   ✗    │    ✗     │   ✗    │
@@ -24,7 +24,7 @@ import { useMemo } from "react";
 type AppRole = "owner" | "admin" | "cfo" | "lawyer" | "investor" | "viewer";
 
 export interface Permissions {
-  /** Current user's app role */
+  /** Current user's company role */
   role: AppRole | null;
   /** Can read all data (all roles) */
   canRead: boolean;
@@ -34,7 +34,7 @@ export interface Permissions {
   canDelete: boolean;
   /** Can import data from Excel (owner, admin, cfo) */
   canImport: boolean;
-  /** Can export data (all roles) */
+  /** Can export data (owner, admin, cfo, lawyer, viewer) */
   canExport: boolean;
   /** Can manage team members and roles (owner, admin) */
   canManageTeam: boolean;
@@ -65,11 +65,11 @@ function hasRole(userRole: AppRole | null | undefined, minRole: AppRole): boolea
 }
 
 export function usePermissions(): Permissions {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { companyRole, loading, isAuthenticated } = useAuth();
 
   return useMemo(() => {
-    // appRole from the user object (Phase 6 field); fall back to "viewer" if not set
-    const role = (user as (typeof user & { appRole?: AppRole }) | null)?.appRole ?? null;
+    // Use companyRole (per-company role from company_members table)
+    const role = companyRole as AppRole | null;
 
     return {
       role,
@@ -77,7 +77,7 @@ export function usePermissions(): Permissions {
       canEdit: hasRole(role, "cfo"),
       canDelete: hasRole(role, "admin"),
       canImport: hasRole(role, "cfo"),
-      canExport: isAuthenticated,
+      canExport: hasRole(role, "lawyer"),   // lawyer and above can export
       canManageTeam: hasRole(role, "admin"),
       canInvite: hasRole(role, "admin"),
       canSnapshot: hasRole(role, "cfo"),
@@ -85,7 +85,7 @@ export function usePermissions(): Permissions {
       isAuthenticated,
       isLoading: loading,
     };
-  }, [user, loading, isAuthenticated]);
+  }, [companyRole, loading, isAuthenticated]);
 }
 
 /**

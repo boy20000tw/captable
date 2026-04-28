@@ -2578,7 +2578,12 @@ export const appRouter = router({
       const memberships = await getUserCompanyMemberships(opts.ctx.user.id);
       // Spread user fields so existing frontend code (me.id, me.name, me.email, me.appRole)
       // keeps working; add `companies` for the company switcher.
-      return { ...opts.ctx.user, companies: memberships };
+      // `companyRole` = the role for the currently active company (from context).
+      return {
+        ...opts.ctx.user,
+        companies: memberships,
+        companyRole: opts.ctx.companyRole,
+      };
     }),
   }),
   companies: companiesRouter,
