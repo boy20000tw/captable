@@ -37,5 +37,6 @@
   "settings.auditLog": "稽核日誌 (Audit Log)",
 
   "searchPlaceholder": "搜尋選單...",
-  "more": "更多"
+  "more": "更多",
+  "signOut": "登出"
 }

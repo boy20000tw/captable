@@ -106,7 +106,7 @@ export function CompanySwitcher({ collapsed, user, onSignOut }: Props) {
                 className="cursor-pointer text-destructive focus:text-destructive"
               >
                 <LogOut className="h-3.5 w-3.5 mr-2" />
-                <span>Sign out</span>
+                <span>{t("signOut")}</span>
               </DropdownMenuItem>
             </>
           )}
@@ -191,7 +191,7 @@ export function CompanySwitcher({ collapsed, user, onSignOut }: Props) {
                 className="cursor-pointer text-destructive focus:text-destructive"
               >
                 <LogOut className="h-3.5 w-3.5 mr-2" />
-                <span>Sign out</span>
+                <span>{t("signOut")}</span>
               </DropdownMenuItem>
             </>
           )}

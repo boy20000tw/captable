@@ -37,5 +37,6 @@
   "settings.auditLog": "Audit Log",
 
   "searchPlaceholder": "Search menu...",
-  "more": "More"
+  "more": "More",
+  "signOut": "Sign out"
 }

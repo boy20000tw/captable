@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.8.2",
+    date: "2026-04-28",
+    type: "patch",
+    title: "右上角新增使用者頭像 + Logout 按鈕",
+    description: "Desktop header 右上角新增使用者頭像 dropdown，包含姓名、email 與登出按鈕。Logout 現在同時出現在右上角 header 與左側 sidebar Account 兩處。CompanySwitcher 的 Sign out 文字也改用 i18n。",
+  },
+  {
     version: "2.8.1",
     date: "2026-04-28",
     type: "patch",

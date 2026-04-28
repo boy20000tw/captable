@@ -113,5 +113,6 @@
   "vesting.expiry": "Expiry",
   "vesting.noExpiry": "No expiry",
   "vesting.cliff": "Cliff",
-  "vesting.today": "Today"
+  "vesting.today": "Today",
+  "signOut": "Sign out"
 }

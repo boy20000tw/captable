@@ -113,5 +113,6 @@
   "vesting.expiry": "到期日",
   "vesting.noExpiry": "無到期日",
   "vesting.cliff": "Cliff",
-  "vesting.today": "今天"
+  "vesting.today": "今天",
+  "signOut": "登出"
 }
