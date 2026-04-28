@@ -26,6 +26,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { normalizePlan } from "../../../../shared/plans";
+import { toast } from "sonner";
 
 const PLAN_COLORS: Record<string, string> = {
   starter: "bg-gray-100 text-gray-700 border-transparent",
@@ -182,9 +183,13 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
 
   const updateMut = trpc.admin.updatePlan.useMutation({
     onSuccess: () => {
+      toast.success(t("companies.planUpdated") || "Plan updated");
       utils.admin.companyDetail.invalidate({ companyId });
       utils.admin.listCompanies.invalidate();
       setEditOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update plan");
     },
   });
 

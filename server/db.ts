@@ -1678,9 +1678,17 @@ export async function adminUpdateCompanyPlan(
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(companies)
-    .set({ ...data, updatedAt: new Date() } as any)
-    .where(eq(companies.id, companyId));
+
+  const setData: Partial<typeof companies.$inferInsert> & { updatedAt: Date } = {
+    updatedAt: new Date(),
+  };
+  if (data.plan !== undefined) {
+    setData.plan = data.plan as "starter" | "standard" | "plus" | "enterprise";
+  }
+  if (data.planNote !== undefined) setData.planNote = data.planNote;
+  if (data.isSuspended !== undefined) setData.isSuspended = data.isSuspended;
+
+  await db.update(companies).set(setData).where(eq(companies.id, companyId));
 }
 
 /** Admin: view audit logs for a specific company. */

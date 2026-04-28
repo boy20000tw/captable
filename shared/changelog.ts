@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.10.1",
+    date: "2026-04-28",
+    type: "patch",
+    title: "修復 Admin 方案更新失敗 + toast 通知",
+    description: "修正 adminUpdateCompanyPlan 的 Drizzle enum 型別問題，plan 欄位不再以 as any 繞過。Admin Companies 編輯對話框新增 success/error toast 通知。",
+  },
+  {
     version: "2.10.0",
     date: "2026-04-28",
     type: "minor",
