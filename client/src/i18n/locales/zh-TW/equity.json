@@ -231,5 +231,31 @@
   "esign.templateCreated": "範本已建立",
   "esign.templateDeleted": "範本已刪除",
   "esign.emptyTemplates": "尚無範本",
-  "esign.emptyTemplatesDesc": "建立第一個範本"
+  "esign.emptyTemplatesDesc": "建立第一個範本",
+
+  "esign.onboarding.title": "連結 DocuSeal 開始使用",
+  "esign.onboarding.subtitle": "Caploom 整合 DocuSeal 提供具法律效力的電子簽名。連結您的帳號即可開始發送文件進行簽署。",
+  "esign.onboarding.step1Title": "註冊 DocuSeal 帳號",
+  "esign.onboarding.step1Desc": "建立免費的 DocuSeal 帳號。DocuSeal 提供電子簽名基礎架構，您只需依使用量在他們的平台付費。",
+  "esign.onboarding.registerBtn": "前往 DocuSeal",
+  "esign.onboarding.step2Title": "複製您的 API Key",
+  "esign.onboarding.step2Desc": "註冊完成後，前往 DocuSeal 後台的 Settings → API，複製您的 API Token。",
+  "esign.onboarding.apiSettingsLink": "開啟 DocuSeal API 設定",
+  "esign.onboarding.step3Title": "在這裡貼上 API Key",
+  "esign.onboarding.step3Desc": "輸入您的 DocuSeal API Key，我們會自動驗證連線並完成後續所有整合。",
+  "esign.onboarding.enterKeyBtn": "輸入 API Key",
+  "esign.onboarding.keyPlaceholder": "貼上您的 DocuSeal API Key…",
+  "esign.onboarding.connectBtn": "連結",
+  "esign.onboarding.validating": "驗證中…",
+  "esign.onboarding.editorOnly": "僅擁有者、管理員和財務長可以連結整合服務。",
+  "esign.onboarding.footerNote": "您的 API Key 會安全儲存，僅用於代替您與 DocuSeal 通訊。您隨時可以斷開連結。",
+
+  "esign.connection.connected": "DocuSeal 已連結",
+  "esign.connection.success": "DocuSeal 連結成功！",
+  "esign.connection.disconnected": "DocuSeal 已斷開連結。",
+  "esign.connection.disconnectTitle": "斷開 DocuSeal 連結？",
+  "esign.connection.disconnectDesc": "已建立的簽署請求不受影響，但您將無法發送新的簽署請求。",
+  "esign.connection.disconnect": "斷開連結",
+  "esign.connection.cancel": "取消",
+  "esign.connection.keyRequired": "請輸入您的 API Key。"
 }

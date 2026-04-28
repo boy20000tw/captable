@@ -5,6 +5,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { ArrowRightLeft, Plus, CheckCircle2, Clock, AlertTriangle, XCircle, Shield, Pencil, Trash2 } from "lucide-react";
@@ -55,7 +56,9 @@ const emptyForm: FormData = {
 export default function ShareTransfersPage() {
   return (
     <DashboardLayout>
-      <ShareTransfersContent />
+      <FeatureGate feature="shareTransfers">
+        <ShareTransfersContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

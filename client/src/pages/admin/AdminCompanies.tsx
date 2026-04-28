@@ -25,11 +25,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { normalizePlan } from "../../../../shared/plans";
 
 const PLAN_COLORS: Record<string, string> = {
-  free: "bg-gray-100 text-gray-700 border-transparent",
-  paid: "bg-blue-100 text-blue-700 border-transparent",
-  custom: "bg-purple-100 text-purple-700 border-transparent",
+  starter: "bg-gray-100 text-gray-700 border-transparent",
+  standard: "bg-blue-100 text-blue-700 border-transparent",
+  plus: "bg-indigo-100 text-indigo-700 border-transparent",
+  enterprise: "bg-purple-100 text-purple-700 border-transparent",
 };
 
 export default function AdminCompaniesPage() {
@@ -126,8 +128,8 @@ function CompanyListView({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={PLAN_COLORS[c.plan] ?? ""}>
-                        {c.plan === "custom" ? t("companies.planCustom") : c.plan === "paid" ? t("companies.planPaid") : t("companies.planFree")}
+                      <Badge className={PLAN_COLORS[normalizePlan(c.plan)] ?? ""}>
+                        {t(`companies.plan${normalizePlan(c.plan).charAt(0).toUpperCase()}${normalizePlan(c.plan).slice(1)}`)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -188,7 +190,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
 
   const openEdit = () => {
     if (!data) return;
-    setEditPlan(data.company.plan);
+    setEditPlan(normalizePlan(data.company.plan));
     setEditNote(data.company.planNote ?? "");
     setEditSuspended(data.company.isSuspended);
     setEditOpen(true);
@@ -240,8 +242,8 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
             <CardTitle className="text-sm text-muted-foreground">{t("companies.subscription")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge className={`${PLAN_COLORS[company.plan]} text-base px-3 py-1`}>
-              {company.plan === "custom" ? t("companies.planCustom") : company.plan === "paid" ? t("companies.planPaid") : t("companies.planFree")}
+            <Badge className={`${PLAN_COLORS[normalizePlan(company.plan)]} text-base px-3 py-1`}>
+              {t(`companies.plan${normalizePlan(company.plan).charAt(0).toUpperCase()}${normalizePlan(company.plan).slice(1)}`)}
             </Badge>
             {company.planNote && (
               <p className="text-xs text-muted-foreground mt-2">{company.planNote}</p>
@@ -361,9 +363,10 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
               <Select value={editPlan} onValueChange={setEditPlan}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">{t("companies.planFree")}</SelectItem>
-                  <SelectItem value="paid">{t("companies.planPaid")}</SelectItem>
-                  <SelectItem value="custom">{t("companies.planCustom")}</SelectItem>
+                  <SelectItem value="starter">{t("companies.planStarter")}</SelectItem>
+                  <SelectItem value="standard">{t("companies.planStandard")}</SelectItem>
+                  <SelectItem value="plus">{t("companies.planPlus")}</SelectItem>
+                  <SelectItem value="enterprise">{t("companies.planEnterprise")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

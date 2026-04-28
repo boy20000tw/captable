@@ -5,6 +5,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { FileCheck, Plus, AlertTriangle, CheckCircle2, Clock, XCircle, Pencil, Trash2, Download } from "lucide-react";
@@ -51,7 +52,9 @@ const emptyForm: FormData = {
 export default function Election83bPage() {
   return (
     <DashboardLayout>
-      <Election83bContent />
+      <FeatureGate feature="compliance.83b">
+        <Election83bContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

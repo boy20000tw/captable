@@ -6,6 +6,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { Receipt, Plus, AlertTriangle, CheckCircle2, Clock, XCircle, Pencil, Trash2 } from "lucide-react";
@@ -95,7 +96,9 @@ const emptyForm: FormData = {
 export default function TechShareTaxPage() {
   return (
     <DashboardLayout>
-      <TechShareTaxContent />
+      <FeatureGate feature="compliance.techShareTax">
+        <TechShareTaxContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

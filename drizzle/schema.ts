@@ -67,7 +67,7 @@ export const antiDilutionDefaultEnum = pgEnum("anti_dilution_default", ["none", 
 export const companyMemberRoleEnum = pgEnum("company_member_role", ["owner", "admin", "cfo", "lawyer", "investor", "viewer"]);
 
 // Company subscription plan enum
-export const companyPlanEnum = pgEnum("company_plan", ["free", "paid", "custom"]);
+export const companyPlanEnum = pgEnum("company_plan", ["starter", "standard", "plus", "enterprise"]);
 
 // Admin audit action enum (platform-level admin operations)
 export const adminAuditActionEnum = pgEnum("admin_audit_action", [
@@ -110,7 +110,7 @@ export const companies = pgTable("companies", {
     defaultCurrency: varchar("default_currency", { length: 8 }).default("NTD"),
 
     // Subscription
-    plan: companyPlanEnum("plan").default("free").notNull(),
+    plan: companyPlanEnum("plan").default("starter").notNull(),
     planNote: text("plan_note"),           // admin memo, e.g. "Enterprise — 3-year contract"
     isSuspended: boolean("is_suspended").default(false).notNull(),
 
@@ -1105,3 +1105,53 @@ export const closedCompanyShareRights = pgTable("closed_company_share_rights", {
 });
 export type ClosedCompanyShareRight = typeof closedCompanyShareRights.$inferSelect;
 export type InsertClosedCompanyShareRight = typeof closedCompanyShareRights.$inferInsert;
+
+// ─── Support Tickets ────────────────────────────────────────────────────────
+export const supportTicketTypeEnum = pgEnum("support_ticket_type", [
+  "feedback", "bug", "billing", "feature_request", "general",
+]);
+export const supportTicketStatusEnum = pgEnum("support_ticket_status", [
+  "open", "in_progress", "resolved", "closed",
+]);
+export const supportTicketPriorityEnum = pgEnum("support_ticket_priority", [
+  "low", "medium", "high",
+]);
+
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id"),
+  userId: integer("user_id").notNull(),
+  userName: varchar("user_name", { length: 256 }),
+  userEmail: varchar("user_email", { length: 256 }),
+  type: supportTicketTypeEnum("type").default("general").notNull(),
+  priority: supportTicketPriorityEnum("priority").default("medium").notNull(),
+  subject: varchar("subject", { length: 512 }).notNull(),
+  message: text("message").notNull(),
+  status: supportTicketStatusEnum("status").default("open").notNull(),
+  adminNotes: text("admin_notes"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = typeof supportTickets.$inferInsert;
+
+// ─── Support FAQs ───────────────────────────────────────────────────────────
+export const supportFaqCategoryEnum = pgEnum("support_faq_category", [
+  "account", "subscription", "equity", "technical", "general",
+]);
+
+export const supportFaqs = pgTable("support_faqs", {
+  id: serial("id").primaryKey(),
+  category: supportFaqCategoryEnum("category").default("general").notNull(),
+  questionEn: text("question_en").notNull(),
+  questionZh: text("question_zh").notNull(),
+  answerEn: text("answer_en").notNull(),
+  answerZh: text("answer_zh").notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  isPublished: boolean("is_published").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type SupportFaq = typeof supportFaqs.$inferSelect;
+export type InsertSupportFaq = typeof supportFaqs.$inferInsert;

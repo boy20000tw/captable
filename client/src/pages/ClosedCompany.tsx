@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import { FeatureGate } from '@/components/FeatureGate';
 import { trpc } from '@/lib/trpc';
 import { formatDate } from '@/lib/utils';
 import {
@@ -247,7 +248,8 @@ export default function ClosedCompanyPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-6xl mx-auto space-y-6">
+      <FeatureGate feature="compliance.closedCompany">
+        <div className="p-8 max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -796,7 +798,8 @@ export default function ClosedCompanyPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+        </div>
+      </FeatureGate>
     </DashboardLayout>
   );
 }

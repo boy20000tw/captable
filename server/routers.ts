@@ -1,6 +1,7 @@
 import {
   protectedProcedure, publicProcedure, router, adminProcedure,
   companyProcedure, companyEditorProcedure, companyOwnerAdminProcedure, companyOwnerProcedure,
+  requireFeature,
 } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -65,17 +66,40 @@ import {
   getClosedCompanyProvision, upsertClosedCompanyProvision,
   getClosedCompanyShareRights, getClosedCompanyShareRightById,
   createClosedCompanyShareRight, updateClosedCompanyShareRight, deleteClosedCompanyShareRight,
+  // Support
+  createSupportTicket, getAllSupportTickets, getSupportTicketsByUser, getSupportTicketById, updateSupportTicket,
+  getAllSupportFaqs, createSupportFaq, updateSupportFaq, deleteSupportFaq,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
 import { writeRegisterEntry, createManualSnapshot } from "./v1/registerWrite";
 import { deriveCapTable } from "./v1/capTable";
+import { planLimit, type PlanKey, type UsageLimitKey } from "../shared/plans";
+
+/**
+ * Check usage limit before a create operation.
+ * Throws FORBIDDEN with LIMIT_REACHED message if limit exceeded.
+ */
+async function checkUsageLimit(
+  companyPlan: PlanKey | null,
+  limitKey: UsageLimitKey,
+  currentCount: number,
+) {
+  const plan = companyPlan ?? "starter";
+  const max = planLimit(plan, limitKey);
+  if (max !== Infinity && currentCount >= max) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `LIMIT_REACHED:${limitKey}:${currentCount}:${max}`,
+    });
+  }
+}
 
 
 // ─── Funding Rounds Router ────────────────────────────────────────────────────
 const fundingRoundsRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllFundingRounds(ctx.companyId)),
-  get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) => getFundingRoundById(ctx.companyId, input.id)),
+  list: companyProcedure.use(requireFeature("fundraising.rounds")).query(({ ctx }) => getAllFundingRounds(ctx.companyId)),
+  get: companyProcedure.use(requireFeature("fundraising.rounds")).input(z.object({ id: z.number() })).query(({ input, ctx }) => getFundingRoundById(ctx.companyId, input.id)),
   create: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
     roundDate: z.string().optional(),
@@ -124,7 +148,7 @@ const fundingRoundsRouter = router({
 
 // ─── Anti-Dilution Router ─────────────────────────────────────────────────────
 const antiDilutionRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllAntiDilutionProvisions(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("analysis.antiDilution")).query(({ ctx }) => getAllAntiDilutionProvisions(ctx.companyId)),
   byShareholder: companyProcedure.input(z.object({ shareholderId: z.number() })).query(({ input, ctx }) => getProvisionsByShareholder(ctx.companyId, input.shareholderId)),
   create: companyEditorProcedure.input(z.object({
     shareholderId: z.number(),
@@ -340,7 +364,7 @@ const importRouter = router({
 
 // ─── Analysis Router (placeholder - LLM removed) ────────────────────────────
 const analysisRouter = router({
-  analyze: protectedProcedure.input(z.object({
+  analyze: protectedProcedure.use(requireFeature("analysis.valuation")).input(z.object({
     rounds: z.array(z.object({
       name: z.string(),
       pricePerShareNtd: z.string().nullable(),
@@ -369,6 +393,7 @@ const analysisRouter = router({
 // ─── Waterfall Router ───────────────────────────────────────────────────────────────────────
 const waterfallRouter = router({
   compute: companyProcedure
+    .use(requireFeature("analysis.waterfall"))
     .input(z.object({ exitValueNtd: z.number().positive() }))
     .query(({ input, ctx }) => computeWaterfall(ctx.companyId, input.exitValueNtd)),
   getLiquidationPreferences: companyProcedure.query(({ ctx }) => getLiquidationPreferences(ctx.companyId)),
@@ -478,6 +503,9 @@ const invitationsRouter = router({
     notes: z.string().optional(),
     origin: z.string(),
   })).mutation(async ({ input, ctx }) => {
+    // Usage limit check: team members
+    const members = await listCompanyMembers(ctx.companyId);
+    await checkUsageLimit(ctx.companyPlan, "teamMembers", members.length);
     const crypto = await import("crypto");
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -581,7 +609,7 @@ const auditLogRouter = router({
 
 // ─── Financial Projections Router (5-Year) ──────────────────────────────────
 const financialProjectionsRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllFinancialProjections(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("analysis.projections")).query(({ ctx }) => getAllFinancialProjections(ctx.companyId)),
   get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) => getFinancialProjectionById(ctx.companyId, input.id)),
   create: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
@@ -611,7 +639,7 @@ const financialProjectionsRouter = router({
 
 // ─── DCF Scenarios Router ───────────────────────────────────────────────────
 const dcfRouter = router({
-  listByProjection: companyProcedure.input(z.object({ projectionId: z.number() }))
+  listByProjection: companyProcedure.use(requireFeature("analysis.projections")).input(z.object({ projectionId: z.number() }))
     .query(({ input, ctx }) => getDcfScenariosByProjection(ctx.companyId, input.projectionId)),
   create: companyEditorProcedure.input(z.object({
     projectionId: z.number(),
@@ -681,6 +709,11 @@ const companiesRouter = router({
     name: z.string().min(1).max(255),
     slug: z.string().max(100).optional(),
   })).mutation(async ({ ctx, input }) => {
+    // Usage limit check: companies
+    const memberships = await getUserCompanyMemberships(ctx.user!.id);
+    // Use the plan of the user's first company (or free if no company yet)
+    const currentPlan = ctx.companyPlan ?? "starter";
+    await checkUsageLimit(currentPlan, "companies", memberships.length);
     const company = await createCompany(input);
     await addCompanyMember({ companyId: company.id, userId: ctx.user!.id, role: "owner" });
     await createAuditLog({
@@ -823,6 +856,9 @@ const v1InvestorsRouter = router({
     linkedinUrl: z.string().optional(),
     notes: z.string().optional(),
   })).mutation(async ({ ctx, input }) => {
+    // Usage limit check: shareholders
+    const existing = await getAllInvestors(ctx.companyId);
+    await checkUsageLimit(ctx.companyPlan, "shareholders", existing.length);
     const created = await createInvestor({ ...input, companyId: ctx.companyId, ownerUserId: ctx.user!.id });
     await createAuditLog({
       companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
@@ -1045,7 +1081,7 @@ const v1CapTableRouter = router({
 
 // ─── V1 Snapshots Router (auto + manual) ────────────────────────────────────
 const v1SnapshotsRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllSnapshotsV1(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("snapshots")).query(({ ctx }) => getAllSnapshotsV1(ctx.companyId)),
   createManual: companyEditorProcedure.input(z.object({
     name: z.string().min(1).max(255),
     notes: z.string().optional(),
@@ -1126,6 +1162,9 @@ const v1EsopRouter = router({
     if (input.sharesGranted > remaining) {
       throw new TRPCError({ code: "BAD_REQUEST", message: `Pool only has ${remaining.toLocaleString()} shares remaining; cannot grant ${input.sharesGranted.toLocaleString()}.` });
     }
+    // Usage limit check: ESOP grants (company-wide count)
+    const allGrants = await getAllEsopGrantsV1(ctx.companyId);
+    await checkUsageLimit(ctx.companyPlan, "esopGrants", allGrants.length);
     const created = await createEsopGrantV1({ ...input, companyId: ctx.companyId });
     await createAuditLog({
       companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
@@ -1245,7 +1284,7 @@ const v1EsopRouter = router({
 // ─── App Router ────────────────────────────────────────────────────────────────────────────────────
 // ─── Instruments Router (V1) ────────────────────────────────────────────────
 const instrumentsRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllInstruments(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("fundraising.instruments")).query(({ ctx }) => getAllInstruments(ctx.companyId)),
   get: companyProcedure.input(z.object({ id: z.number() }))
     .query(({ ctx, input }) => getInstrumentById(ctx.companyId, input.id)),
   byInvestor: companyProcedure.input(z.object({ investorId: z.number() }))
@@ -1567,7 +1606,7 @@ const shareClassRouter = router({
 
 // ─── eSign Router (DocuSeal eSignature) ─────────────────────────────────────
 const esignRouter = router({
-  list: companyProcedure.query(({ ctx }) => getAllSigningRequests(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("esign")).query(({ ctx }) => getAllSigningRequests(ctx.companyId)),
 
   get: companyProcedure
     .input(z.object({ id: z.number() }))
@@ -1657,7 +1696,7 @@ const esignRouter = router({
       const { createTemplateFromPdf, createTemplateFromDocx } = await import("./docuseal");
       const ext = input.fileName.split(".").pop()?.toLowerCase();
       const createFn = ext === "docx" ? createTemplateFromDocx : createTemplateFromPdf;
-      const template = await createFn(input.fileName, input.fileBase64);
+      const template = await createFn(input.fileName, input.fileBase64, ctx.companyId);
       await updateSigningRequest(ctx.companyId, input.signingRequestId, {
         docusealTemplateId: template.id,
       });
@@ -1694,6 +1733,7 @@ const esignRouter = router({
           message: input.message,
           expire_at: req.expiresAt?.toISOString(),
         },
+        ctx.companyId,
       );
 
       const submissionId = Array.isArray(submission) ? submission[0]?.submission_id : submission.id;
@@ -1715,9 +1755,9 @@ const esignRouter = router({
     }),
 
   // List DocuSeal templates (for reuse)
-  listDocusealTemplates: companyProcedure.query(async () => {
+  listDocusealTemplates: companyProcedure.query(async ({ ctx }) => {
     const { listTemplates } = await import("./docuseal");
-    return listTemplates();
+    return listTemplates(ctx.companyId);
   }),
 
   // ─── Template Library ───────────────────────────────────────────────────
@@ -1760,7 +1800,7 @@ const esignRouter = router({
       // 2. Create DocuSeal template
       const { createTemplateFromPdf, createTemplateFromDocx } = await import("./docuseal");
       const createFn = ext === "docx" ? createTemplateFromDocx : createTemplateFromPdf;
-      const dsTemplate = await createFn(input.name, input.fileBase64);
+      const dsTemplate = await createFn(input.name, input.fileBase64, ctx.companyId);
 
       // 3. Save to our DB
       const row = await createSigningTemplate({
@@ -1855,6 +1895,68 @@ const esignRouter = router({
       });
       return { success: true };
     }),
+
+  // ─── DocuSeal Connection Management ───────────────────────────────────────
+
+  /** Check whether the company has a connected DocuSeal account */
+  connectionStatus: companyProcedure.query(async ({ ctx }) => {
+    const { hasDocuSealConnection } = await import("./docuseal");
+    const connected = await hasDocuSealConnection(ctx.companyId);
+    return { connected };
+  }),
+
+  /** Save & validate a DocuSeal API key for this company */
+  connect: companyEditorProcedure
+    .input(z.object({ apiKey: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      // 1. Validate the key with DocuSeal
+      const { validateApiKey } = await import("./docuseal");
+      const result = await validateApiKey(input.apiKey);
+      if (!result.valid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: result.error || "Invalid DocuSeal API key",
+        });
+      }
+
+      // 2. Save to DB
+      await updateCompany(ctx.companyId, {
+        docusealTenantApiKey: input.apiKey,
+      });
+
+      // 3. Audit log
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update",
+        resourceType: "company",
+        resourceName: "DocuSeal API Key",
+        changesAfter: JSON.stringify({ docusealConnected: true }),
+      });
+
+      return { success: true };
+    }),
+
+  /** Disconnect DocuSeal (remove the API key) */
+  disconnect: companyEditorProcedure
+    .mutation(async ({ ctx }) => {
+      await updateCompany(ctx.companyId, {
+        docusealTenantApiKey: null,
+      });
+
+      await createAuditLog({
+        companyId: ctx.companyId,
+        userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        action: "update",
+        resourceType: "company",
+        resourceName: "DocuSeal API Key",
+        changesAfter: JSON.stringify({ docusealConnected: false }),
+      });
+
+      return { success: true };
+    }),
 });
 
 // ─── Investor Portal Router ──────────────────────────────────────────────────
@@ -1862,7 +1964,7 @@ const esignRouter = router({
 // user's email to an investor record, then returns their holdings, grants, and docs.
 const investorPortalRouter = router({
   /** Resolve the current user's investor record by email match */
-  myProfile: companyProcedure.query(async ({ ctx }) => {
+  myProfile: companyProcedure.use(requireFeature("investorPortal")).query(async ({ ctx }) => {
     const db = await import("./db").then(m => m.getDb());
     if (!db) return null;
     const { investors: investorsTable } = await import("../drizzle/schema");
@@ -1957,7 +2059,7 @@ const investorPortalRouter = router({
 
 // ─── 409A Valuation Router ───────────────────────────────────────────────────────
 const valuation409aRouter = router({
-  list: companyProcedure.query(({ ctx }) => get409aValuations(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("compliance.409a")).query(({ ctx }) => get409aValuations(ctx.companyId)),
 
   get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) =>
     get409aValuationById(ctx.companyId, input.id)
@@ -2056,7 +2158,7 @@ const valuation409aRouter = router({
 
 // ─── 83(b) Election Router ───────────────────────────────────────────────────────
 const election83bRouter = router({
-  list: companyProcedure.query(({ ctx }) => get83bElections(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("compliance.83b")).query(({ ctx }) => get83bElections(ctx.companyId)),
 
   get: companyProcedure.input(z.object({ id: z.number() })).query(({ input, ctx }) =>
     get83bElectionById(ctx.companyId, input.id)
@@ -2191,7 +2293,7 @@ const notificationsRouter = router({
 
 // ─── Share Transfers Router ──────────────────────────────────────────────────
 const shareTransfersRouter = router({
-  list: companyProcedure.query(({ ctx }) => getShareTransfers(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("shareTransfers")).query(({ ctx }) => getShareTransfers(ctx.companyId)),
 
   get: companyProcedure
     .input(z.object({ id: z.number() }))
@@ -2279,7 +2381,7 @@ const shareTransfersRouter = router({
 
 // ─── Tech Share Tax Router (台灣法規) ────────────────────────────────────────
 const techShareTaxRouter = router({
-  list: companyProcedure.query(({ ctx }) => getTechShareTaxRecords(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("compliance.techShareTax")).query(({ ctx }) => getTechShareTaxRecords(ctx.companyId)),
 
   get: companyProcedure
     .input(z.object({ id: z.number() }))
@@ -2374,7 +2476,7 @@ const techShareTaxRouter = router({
 // ─── Closed Company Router (閉鎖性公司 — 台灣法規) ───────────────────────────
 const closedCompanyRouter = router({
   // Company-level provisions (single record per company)
-  getProvision: companyProcedure.query(({ ctx }) => getClosedCompanyProvision(ctx.companyId)),
+  getProvision: companyProcedure.use(requireFeature("compliance.closedCompany")).query(({ ctx }) => getClosedCompanyProvision(ctx.companyId)),
 
   upsertProvision: companyEditorProcedure.input(z.object({
     isClosedCompany: z.boolean(),
@@ -2587,7 +2689,7 @@ export const appRouter = router({
     updatePlan: adminProcedure
       .input(z.object({
         companyId: z.number(),
-        plan: z.enum(["free", "paid", "custom"]).optional(),
+        plan: z.enum(["starter", "standard", "plus", "enterprise"]).optional(),
         planNote: z.string().optional(),
         isSuspended: z.boolean().optional(),
       }))
@@ -2624,6 +2726,102 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return getAdminAuditLogs(input?.limit ?? 100, input?.offset ?? 0);
       }),
+
+    // ─── Platform Admin: Support ticket management ──────────────────────
+    adminTickets: adminProcedure.query(async () => {
+      return getAllSupportTickets();
+    }),
+
+    adminUpdateTicket: adminProcedure.input(z.object({
+      id: z.number(),
+      status: z.enum(["open", "in_progress", "resolved", "closed"]).optional(),
+      adminNotes: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const updates: Record<string, unknown> = {};
+      if (input.status) {
+        updates.status = input.status;
+        if (input.status === "resolved" || input.status === "closed") {
+          updates.resolvedAt = new Date();
+        }
+      }
+      if (input.adminNotes !== undefined) updates.adminNotes = input.adminNotes;
+      return updateSupportTicket(input.id, updates);
+    }),
+
+    // ─── Platform Admin: FAQ management ─────────────────────────────────
+    adminCreateFaq: adminProcedure.input(z.object({
+      category: z.enum(["account", "subscription", "equity", "technical", "general"]),
+      questionEn: z.string().min(1),
+      questionZh: z.string().min(1),
+      answerEn: z.string().min(1),
+      answerZh: z.string().min(1),
+      sortOrder: z.number().default(0),
+    })).mutation(async ({ input }) => {
+      return createSupportFaq(input);
+    }),
+
+    adminUpdateFaq: adminProcedure.input(z.object({
+      id: z.number(),
+      data: z.object({
+        category: z.enum(["account", "subscription", "equity", "technical", "general"]).optional(),
+        questionEn: z.string().optional(),
+        questionZh: z.string().optional(),
+        answerEn: z.string().optional(),
+        answerZh: z.string().optional(),
+        sortOrder: z.number().optional(),
+        isPublished: z.boolean().optional(),
+      }),
+    })).mutation(async ({ input }) => {
+      return updateSupportFaq(input.id, input.data);
+    }),
+
+    adminDeleteFaq: adminProcedure.input(z.object({
+      id: z.number(),
+    })).mutation(async ({ input }) => {
+      await deleteSupportFaq(input.id);
+      return { success: true };
+    }),
+  }),
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  SUPPORT — tickets & FAQ (user-facing)
+  // ═══════════════════════════════════════════════════════════════════════════
+  support: router({
+    // Submit a support ticket (feedback, bug, billing, feature request)
+    createTicket: protectedProcedure.input(z.object({
+      type: z.enum(["feedback", "bug", "billing", "feature_request", "general"]),
+      subject: z.string().min(1).max(512),
+      message: z.string().min(1).max(5000),
+      priority: z.enum(["low", "medium", "high"]).default("medium"),
+    })).mutation(async ({ ctx, input }) => {
+      const ticket = await createSupportTicket({
+        userId: ctx.user!.id,
+        userName: ctx.user!.name ?? undefined,
+        userEmail: ctx.user!.email ?? undefined,
+        companyId: (ctx as { companyId?: number }).companyId ?? undefined,
+        ...input,
+      });
+      return ticket;
+    }),
+
+    // List user's own tickets
+    myTickets: protectedProcedure.query(async ({ ctx }) => {
+      return getSupportTicketsByUser(ctx.user!.id);
+    }),
+
+    // Get a single ticket (only owner can view)
+    getTicket: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
+      const ticket = await getSupportTicketById(input.id);
+      if (!ticket || ticket.userId !== ctx.user!.id) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Ticket not found" });
+      }
+      return ticket;
+    }),
+
+    // List published FAQs
+    faqs: publicProcedure.query(async () => {
+      return getAllSupportFaqs();
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;

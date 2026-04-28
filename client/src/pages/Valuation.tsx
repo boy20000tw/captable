@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Calculator, FlaskConical } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import {
   Card,
   CardContent,
@@ -20,7 +21,8 @@ export default function ValuationPage() {
   const { t } = useTranslation("analysis");
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-6xl mx-auto space-y-6">
+      <FeatureGate feature="analysis.valuation">
+        <div className="p-8 max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -66,7 +68,8 @@ export default function ValuationPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
+        </div>
+      </FeatureGate>
     </DashboardLayout>
   );
 }

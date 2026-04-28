@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,9 @@ import { BarChart3, DollarSign, Download, Plus, TrendingUp } from "lucide-react"
 export default function ProjectionsPage() {
   return (
     <DashboardLayout>
-      <ProjectionsContent />
+      <FeatureGate feature="analysis.projections">
+        <ProjectionsContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

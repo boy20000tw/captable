@@ -2,6 +2,7 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
+import { planHasFeature, minimumPlanFor, normalizePlan, type Feature, type PlanKey } from "../../shared/plans";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -127,3 +128,24 @@ export const companyOwnerProcedure = t.procedure.use(
     return next({ ctx: { ...ctx, user: ctx.user, companyId: ctx.companyId, companyRole: ctx.companyRole } });
   }),
 );
+
+// ─── Plan Guard ────────────────────────────────────────────────────────────
+// Factory: returns a middleware that checks if the company's plan includes
+// the required feature. Returns FORBIDDEN with code "UPGRADE_REQUIRED" if not.
+//
+// Usage: companyProcedure.use(requireFeature("fundraising.rounds")).query(...)
+
+export function requireFeature(feature: Feature) {
+  return t.middleware(async ({ ctx, next }) => {
+    const plan = normalizePlan(ctx.companyPlan as string);
+    if (!planHasFeature(plan, feature)) {
+      const required = minimumPlanFor(feature);
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `UPGRADE_REQUIRED:${required}`,
+      });
+    }
+    // Pass through without re-wrapping ctx to preserve narrowed types from prior middleware
+    return next();
+  });
+}

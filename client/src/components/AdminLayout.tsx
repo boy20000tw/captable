@@ -19,6 +19,7 @@ import {
   ClipboardList,
   ArrowLeft,
   ShieldCheck,
+  MessageSquare,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -26,6 +27,7 @@ const adminNav = [
   { icon: LayoutDashboard, label: "Overview",        path: "/admin" },
   { icon: Building2,       label: "Companies",       path: "/admin/companies" },
   { icon: ClipboardList,   label: "Admin Activity",  path: "/admin/activity" },
+  { icon: MessageSquare,   label: "Support Tickets", path: "/admin/tickets" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

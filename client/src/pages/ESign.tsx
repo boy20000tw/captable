@@ -1,11 +1,13 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo, useRef } from "react";
 import {
   PenLine, Plus, Trash2, Send, FileUp, Download, Info,
   Eye, Clock, CheckCircle2, XCircle, AlertTriangle,
-  FolderOpen, Globe, Building2,
+  FolderOpen, Globe, Building2, ExternalLink, Key, Link2, Unlink,
+  ArrowRight, ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -13,15 +15,18 @@ import { usePermissions } from "@/hooks/usePermissions";
 // ════════════════════════════════════════════════════════════════════════════
 // eSignature (DocuSeal Integration)
 //
-// Two sections:
-//   1. Signing Requests — create, send, track signing status
-//   2. Template Library — platform + company templates for reuse
+// Three states:
+//   0. Not connected → onboarding flow (register at DocuSeal + input API key)
+//   1. Connected → Signing Requests tab
+//   2. Connected → Template Library tab
 // ════════════════════════════════════════════════════════════════════════════
 
 export default function ESignPage() {
   return (
     <DashboardLayout>
-      <ESignContent />
+      <FeatureGate feature="esign">
+        <ESignContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }
@@ -36,7 +41,7 @@ type ESignForm = {
   description: string;
   signers: Signer[];
   expiresAt: string;
-  templateId: number | "";  // selected template from library
+  templateId: number | "";
 };
 
 const emptyForm: ESignForm = {
@@ -67,7 +72,7 @@ const STATUS_CONFIG: Record<SigningStatus, { label: string; color: string; icon:
   expired: { label: "Expired", color: "bg-gray-100 text-gray-500", icon: AlertTriangle },
 };
 
-// ─── Main page sections ────────────────────────────────────────────────────
+// ─── Main entry point ─────────────────────────────────────────────────────
 
 type PageSection = "requests" | "templates";
 
@@ -76,17 +81,38 @@ function ESignContent() {
   const { t } = useTranslation("equity");
   const [section, setSection] = useState<PageSection>("requests");
 
+  const connectionQuery = trpc.esign.connectionStatus.useQuery();
+  const isConnected = connectionQuery.data?.connected === true;
+  const isLoading = connectionQuery.isLoading;
+
+  if (isLoading) {
+    return (
+      <div className="p-6 sm:p-10 max-w-6xl mx-auto space-y-4">
+        <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+        <div className="h-4 w-72 bg-muted rounded animate-pulse" />
+        <div className="h-64 bg-muted rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!isConnected) {
+    return <DocuSealOnboarding onConnected={() => connectionQuery.refetch()} />;
+  }
+
   return (
     <div className="p-6 sm:p-10 space-y-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <PenLine className="h-6 w-6 text-primary" />
-          {tPages("esign.title")}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {tPages("esign.desc")}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <PenLine className="h-6 w-6 text-primary" />
+            {tPages("esign.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {tPages("esign.desc")}
+          </p>
+        </div>
+        <ConnectionBadge />
       </div>
 
       {/* Section tabs */}
@@ -115,6 +141,248 @@ function ESignContent() {
       </div>
 
       {section === "requests" ? <RequestsSection /> : <TemplatesSection />}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Connection Badge — shown in header when connected, allows disconnect
+// ════════════════════════════════════════════════════════════════════════════
+
+function ConnectionBadge() {
+  const { t } = useTranslation("equity");
+  const { canEdit } = usePermissions();
+  const utils = trpc.useUtils();
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const disconnectMut = trpc.esign.disconnect.useMutation({
+    onSuccess: () => {
+      utils.esign.connectionStatus.invalidate();
+      toast.success(t("esign.connection.disconnected"));
+      setShowConfirm(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => canEdit && setShowConfirm(!showConfirm)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+      >
+        <ShieldCheck className="h-3.5 w-3.5" />
+        {t("esign.connection.connected")}
+      </button>
+      {showConfirm && canEdit && (
+        <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border bg-card shadow-lg p-4 z-20">
+          <p className="text-sm font-medium mb-1">{t("esign.connection.disconnectTitle")}</p>
+          <p className="text-xs text-muted-foreground mb-3">{t("esign.connection.disconnectDesc")}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="flex-1 px-3 py-1.5 text-xs border rounded-lg hover:bg-muted transition-colors"
+            >
+              {t("esign.connection.cancel")}
+            </button>
+            <button
+              onClick={() => disconnectMut.mutate()}
+              disabled={disconnectMut.isPending}
+              className="flex-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              <Unlink className="h-3 w-3 inline mr-1" />
+              {disconnectMut.isPending ? "..." : t("esign.connection.disconnect")}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Onboarding — Guide user to register at DocuSeal, then input API key
+// ════════════════════════════════════════════════════════════════════════════
+
+function DocuSealOnboarding({ onConnected }: { onConnected: () => void }) {
+  const { t: tPages } = useTranslation("pages");
+  const { t } = useTranslation("equity");
+  const { canEdit } = usePermissions();
+  const [apiKey, setApiKey] = useState("");
+  const [showKeyInput, setShowKeyInput] = useState(false);
+
+  const connectMut = trpc.esign.connect.useMutation({
+    onSuccess: () => {
+      toast.success(t("esign.connection.success"));
+      onConnected();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  function handleConnect() {
+    const trimmed = apiKey.trim();
+    if (!trimmed) {
+      toast.error(t("esign.connection.keyRequired"));
+      return;
+    }
+    connectMut.mutate({ apiKey: trimmed });
+  }
+
+  return (
+    <div className="p-6 sm:p-10 max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          <PenLine className="h-6 w-6 text-primary" />
+          {tPages("esign.title")}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {tPages("esign.desc")}
+        </p>
+      </div>
+
+      {/* Onboarding card */}
+      <div className="border rounded-2xl bg-card shadow-sm overflow-hidden">
+        {/* Hero section */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 px-8 py-10 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white dark:bg-gray-900 shadow-sm mb-4">
+            <PenLine className="h-8 w-8 text-blue-600" />
+          </div>
+          <h2 className="text-xl font-bold">{t("esign.onboarding.title")}</h2>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+            {t("esign.onboarding.subtitle")}
+          </p>
+        </div>
+
+        {/* Steps */}
+        <div className="px-8 py-8 space-y-6">
+          {/* Step 1: Register at DocuSeal */}
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold shrink-0">
+                1
+              </div>
+              <div className="w-px flex-1 bg-border mt-2" />
+            </div>
+            <div className="pb-6">
+              <h3 className="font-semibold text-sm">{t("esign.onboarding.step1Title")}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("esign.onboarding.step1Desc")}
+              </p>
+              <a
+                href="https://www.docuseal.com/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                {t("esign.onboarding.registerBtn")}
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+
+          {/* Step 2: Get API Key */}
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold shrink-0">
+                2
+              </div>
+              <div className="w-px flex-1 bg-border mt-2" />
+            </div>
+            <div className="pb-6">
+              <h3 className="font-semibold text-sm">{t("esign.onboarding.step2Title")}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("esign.onboarding.step2Desc")}
+              </p>
+              <a
+                href="https://www.docuseal.com/settings/api"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 mt-2 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                {t("esign.onboarding.apiSettingsLink")}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+
+          {/* Step 3: Connect */}
+          <div className="flex gap-4">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold shrink-0">
+                3
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">{t("esign.onboarding.step3Title")}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("esign.onboarding.step3Desc")}
+              </p>
+
+              {canEdit ? (
+                <>
+                  {!showKeyInput ? (
+                    <button
+                      onClick={() => setShowKeyInput(true)}
+                      className="inline-flex items-center gap-2 mt-3 px-4 py-2 border-2 border-dashed border-blue-300 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
+                    >
+                      <Key className="h-4 w-4" />
+                      {t("esign.onboarding.enterKeyBtn")}
+                    </button>
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          value={apiKey}
+                          onChange={e => setApiKey(e.target.value)}
+                          placeholder={t("esign.onboarding.keyPlaceholder")}
+                          className="flex-1 border rounded-lg px-3 py-2 text-sm bg-background font-mono"
+                          onKeyDown={e => e.key === "Enter" && handleConnect()}
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleConnect}
+                          disabled={connectMut.isPending || !apiKey.trim()}
+                          className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          {connectMut.isPending ? (
+                            <>{t("esign.onboarding.validating")}</>
+                          ) : (
+                            <>
+                              <Link2 className="h-4 w-4" />
+                              {t("esign.onboarding.connectBtn")}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      {connectMut.isError && (
+                        <p className="text-sm text-red-600 flex items-center gap-1">
+                          <XCircle className="h-3.5 w-3.5 shrink-0" />
+                          {connectMut.error.message}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-amber-600">
+                  {t("esign.onboarding.editorOnly")}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer note */}
+        <div className="px-8 py-4 bg-muted/30 border-t">
+          <div className="flex items-start gap-2">
+            <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              {t("esign.onboarding.footerNote")}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -186,12 +454,10 @@ function RequestsSection() {
     const validSigners = form.signers.filter(s => s.email.trim());
     if (validSigners.length === 0) { toast.error("At least one signer with email is required"); return; }
 
-    // Validate document source
     if (docSource === "template" && !form.templateId) { toast.error("Select a template or switch to upload"); return; }
     if (docSource === "upload" && !selectedFile) { toast.error("Select a file to upload or use a template"); return; }
 
     try {
-      // If using a template, grab the DocuSeal template ID to link at creation
       const selectedTemplate = docSource === "template" && form.templateId
         ? templates?.find((t: any) => t.id === form.templateId)
         : null;
@@ -205,7 +471,6 @@ function RequestsSection() {
         docusealTemplateId: selectedTemplate?.docusealTemplateId ?? undefined,
       });
 
-      // If uploading a new file, create a DocuSeal template from it
       if (row?.id && docSource === "upload" && selectedFile) {
         setUploadingFile(true);
         const reader = new FileReader();

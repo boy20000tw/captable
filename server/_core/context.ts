@@ -1,7 +1,8 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
 import { clerkClient } from "@clerk/express";
-import { getUserByOpenId, upsertUser, getUserCompanyMemberships, resolveCompanyMembership } from "../db";
+import { getUserByOpenId, upsertUser, getUserCompanyMemberships, resolveCompanyMembership, getCompanyById } from "../db";
+import { normalizePlan, type PlanKey } from "../../shared/plans";
 
 export type CompanyMemberRole = "owner" | "admin" | "cfo" | "lawyer" | "investor" | "viewer";
 
@@ -13,6 +14,7 @@ export type TrpcContext = {
     // or defaults to user's first company membership. null if no membership.
     companyId: number | null;
     companyRole: CompanyMemberRole | null;
+    companyPlan: PlanKey | null;
 };
 
 export async function createContext(
@@ -21,6 +23,7 @@ export async function createContext(
     let user: User | null = null;
     let companyId: number | null = null;
     let companyRole: CompanyMemberRole | null = null;
+    let companyPlan: PlanKey | null = null;
 
   try {
         // Clerk adds auth info to the request via middleware
@@ -83,5 +86,13 @@ export async function createContext(
     }
   }
 
-  return { req: opts.req, res: opts.res, user, companyId, companyRole };
+  // Resolve company plan
+  if (companyId) {
+    try {
+      const company = await getCompanyById(companyId);
+      companyPlan = normalizePlan(company?.plan as string);
+    } catch (_) { companyPlan = "starter"; }
+  }
+
+  return { req: opts.req, res: opts.res, user, companyId, companyRole, companyPlan };
 }

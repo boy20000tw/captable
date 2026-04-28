@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Plus, Edit2, Trash2, Users, Search } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -44,7 +45,9 @@ import {
 export default function V1InvestorsPage() {
   return (
     <DashboardLayout>
-      <V1InvestorsContent />
+      <FeatureGate feature="fundraising.investors">
+        <V1InvestorsContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

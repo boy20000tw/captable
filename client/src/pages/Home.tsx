@@ -11,6 +11,7 @@ import {
 import {
   TrendingUp, Users, PieChart as PieIcon, Sparkles, ArrowRight,
   Briefcase, Shield, Camera, Calculator, FileText, Rocket, BookOpen,
+  Building2, ChevronRight, Lightbulb, Upload,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMemo } from "react";
@@ -511,77 +512,113 @@ function DashboardContent() {
 function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
   const { t } = useTranslation("pages");
 
+  const steps = useMemo(() => [
+    { n: 1, icon: Building2,  action: t("home.step1.action"), href: "/settings/company", title: t("home.step1.title"), desc: t("home.step1.desc") },
+    { n: 2, icon: Users,      action: t("home.step2.action"), href: "/investors",         title: t("home.step2.title"), desc: t("home.step2.desc") },
+    { n: 3, icon: Rocket,     action: t("home.step3.action"), href: "/funding-rounds",    title: t("home.step3.title"), desc: t("home.step3.desc") },
+    { n: 4, icon: Briefcase,  action: t("home.step4.action"), href: "/esop",              title: t("home.step4.title"), desc: t("home.step4.desc") },
+    { n: 5, icon: PieIcon,    action: t("home.step5.action"), href: "/cap-table",         title: t("home.step5.title"), desc: t("home.step5.desc") },
+  ], [t]);
+
   const featureCards = useMemo(() => [
-    { icon: Rocket,     title: t("home.feature.fundingRounds"), desc: t("home.feature.fundingRoundsDesc"),             href: "/funding-rounds" },
-    { icon: Users,      title: t("home.feature.investors"), desc: t("home.feature.investorsDesc"),      href: "/investors" },
-    { icon: BookOpen,   title: t("home.feature.register"), desc: t("home.feature.registerDesc"),  href: "/register" },
-    { icon: PieIcon,    title: t("home.feature.capTable"), desc: t("home.feature.capTableDesc"),                        href: "/cap-table" },
-    { icon: Briefcase,  title: t("home.feature.esop"), desc: t("home.feature.esopDesc"),      href: "/esop" },
-    { icon: Calculator, title: t("home.feature.valuation"), desc: t("home.feature.valuationDesc"),             href: "/valuation" },
-    { icon: TrendingUp, title: t("home.feature.projections"), desc: t("home.feature.projectionsDesc"),                    href: "/projections" },
-    { icon: Shield,     title: t("home.feature.antiDilution"), desc: t("home.feature.antiDilutionDesc"),                         href: "/anti-dilution" },
-    { icon: Camera,     title: t("home.feature.snapshots"), desc: t("home.feature.snapshotsDesc"),            href: "/snapshots" },
+    { icon: Rocket,     title: t("home.feature.fundingRounds"), desc: t("home.feature.fundingRoundsDesc"), href: "/funding-rounds" },
+    { icon: Users,      title: t("home.feature.investors"),     desc: t("home.feature.investorsDesc"),     href: "/investors" },
+    { icon: BookOpen,   title: t("home.feature.register"),      desc: t("home.feature.registerDesc"),      href: "/register" },
+    { icon: PieIcon,    title: t("home.feature.capTable"),      desc: t("home.feature.capTableDesc"),      href: "/cap-table" },
+    { icon: Briefcase,  title: t("home.feature.esop"),          desc: t("home.feature.esopDesc"),          href: "/esop" },
+    { icon: Calculator, title: t("home.feature.valuation"),     desc: t("home.feature.valuationDesc"),     href: "/valuation" },
+    { icon: TrendingUp, title: t("home.feature.projections"),   desc: t("home.feature.projectionsDesc"),   href: "/projections" },
+    { icon: Shield,     title: t("home.feature.antiDilution"),  desc: t("home.feature.antiDilutionDesc"),  href: "/anti-dilution" },
+    { icon: Camera,     title: t("home.feature.snapshots"),     desc: t("home.feature.snapshotsDesc"),     href: "/snapshots" },
   ], [t]);
 
   return (
     <>
-      <div className="border border-dashed border-border rounded-sm p-16 text-center space-y-6">
-        <div className="space-y-2">
-          <p
-            className="text-2xl font-bold"
-            style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
-          >
-            {t("home.beginCapTable")}
-          </p>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            {t("home.beginCapTableDesc")}
-          </p>
+      {/* ── Quick Start Guide ── */}
+      <div className="bg-card border border-border rounded-sm overflow-hidden">
+        <div className="px-6 pt-6 pb-4 space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">{t("home.quickStart")}</h2>
+          <p className="text-sm text-muted-foreground">{t("home.quickStartDesc")}</p>
         </div>
-        <div className="flex gap-4 justify-center flex-wrap">
-          <button
-            onClick={() => setLocation("/funding-rounds")}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
-          >
-            <Rocket className="h-4 w-4" /> {t("home.createFundingRound")}
-          </button>
-          <button
-            onClick={() => setLocation("/investors")}
-            className="flex items-center gap-2 px-6 py-3 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
-          >
-            <Users className="h-4 w-4" /> {t("home.addInvestors")}
-          </button>
+
+        <div className="divide-y divide-border">
+          {steps.map((step, idx) => {
+            const Icon = step.icon;
+            const isLast = idx === steps.length - 1;
+            return (
+              <button
+                key={step.n}
+                onClick={() => setLocation(step.href)}
+                className="w-full flex items-start gap-4 px-6 py-4 text-left hover:bg-muted/40 transition-colors group"
+              >
+                {/* Step number + vertical connector */}
+                <div className="flex flex-col items-center shrink-0 pt-0.5">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-semibold text-primary">
+                    {step.n}
+                  </div>
+                  {!isLast && <div className="w-px flex-1 bg-border mt-1 min-h-[16px]" />}
+                </div>
+
+                {/* Icon */}
+                <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </div>
+
+                {/* Text */}
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{step.title}</span>
+                    {step.n === 4 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">optional</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
+                </div>
+
+                {/* CTA */}
+                <div className="shrink-0 flex items-center gap-1 text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+                  {step.action} <ChevronRight className="h-3 w-3" />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tip bar */}
+        <div className="px-6 py-3 bg-muted/30 border-t border-border flex items-center gap-2 text-xs text-muted-foreground">
+          <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+          <span>{t("home.quickStartTip")}</span>
           <button
             onClick={() => setLocation("/import")}
-            className="flex items-center gap-2 px-6 py-3 border border-border text-sm font-medium rounded-sm hover:bg-secondary transition-colors"
+            className="ml-1 text-primary hover:underline font-medium inline-flex items-center gap-1"
           >
-            <FileText className="h-4 w-4" /> {t("home.importExcel")}
+            <Upload className="h-3 w-3" /> {t("home.importData")}
           </button>
         </div>
       </div>
 
+      {/* ── Explore Features ── */}
       <div className="space-y-4">
         <div className="space-y-0.5">
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-            {t("home.gettingStarted")}
-          </p>
-          <h2 className="font-serif text-xl font-semibold">
-            {t("home.whatYouCanDo")}
-          </h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t("home.exploreFeatures")}</h2>
+          <p className="text-sm text-muted-foreground">{t("home.exploreFeaturesDesc")}</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {featureCards.map(item => {
             const Icon = item.icon;
             return (
               <button
                 key={item.title}
                 onClick={() => setLocation(item.href)}
-                className="text-left border border-border rounded-sm p-4 bg-card hover:border-foreground/30 hover:shadow-sm transition-all space-y-2"
+                className="text-left border border-border rounded-sm p-4 bg-card hover:border-foreground/30 hover:shadow-sm transition-all flex items-start gap-3"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <Icon className="h-4 w-4 text-primary" />
                 </div>
-                <h3 className="font-medium text-sm">{item.title}</h3>
-                <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
+                <div className="space-y-0.5 min-w-0">
+                  <h3 className="font-medium text-sm">{item.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
+                </div>
               </button>
             );
           })}

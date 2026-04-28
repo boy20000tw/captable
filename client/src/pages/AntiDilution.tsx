@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,7 +31,9 @@ import { usePermissions } from "@/hooks/usePermissions";
 export default function AntiDilutionPage() {
   return (
     <DashboardLayout>
-      <AntiDilutionContent />
+      <FeatureGate feature="analysis.antiDilution">
+        <AntiDilutionContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

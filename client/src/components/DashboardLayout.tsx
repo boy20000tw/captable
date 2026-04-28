@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { SignIn } from "@clerk/clerk-react";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { VersionBadge } from "./ChangelogDrawer";
+import { SubscriptionBadge } from "./SubscriptionBadge";
 import MobileBottomNav from "./MobileBottomNav";
 import NotificationBell from "./NotificationBell";
 import LanguageToggle from "./LanguageToggle";
@@ -65,6 +66,7 @@ import {
   X,
   Receipt,
   Landmark,
+  HelpCircle,
 } from "lucide-react";
 import React, { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -253,6 +255,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [menuFilter, setMenuFilter] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation("nav");
 
   // Build nav structure from i18n translations (re-builds on language change)
@@ -340,7 +344,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 </>
               )}
             </div>
-            {/* Row 2: Filter menu */}
+            {/* Row 2: Search toggle */}
             {isCollapsed ? (
               <div className="flex justify-center pb-2">
                 <button
@@ -354,24 +358,40 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               </div>
             ) : (
               <div className="px-3 pb-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder={t("searchPlaceholder")}
-                    value={menuFilter}
-                    onChange={(e) => setMenuFilter(e.target.value)}
-                    className="w-full h-8 pl-8 pr-7 text-xs rounded-md border border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground placeholder:text-sidebar-foreground/40 focus:outline-none focus:ring-1 focus:ring-sidebar-primary/30 transition-colors"
-                  />
-                  {menuFilter && (
-                    <button
-                      onClick={() => setMenuFilter("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-sidebar-foreground transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
+                {searchOpen ? (
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder={t("searchPlaceholder")}
+                      value={menuFilter}
+                      onChange={(e) => setMenuFilter(e.target.value)}
+                      onBlur={() => { if (!menuFilter) setSearchOpen(false); }}
+                      onKeyDown={(e) => { if (e.key === "Escape") { setMenuFilter(""); setSearchOpen(false); } }}
+                      className="w-full h-8 pl-8 pr-7 text-xs rounded-md border border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground placeholder:text-sidebar-foreground/40 focus:outline-none focus:ring-1 focus:ring-sidebar-primary/30 transition-colors"
+                    />
+                    {menuFilter && (
+                      <button
+                        onClick={() => { setMenuFilter(""); setSearchOpen(false); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-sidebar-foreground transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setSearchOpen(true);
+                      setTimeout(() => searchInputRef.current?.focus(), 0);
+                    }}
+                    className="flex items-center gap-2 h-8 px-2.5 text-xs text-sidebar-foreground/40 hover:text-sidebar-foreground/60 rounded-md hover:bg-sidebar-accent/40 transition-colors w-full"
+                  >
+                    <Search className="h-3.5 w-3.5 shrink-0" />
+                    <span>{t("searchPlaceholder")}</span>
+                  </button>
+                )}
               </div>
             )}
           </SidebarHeader>
@@ -492,6 +512,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               />
             </div>
             <div className="flex items-center gap-2">
+              <SubscriptionBadge />
               {user?.role === "admin" && (
                 <button
                   onClick={() => setLocation("/admin")}
@@ -502,6 +523,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 </button>
               )}
               <LanguageToggle />
+              <button
+                onClick={() => setLocation("/help")}
+                className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                aria-label="Help"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
               <NotificationBell />
             </div>
           </div>

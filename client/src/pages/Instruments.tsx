@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
@@ -28,7 +29,9 @@ import { usePermissions } from "@/hooks/usePermissions";
 export default function InstrumentsPage() {
   return (
     <DashboardLayout>
-      <InstrumentsContent />
+      <FeatureGate feature="fundraising.instruments">
+        <InstrumentsContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

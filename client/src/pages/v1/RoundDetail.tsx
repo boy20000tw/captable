@@ -12,6 +12,7 @@ import {
   Rocket,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatValuation } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -44,7 +45,9 @@ import {
 export default function V1RoundDetailPage() {
   return (
     <DashboardLayout>
-      <V1RoundDetailContent />
+      <FeatureGate feature="fundraising.rounds">
+        <V1RoundDetailContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

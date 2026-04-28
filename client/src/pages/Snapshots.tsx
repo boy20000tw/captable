@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatShares, formatDate, formatValuation } from "@/lib/utils";
 import { useState } from "react";
@@ -15,7 +16,9 @@ import { usePermissions } from "@/hooks/usePermissions";
 export default function SnapshotsPage() {
   return (
     <DashboardLayout>
-      <SnapshotsContent />
+      <FeatureGate feature="snapshots">
+        <SnapshotsContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

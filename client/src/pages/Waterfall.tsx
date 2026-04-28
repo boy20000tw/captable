@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,8 @@ export default function Waterfall() {
 
   return (
     <DashboardLayout>
-      <div className="px-8 py-10 max-w-7xl mx-auto">
+      <FeatureGate feature="analysis.waterfall">
+        <div className="px-8 py-10 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-10 border-b border-stone-200 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -406,7 +408,8 @@ export default function Waterfall() {
             <p className="text-stone-400">Enter an exit value and click Run Analysis to compute the waterfall distribution. (hardcoded - no i18n key)</p>
           </div>
         )}
-      </div>
+        </div>
+      </FeatureGate>
     </DashboardLayout>
   );
 }

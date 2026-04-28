@@ -34,6 +34,11 @@ import ClosedCompanyPage from "./pages/ClosedCompany";
 import AdminOverviewPage from "./pages/admin/AdminOverview";
 import AdminCompaniesPage from "./pages/admin/AdminCompanies";
 import AdminActivityPage from "./pages/admin/AdminActivity";
+import AdminTicketsPage from "./pages/admin/AdminTickets";
+import SubscriptionPage from "./pages/Subscription";
+import PricingPage from "./pages/Pricing";
+import ComparePlansPage from "./pages/ComparePlans";
+import HelpSupportPage from "./pages/HelpSupport";
 
 function Router() {
   return (
@@ -64,10 +69,17 @@ function Router() {
       <Route path="/tech-share-tax" component={TechShareTaxPage} />
       <Route path="/closed-company" component={ClosedCompanyPage} />
 
+      {/* Subscription */}
+      <Route path="/subscription" component={SubscriptionPage} />
+      <Route path="/pricing" component={PricingPage} />
+      <Route path="/compare-plans" component={ComparePlansPage} />
+      <Route path="/help" component={HelpSupportPage} />
+
       {/* Admin panel routes */}
       <Route path="/admin" component={AdminOverviewPage} />
       <Route path="/admin/companies" component={AdminCompaniesPage} />
       <Route path="/admin/activity" component={AdminActivityPage} />
+      <Route path="/admin/tickets" component={AdminTicketsPage} />
 
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

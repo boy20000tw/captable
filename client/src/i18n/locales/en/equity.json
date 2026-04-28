@@ -231,5 +231,31 @@
   "esign.templateCreated": "Template created",
   "esign.templateDeleted": "Template deleted",
   "esign.emptyTemplates": "No templates yet",
-  "esign.emptyTemplatesDesc": "Create your first template"
+  "esign.emptyTemplatesDesc": "Create your first template",
+
+  "esign.onboarding.title": "Connect DocuSeal to Get Started",
+  "esign.onboarding.subtitle": "Caploom integrates with DocuSeal for legally-binding eSignatures. Connect your account to start sending documents for signing.",
+  "esign.onboarding.step1Title": "Register at DocuSeal",
+  "esign.onboarding.step1Desc": "Create your free DocuSeal account. DocuSeal provides the eSignature infrastructure — you only pay for what you use on their platform.",
+  "esign.onboarding.registerBtn": "Go to DocuSeal",
+  "esign.onboarding.step2Title": "Copy your API Key",
+  "esign.onboarding.step2Desc": "After registration, go to Settings → API in your DocuSeal dashboard and copy your API token.",
+  "esign.onboarding.apiSettingsLink": "Open DocuSeal API Settings",
+  "esign.onboarding.step3Title": "Paste your API Key here",
+  "esign.onboarding.step3Desc": "Enter your DocuSeal API key below. We'll validate the connection and handle everything from there.",
+  "esign.onboarding.enterKeyBtn": "Enter API Key",
+  "esign.onboarding.keyPlaceholder": "Paste your DocuSeal API key…",
+  "esign.onboarding.connectBtn": "Connect",
+  "esign.onboarding.validating": "Validating…",
+  "esign.onboarding.editorOnly": "Only Owners, Admins, and CFOs can connect integrations.",
+  "esign.onboarding.footerNote": "Your API key is stored securely and used only to communicate with DocuSeal on your behalf. You can disconnect at any time.",
+
+  "esign.connection.connected": "DocuSeal Connected",
+  "esign.connection.success": "DocuSeal connected successfully!",
+  "esign.connection.disconnected": "DocuSeal disconnected.",
+  "esign.connection.disconnectTitle": "Disconnect DocuSeal?",
+  "esign.connection.disconnectDesc": "Existing signing requests will not be affected, but you won't be able to send new ones.",
+  "esign.connection.disconnect": "Disconnect",
+  "esign.connection.cancel": "Cancel",
+  "esign.connection.keyRequired": "Please enter your API key."
 }

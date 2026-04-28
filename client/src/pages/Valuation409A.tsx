@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { DollarSign, Plus, AlertTriangle, CheckCircle2, Clock, Pencil, Trash2 } from "lucide-react";
@@ -47,7 +48,9 @@ const emptyForm: FormData = {
 export default function Valuation409APage() {
   return (
     <DashboardLayout>
-      <Valuation409AContent />
+      <FeatureGate feature="compliance.409a">
+        <Valuation409AContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

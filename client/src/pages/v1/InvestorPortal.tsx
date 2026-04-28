@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PieChart, FileText, Award, Briefcase, Download, CheckCircle2, Clock, Eye } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { getActiveCompanyId } from "@/lib/activeCompany";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -20,7 +21,9 @@ import {
 export default function InvestorPortalPage() {
   return (
     <DashboardLayout>
-      <InvestorPortalContent />
+      <FeatureGate feature="investorPortal">
+        <InvestorPortalContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }

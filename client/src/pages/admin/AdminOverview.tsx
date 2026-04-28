@@ -7,6 +7,7 @@ import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { formatNumber } from "@/lib/utils";
 import { Building2, Users, Crown } from "lucide-react";
+import { normalizePlan } from "../../../../shared/plans";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AdminOverviewPage() {
@@ -74,7 +75,7 @@ function AdminOverviewContent() {
               {stats?.planBreakdown.map((p: any) => (
                 <div key={p.plan} className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
-                    {p.plan === "free" ? t("overview.planFree") : p.plan === "paid" ? t("overview.planPaid") : p.plan === "custom" ? t("overview.planCustom") : p.plan}
+                    {t(`overview.plan${normalizePlan(p.plan).charAt(0).toUpperCase()}${normalizePlan(p.plan).slice(1)}`)}
                   </span>
                   <span className="font-semibold">{p.count}</span>
                 </div>

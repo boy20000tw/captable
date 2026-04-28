@@ -39,6 +39,8 @@ import {
   techShareTaxRecords, InsertTechShareTaxRecord,
   closedCompanyProvisions, InsertClosedCompanyProvision,
   closedCompanyShareRights, InsertClosedCompanyShareRight,
+  supportTickets, InsertSupportTicket,
+  supportFaqs, InsertSupportFaq,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1966,4 +1968,73 @@ export async function deleteClosedCompanyShareRight(companyId: number, id: numbe
   const db = await getDb();
   if (!db) return;
   await db.delete(closedCompanyShareRights).where(and(eq(closedCompanyShareRights.id, id), eq(closedCompanyShareRights.companyId, companyId)));
+}
+
+// ─── Support Tickets ────────────────────────────────────────────────────────
+export async function createSupportTicket(data: InsertSupportTicket) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [row] = await db.insert(supportTickets).values(data).returning();
+  return row;
+}
+
+export async function getAllSupportTickets() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(supportTickets).orderBy(desc(supportTickets.createdAt));
+}
+
+export async function getSupportTicketsByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(supportTickets).where(eq(supportTickets.userId, userId)).orderBy(desc(supportTickets.createdAt));
+}
+
+export async function getSupportTicketById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db.select().from(supportTickets).where(eq(supportTickets.id, id)).limit(1);
+  return row;
+}
+
+export async function updateSupportTicket(id: number, data: Partial<InsertSupportTicket>) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.update(supportTickets)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(supportTickets.id, id))
+    .returning();
+  return row ?? null;
+}
+
+// ─── Support FAQs ───────────────────────────────────────────────────────────
+export async function getAllSupportFaqs() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(supportFaqs)
+    .where(eq(supportFaqs.isPublished, true))
+    .orderBy(asc(supportFaqs.sortOrder), asc(supportFaqs.id));
+}
+
+export async function createSupportFaq(data: InsertSupportFaq) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [row] = await db.insert(supportFaqs).values(data).returning();
+  return row;
+}
+
+export async function updateSupportFaq(id: number, data: Partial<InsertSupportFaq>) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.update(supportFaqs)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(supportFaqs.id, id))
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteSupportFaq(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(supportFaqs).where(eq(supportFaqs.id, id));
 }

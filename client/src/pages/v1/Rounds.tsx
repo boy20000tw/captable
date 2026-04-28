@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Plus, Edit2, Trash2, Rocket, ArrowRight } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -47,7 +48,9 @@ import {
 export default function V1RoundsPage() {
   return (
     <DashboardLayout>
-      <V1RoundsContent />
+      <FeatureGate feature="fundraising.rounds">
+        <V1RoundsContent />
+      </FeatureGate>
     </DashboardLayout>
   );
 }
