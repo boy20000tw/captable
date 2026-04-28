@@ -1,0 +1,138 @@
+{
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: {{date}}",
+    "intro": "Caploom (\"we\", \"us\", or \"our\") respects your privacy. This Privacy Policy explains how we collect, use, share, and protect your personal information when you use our cap table management platform.",
+    "sections": {
+      "dataCollection": {
+        "title": "1. Data We Collect",
+        "account": "Account Information — name, email address, company role, and authentication credentials (managed via Clerk).",
+        "company": "Company Data — company name, incorporation details, shareholder records, share classes, funding rounds, ESOP grants, and other equity-related data you enter.",
+        "usage": "Usage Data — pages visited, features used, timestamps, IP address, browser type, and device information.",
+        "cookies": "Cookies — we use essential cookies for authentication and session management. No third-party advertising cookies are used."
+      },
+      "dataUse": {
+        "title": "2. How We Use Your Data",
+        "provide": "To provide and maintain the cap table management service.",
+        "authenticate": "To authenticate your identity and manage access permissions.",
+        "communicate": "To send service-related communications (e.g., invitation emails, notifications).",
+        "improve": "To analyze usage patterns and improve the platform.",
+        "comply": "To comply with legal obligations."
+      },
+      "thirdParty": {
+        "title": "3. Third-Party Services",
+        "description": "We use the following third-party services to operate the platform:",
+        "clerk": "Clerk — authentication and user management.",
+        "neon": "Neon — PostgreSQL database hosting (data storage).",
+        "docuseal": "DocuSeal — electronic signature processing (if enabled).",
+        "vercel": "Vercel — application hosting and delivery.",
+        "note": "We do not sell your personal data to any third party."
+      },
+      "dataRetention": {
+        "title": "4. Data Retention",
+        "description": "We retain your data for as long as your account is active or as needed to provide services. If you request account deletion, we will remove your personal data within 30 days, except where retention is required by law."
+      },
+      "userRights": {
+        "title": "5. Your Rights",
+        "access": "Access — request a copy of your personal data.",
+        "correction": "Correction — request correction of inaccurate data.",
+        "deletion": "Deletion — request deletion of your account and personal data.",
+        "portability": "Data Portability — export your data in standard formats (PDF, Excel).",
+        "howTo": "To exercise any of these rights, contact us at the email listed below."
+      },
+      "security": {
+        "title": "6. Security",
+        "description": "We implement industry-standard security measures including encryption in transit (TLS), encrypted database storage, role-based access control, and regular security reviews."
+      },
+      "children": {
+        "title": "7. Children's Privacy",
+        "description": "Our service is not directed at individuals under the age of 16. We do not knowingly collect personal information from children."
+      },
+      "changes": {
+        "title": "8. Changes to This Policy",
+        "description": "We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy on this page and updating the \"Last updated\" date."
+      },
+      "contact": {
+        "title": "9. Contact Us",
+        "description": "If you have questions about this Privacy Policy, please contact us at:",
+        "email": "Email: support@caploom.com"
+      }
+    }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: {{date}}",
+    "intro": "These Terms of Service (\"Terms\") govern your use of the Caploom cap table management platform. By accessing or using our service, you agree to be bound by these Terms.",
+    "sections": {
+      "serviceDescription": {
+        "title": "1. Service Description",
+        "description": "Caploom provides a cloud-based cap table management platform that helps companies manage equity, shareholder records, ESOP grants, funding rounds, and related compliance documentation."
+      },
+      "accounts": {
+        "title": "2. Accounts & Access",
+        "registration": "You must provide accurate information when creating an account.",
+        "security": "You are responsible for maintaining the confidentiality of your account credentials.",
+        "roles": "Company owners control team member access and roles within their organization.",
+        "unauthorized": "You must notify us immediately of any unauthorized access to your account."
+      },
+      "acceptableUse": {
+        "title": "3. Acceptable Use",
+        "noViolation": "You agree not to use the service to violate any laws or regulations.",
+        "noInterference": "You agree not to interfere with or disrupt the service or its infrastructure.",
+        "noScraping": "You agree not to scrape, crawl, or use automated means to access the service without our consent.",
+        "noMisrepresent": "You agree not to misrepresent your identity or your relationship to any company."
+      },
+      "intellectualProperty": {
+        "title": "4. Intellectual Property",
+        "ourIP": "The Caploom platform, including its design, code, and documentation, is owned by us and protected by intellectual property laws.",
+        "yourData": "You retain full ownership of all data you enter into the platform. We claim no intellectual property rights over your company data.",
+        "license": "By using the service, you grant us a limited license to process your data solely to provide the service."
+      },
+      "subscriptionPayment": {
+        "title": "5. Subscription & Payment",
+        "plans": "Caploom offers multiple subscription tiers (Starter, Standard, Plus, Enterprise) with different feature sets.",
+        "billing": "Paid plans are billed monthly or annually. Prices are listed on our pricing page.",
+        "downgrade": "You may change or cancel your plan at any time. Downgrades take effect at the end of the current billing period.",
+        "refund": "We do not offer refunds for partial billing periods."
+      },
+      "disclaimer": {
+        "title": "6. Disclaimer of Warranties",
+        "asIs": "The service is provided \"as is\" and \"as available\" without warranties of any kind.",
+        "noGuarantee": "We do not guarantee that the service will be uninterrupted, error-free, or secure at all times.",
+        "noAdvice": "Caploom is a management tool. It does not constitute legal, tax, or financial advice. Consult qualified professionals for such matters."
+      },
+      "limitation": {
+        "title": "7. Limitation of Liability",
+        "description": "To the maximum extent permitted by law, Caploom shall not be liable for any indirect, incidental, special, or consequential damages, including loss of profits, data, or business opportunities, arising from your use of the service."
+      },
+      "termination": {
+        "title": "8. Account Termination",
+        "byUser": "You may request termination of your account at any time by contacting us.",
+        "byUs": "We may suspend or terminate your account if you violate these Terms or engage in activity that harms other users or the platform.",
+        "effect": "Upon termination, your access to the service will cease. We will retain your data for 30 days to allow recovery, after which it will be permanently deleted."
+      },
+      "governing": {
+        "title": "9. Governing Law & Dispute Resolution",
+        "law": "These Terms are governed by the laws of the Republic of China (Taiwan).",
+        "jurisdiction": "Any disputes shall be subject to the exclusive jurisdiction of the Taiwan Hsinchu District Court."
+      },
+      "changes": {
+        "title": "10. Changes to These Terms",
+        "description": "We may update these Terms from time to time. Continued use of the service after changes constitutes acceptance of the revised Terms."
+      },
+      "contact": {
+        "title": "11. Contact Us",
+        "description": "If you have questions about these Terms, please contact us at:",
+        "email": "Email: support@caploom.com"
+      }
+    }
+  },
+  "footer": {
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "copyright": "© {{year}} Caploom"
+  },
+  "nav": {
+    "legal": "Legal"
+  }
+}

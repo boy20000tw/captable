@@ -27,22 +27,22 @@ export const ROLE_VISIBLE_NAV: Record<CompanyRole, NavGroupKey[]> = {
   owner:    ALL_NAV,
   admin:    ALL_NAV,
   cfo:      ["dashboard", "equity", "fundraising", "analysis", "compliance"],
-  lawyer:   ["dashboard", "compliance"],
-  investor: ["investorPortal"],
+  lawyer:   ["dashboard", "compliance", "settings"],
+  investor: ["investorPortal", "settings"],
   viewer:   ["dashboard", "equity", "fundraising", "analysis", "compliance"],
 };
 
 // ── Settings sub-pages each role can see ───────────────────────────────
 export type SettingsPageKey =
-  | "company" | "team" | "import" | "snapshots" | "auditLog";
+  | "company" | "team" | "import" | "snapshots" | "auditLog" | "legal";
 
 export const ROLE_VISIBLE_SETTINGS: Record<CompanyRole, SettingsPageKey[]> = {
-  owner:    ["company", "team", "import", "snapshots", "auditLog"],
-  admin:    ["company", "team", "import", "snapshots", "auditLog"],
-  cfo:      ["snapshots", "auditLog"],
-  lawyer:   [],
-  investor: [],
-  viewer:   ["snapshots", "auditLog"],
+  owner:    ["company", "team", "import", "snapshots", "auditLog", "legal"],
+  admin:    ["company", "team", "import", "snapshots", "auditLog", "legal"],
+  cfo:      ["snapshots", "auditLog", "legal"],
+  lawyer:   ["legal"],
+  investor: ["legal"],
+  viewer:   ["snapshots", "auditLog", "legal"],
 };
 
 // Path → settings key mapping (used by frontend to filter settings items)
@@ -52,6 +52,7 @@ export const SETTINGS_PATH_MAP: Record<string, SettingsPageKey> = {
   "/import": "import",
   "/snapshots": "snapshots",
   "/audit-log": "auditLog",
+  "/privacy": "legal",
 };
 
 // ── Allowed pages (paths) per role ─────────────────────────────────────
@@ -66,14 +67,17 @@ export const ROLE_ALLOWED_PATHS: Record<CompanyRole, string[] | "all"> = {
     "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers",
     "/snapshots", "/audit-log",
     "/subscription", "/pricing", "/help",
+    "/privacy", "/terms",
   ],
   lawyer: [
     "/",
     "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers",
     "/help",
+    "/privacy", "/terms",
   ],
   investor: [
     "/investor-portal", "/help",
+    "/privacy", "/terms",
   ],
   viewer: [
     "/", "/cap-table", "/register", "/esop", "/esign",
@@ -82,6 +86,7 @@ export const ROLE_ALLOWED_PATHS: Record<CompanyRole, string[] | "all"> = {
     "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers",
     "/snapshots", "/audit-log",
     "/subscription", "/pricing", "/help",
+    "/privacy", "/terms",
   ],
 };
 

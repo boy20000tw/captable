@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.10.0",
+    date: "2026-04-28",
+    type: "minor",
+    title: "Privacy Policy + Terms of Service 法律頁面",
+    description: "新增 /privacy 隱私權政策與 /terms 服務條款頁面，完整雙語 i18n。Sidebar footer 新增 Privacy · Terms · © 2026 Caploom 連結列。Settings 側邊欄新增 Legal 入口。登入頁底部新增法律連結。所有角色皆可查閱法律頁面。",
+  },
+  {
     version: "2.9.0",
     date: "2026-04-28",
     type: "minor",

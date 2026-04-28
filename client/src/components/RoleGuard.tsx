@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 // Public paths that don't require role checks (e.g. /join is pre-auth)
-const PUBLIC_PATHS = ["/join", "/404"];
+const PUBLIC_PATHS = ["/join", "/404", "/privacy", "/terms"];
 
 export default function RoleGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, companyRole, canAccess, defaultPath } = useAuth();

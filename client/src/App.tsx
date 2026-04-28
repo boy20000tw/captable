@@ -39,6 +39,8 @@ import SubscriptionPage from "./pages/Subscription";
 import PricingPage from "./pages/Pricing";
 import ComparePlansPage from "./pages/ComparePlans";
 import HelpSupportPage from "./pages/HelpSupport";
+import PrivacyPolicyPage from "./pages/PrivacyPolicy";
+import TermsOfServicePage from "./pages/TermsOfService";
 import RoleGuard from "./components/RoleGuard";
 
 function Router() {
@@ -75,6 +77,10 @@ function Router() {
       <Route path="/pricing" component={PricingPage} />
       <Route path="/compare-plans" component={ComparePlansPage} />
       <Route path="/help" component={HelpSupportPage} />
+
+      {/* Legal */}
+      <Route path="/privacy" component={PrivacyPolicyPage} />
+      <Route path="/terms" component={TermsOfServicePage} />
 
       {/* Admin panel routes */}
       <Route path="/admin" component={AdminOverviewPage} />

@@ -67,6 +67,7 @@ import {
   Receipt,
   Landmark,
   HelpCircle,
+  Gavel,
 } from "lucide-react";
 import React, { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -171,6 +172,7 @@ function buildNavStructure(t: TFunction<"nav">, companyRole: CompanyRole | null)
         { icon: Upload,         label: t("settings.import"),    path: "/import" },
         { icon: Camera,         label: t("settings.snapshots"), path: "/snapshots" },
         { icon: ClipboardList,  label: t("settings.auditLog"),  path: "/audit-log" },
+        { icon: Gavel,          label: t("settings.legal"),    path: "/privacy",   section: t("settings.legal") },
       ],
     },
   ];
@@ -259,6 +261,14 @@ export default function DashboardLayout({
             A precision instrument for equity management. Sign in to access your cap table.
           </p>
           <SignIn routing="hash" />
+          {/* Legal footer */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <a href="/privacy" className="hover:text-foreground transition-colors">Privacy</a>
+            <span>·</span>
+            <a href="/terms" className="hover:text-foreground transition-colors">Terms</a>
+            <span>·</span>
+            <span>© {new Date().getFullYear()} Caploom</span>
+          </div>
         </div>
       </div>
     );
@@ -292,6 +302,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation("nav");
+  const { t: tLegal } = useTranslation("legal");
 
   // Investor auto-redirect: if investor role lands on dashboard, send to portal
   useEffect(() => {
@@ -526,9 +537,22 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             </SidebarMenu>
           </SidebarContent>
 
-          {/* Sidebar Footer — only VersionBadge */}
-          <SidebarFooter className="p-3 border-t border-sidebar-border">
+          {/* Sidebar Footer — VersionBadge + Legal links */}
+          <SidebarFooter className="p-3 border-t border-sidebar-border space-y-2">
             <VersionBadge collapsed={isCollapsed} />
+            {!isCollapsed && (
+              <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/60">
+                <button onClick={() => setLocation("/privacy")} className="hover:text-foreground transition-colors">
+                  {tLegal("footer.privacy")}
+                </button>
+                <span>·</span>
+                <button onClick={() => setLocation("/terms")} className="hover:text-foreground transition-colors">
+                  {tLegal("footer.terms")}
+                </button>
+                <span>·</span>
+                <span>{tLegal("footer.copyright", { year: new Date().getFullYear() })}</span>
+              </div>
+            )}
           </SidebarFooter>
         </Sidebar>
 

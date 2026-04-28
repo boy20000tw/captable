@@ -24,6 +24,8 @@ import enSupport from "./locales/en/support.json";
 
 import zhTWSubscription from "./locales/zh-TW/subscription.json";
 import zhTWSupport from "./locales/zh-TW/support.json";
+import enLegal from "./locales/en/legal.json";
+import zhTWLegal from "./locales/zh-TW/legal.json";
 
 const LANG_KEY = "caploom-lang";
 
@@ -41,6 +43,7 @@ i18n.use(initReactI18next).init({
       admin: zhTWAdmin,
       subscription: zhTWSubscription,
       support: zhTWSupport,
+      legal: zhTWLegal,
     },
     en: {
       common: enCommon,
@@ -54,11 +57,12 @@ i18n.use(initReactI18next).init({
       admin: enAdmin,
       subscription: enSubscription,
       support: enSupport,
+      legal: enLegal,
     },
   },
   lng: localStorage.getItem(LANG_KEY) || "zh-TW",
   fallbackLng: "en",
-  ns: ["common", "nav", "pages", "compliance", "equity", "fundraising", "analysis", "settings", "admin", "subscription", "support"],
+  ns: ["common", "nav", "pages", "compliance", "equity", "fundraising", "analysis", "settings", "admin", "subscription", "support", "legal"],
   defaultNS: "common",
   interpolation: {
     escapeValue: false, // React already escapes

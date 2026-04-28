@@ -1,0 +1,138 @@
+{
+  "privacy": {
+    "title": "隱私權政策",
+    "lastUpdated": "最後更新：{{date}}",
+    "intro": "Caploom（以下稱「我們」）重視您的隱私。本隱私權政策說明當您使用我們的股權管理平台時，我們如何蒐集、使用、分享及保護您的個人資料。",
+    "sections": {
+      "dataCollection": {
+        "title": "1. 我們蒐集的資料",
+        "account": "帳號資訊 — 姓名、電子郵件地址、公司角色及驗證憑證（透過 Clerk 管理）。",
+        "company": "公司資料 — 公司名稱、設立資訊、股東記錄、股份類別、募資輪次、ESOP 授予及其他您輸入的股權相關資料。",
+        "usage": "使用資料 — 瀏覽頁面、使用功能、時間戳記、IP 位址、瀏覽器類型及裝置資訊。",
+        "cookies": "Cookies — 我們僅使用必要的 Cookie 進行驗證與工作階段管理。不使用第三方廣告 Cookie。"
+      },
+      "dataUse": {
+        "title": "2. 我們如何使用您的資料",
+        "provide": "提供及維護股權管理服務。",
+        "authenticate": "驗證您的身分並管理存取權限。",
+        "communicate": "發送服務相關通訊（如邀請信、通知）。",
+        "improve": "分析使用模式以改善平台。",
+        "comply": "遵守法律義務。"
+      },
+      "thirdParty": {
+        "title": "3. 第三方服務",
+        "description": "我們使用以下第三方服務營運平台：",
+        "clerk": "Clerk — 身分驗證與使用者管理。",
+        "neon": "Neon — PostgreSQL 資料庫託管（資料儲存）。",
+        "docuseal": "DocuSeal — 電子簽名處理（若已啟用）。",
+        "vercel": "Vercel — 應用程式託管與交付。",
+        "note": "我們不會將您的個人資料出售給任何第三方。"
+      },
+      "dataRetention": {
+        "title": "4. 資料保留",
+        "description": "只要您的帳號處於活躍狀態或服務需要，我們就會保留您的資料。如果您要求刪除帳號，我們將在 30 天內移除您的個人資料，但法律要求保留者除外。"
+      },
+      "userRights": {
+        "title": "5. 您的權利",
+        "access": "存取 — 要求取得您個人資料的副本。",
+        "correction": "更正 — 要求更正不正確的資料。",
+        "deletion": "刪除 — 要求刪除您的帳號及個人資料。",
+        "portability": "資料可攜 — 以標準格式（PDF、Excel）匯出您的資料。",
+        "howTo": "如需行使上述任何權利，請透過下方電子郵件與我們聯繫。"
+      },
+      "security": {
+        "title": "6. 安全性",
+        "description": "我們採用業界標準的安全措施，包括傳輸加密（TLS）、資料庫加密儲存、角色存取控制及定期安全審查。"
+      },
+      "children": {
+        "title": "7. 兒童隱私",
+        "description": "我們的服務不針對 16 歲以下的個人。我們不會故意蒐集兒童的個人資料。"
+      },
+      "changes": {
+        "title": "8. 政策變更",
+        "description": "我們可能不時更新本隱私權政策。如有重大變更，我們會在此頁面發布更新版本並更新「最後更新」日期。"
+      },
+      "contact": {
+        "title": "9. 聯絡我們",
+        "description": "如果您對本隱私權政策有任何疑問，請透過以下方式聯繫我們：",
+        "email": "Email: support@caploom.com"
+      }
+    }
+  },
+  "terms": {
+    "title": "服務條款",
+    "lastUpdated": "最後更新：{{date}}",
+    "intro": "本服務條款（以下稱「條款」）規範您使用 Caploom 股權管理平台的行為。存取或使用我們的服務即表示您同意受本條款約束。",
+    "sections": {
+      "serviceDescription": {
+        "title": "1. 服務說明",
+        "description": "Caploom 提供雲端股權管理平台，協助公司管理股權、股東記錄、ESOP 授予、募資輪次及相關合規文件。"
+      },
+      "accounts": {
+        "title": "2. 帳號與存取",
+        "registration": "建立帳號時，您必須提供正確的資訊。",
+        "security": "您有責任維護帳號憑證的機密性。",
+        "roles": "公司擁有者控制其組織內團隊成員的存取與角色。",
+        "unauthorized": "如發現任何未經授權的帳號存取，您必須立即通知我們。"
+      },
+      "acceptableUse": {
+        "title": "3. 合理使用",
+        "noViolation": "您同意不使用本服務違反任何法律或法規。",
+        "noInterference": "您同意不干擾或中斷本服務或其基礎架構。",
+        "noScraping": "未經我們同意，您同意不使用自動化手段爬取或存取本服務。",
+        "noMisrepresent": "您同意不冒充他人身分或偽稱與任何公司的關係。"
+      },
+      "intellectualProperty": {
+        "title": "4. 智慧財產權",
+        "ourIP": "Caploom 平台，包括其設計、程式碼及文件，歸我們所有並受智慧財產權法保護。",
+        "yourData": "您保有您在平台上輸入的所有資料的完整所有權。我們不主張對您公司資料的任何智慧財產權。",
+        "license": "使用本服務即表示您授予我們有限的授權，僅用於處理您的資料以提供服務。"
+      },
+      "subscriptionPayment": {
+        "title": "5. 訂閱與付款",
+        "plans": "Caploom 提供多種訂閱方案（Starter、Standard、Plus、Enterprise），各有不同功能。",
+        "billing": "付費方案按月或按年計費。價格列於定價頁面。",
+        "downgrade": "您可隨時變更或取消方案。降級將在當前計費週期結束後生效。",
+        "refund": "我們不提供計費週期內的退款。"
+      },
+      "disclaimer": {
+        "title": "6. 免責聲明",
+        "asIs": "本服務按「現況」及「可用」基礎提供，不提供任何形式的保證。",
+        "noGuarantee": "我們不保證服務將不中斷、無錯誤或始終安全。",
+        "noAdvice": "Caploom 是管理工具，不構成法律、稅務或財務建議。如有相關需求，請諮詢合格專業人士。"
+      },
+      "limitation": {
+        "title": "7. 責任限制",
+        "description": "在法律允許的最大範圍內，Caploom 不對因您使用本服務而產生的任何間接、附帶、特殊或衍生損害負責，包括利潤損失、資料損失或商機損失。"
+      },
+      "termination": {
+        "title": "8. 帳號終止",
+        "byUser": "您可隨時聯繫我們要求終止帳號。",
+        "byUs": "如果您違反本條款或從事損害其他使用者或平台的行為，我們可能暫停或終止您的帳號。",
+        "effect": "終止後，您將無法存取本服務。我們將保留您的資料 30 天以供復原，之後將永久刪除。"
+      },
+      "governing": {
+        "title": "9. 準據法與爭議解決",
+        "law": "本條款受中華民國（台灣）法律管轄。",
+        "jurisdiction": "任何爭議應由台灣新竹地方法院專屬管轄。"
+      },
+      "changes": {
+        "title": "10. 條款變更",
+        "description": "我們可能不時更新本條款。變更後繼續使用本服務即視為接受修訂後的條款。"
+      },
+      "contact": {
+        "title": "11. 聯絡我們",
+        "description": "如果您對本條款有任何疑問，請透過以下方式聯繫我們：",
+        "email": "Email: support@caploom.com"
+      }
+    }
+  },
+  "footer": {
+    "privacy": "隱私權",
+    "terms": "服務條款",
+    "copyright": "© {{year}} Caploom"
+  },
+  "nav": {
+    "legal": "法律條款"
+  }
+}
