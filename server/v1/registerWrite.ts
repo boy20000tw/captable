@@ -15,7 +15,8 @@
 // (e.g. for audit log).
 
 import { eq, and } from "drizzle-orm";
-import { getDb } from "../db";
+import { getDb, resolveCompanyDek } from "../db";
+import { encryptField } from "../encryption";
 import { deriveCapTable } from "./capTable";
 import {
   shareRegisterEntries,
@@ -96,7 +97,17 @@ export async function writeRegisterEntry(
     createdByUserId: userId,
   };
 
-  const [entry] = await db.insert(shareRegisterEntries).values(values).returning();
+  // Phase 3 dual-write: encrypt financial fields
+  const encValues: Record<string, any> = { ...values };
+  try {
+    const dek = await resolveCompanyDek(companyId);
+    const finFields = ["shares", "pricePerShare", "fxToNtd", "totalAmount"];
+    for (const f of finFields) {
+      if (encValues[f] != null) encValues[`${f}Enc`] = encryptField(String(encValues[f]), dek);
+    }
+  } catch { /* encryption not configured — skip */ }
+
+  const [entry] = await db.insert(shareRegisterEntries).values(encValues as InsertShareRegisterEntry).returning();
   if (!entry) throw new Error("Failed to write register entry");
 
   // ─── Derive cap table + create snapshot ─────────────────────────────────

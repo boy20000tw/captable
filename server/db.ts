@@ -1253,13 +1253,17 @@ export async function getAllocationById(companyId: number, id: number) {
 export async function createAllocation(data: InsertAllocation) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const rows = await db.insert(allocations).values(data).returning();
+  const values: Record<string, any> = { ...data };
+  try { await encryptFinancialFields(values, data.companyId, ALLOCATION_FIN_FIELDS); } catch { /* skip */ }
+  const rows = await db.insert(allocations).values(values as InsertAllocation).returning();
   return rows[0];
 }
 export async function updateAllocation(companyId: number, id: number, data: Partial<InsertAllocation>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(allocations).set({ ...data, updatedAt: new Date() })
+  const values: Record<string, any> = { ...data, updatedAt: new Date() };
+  try { await encryptFinancialFields(values, companyId, ALLOCATION_FIN_FIELDS); } catch { /* skip */ }
+  await db.update(allocations).set(values)
     .where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
 }
 export async function deleteAllocation(companyId: number, id: number) {
@@ -1519,15 +1523,19 @@ export async function getActiveConvertibles(companyId: number) {
 export async function createInstrument(data: InsertInstrument) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const rows = await db.insert(instruments).values(data).returning();
+  const values: Record<string, any> = { ...data };
+  try { await encryptFinancialFields(values, data.companyId, INSTRUMENT_FIN_FIELDS); } catch { /* skip */ }
+  const rows = await db.insert(instruments).values(values as InsertInstrument).returning();
   return rows[0];
 }
 
 export async function updateInstrument(companyId: number, id: number, data: Partial<InsertInstrument>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const values: Record<string, any> = { ...data, updatedAt: new Date() };
+  try { await encryptFinancialFields(values, companyId, INSTRUMENT_FIN_FIELDS); } catch { /* skip */ }
   await db.update(instruments)
-    .set({ ...data, updatedAt: new Date() })
+    .set(values)
     .where(and(eq(instruments.id, id), eq(instruments.companyId, companyId)));
 }
 
@@ -1973,6 +1981,39 @@ async function encryptContactPii(values: Record<string, any>, companyId: number)
   }
 }
 
+/**
+ * Generic financial field encryption helper (Phase 3).
+ * Encrypts specified numeric fields → corresponding _Enc columns.
+ * Field mapping: "amount" → "amountEnc", "pricePerShare" → "pricePerShareEnc", etc.
+ * Mutates values in-place.
+ */
+async function encryptFinancialFields(
+  values: Record<string, any>,
+  companyId: number,
+  fields: string[],
+): Promise<void> {
+  const dek = await resolveCompanyDek(companyId);
+  for (const field of fields) {
+    if (values[field] != null) {
+      values[`${field}Enc`] = encryptField(String(values[field]), dek);
+    }
+  }
+}
+
+// ── Allocation financial fields to encrypt ──
+const ALLOCATION_FIN_FIELDS = ["amount", "sharesAllocated", "pricePerShare", "fxToNtd"];
+// ── ShareRegisterEntry financial fields ──
+const REGISTER_FIN_FIELDS = ["shares", "pricePerShare", "fxToNtd", "totalAmount"];
+// ── Instrument financial fields ──
+const INSTRUMENT_FIN_FIELDS = [
+  "investmentAmountNtd", "investmentAmountUsd", "pricePerShareNtd",
+  "sharesIssued", "valuationCapNtd", "valuationCapUsd",
+  "discountRate", "interestRate", "accruedInterestNtd",
+  "conversionPriceNtd", "conversionShares",
+];
+// ── ShareTransfer financial fields ──
+const TRANSFER_FIN_FIELDS = ["shares", "pricePerShare", "totalPrice"];
+
 // ─── Notifications ─────────────────────────────────────────────────────────────
 
 /** Get notifications for a company (optionally filter by userId). */
@@ -2066,7 +2107,9 @@ export async function getShareTransferById(companyId: number, id: number) {
 export async function createShareTransfer(data: InsertShareTransfer) {
   const db = await getDb();
   if (!db) return null;
-  const [row] = await db.insert(shareTransfers).values(data).returning();
+  const values: Record<string, any> = { ...data };
+  try { await encryptFinancialFields(values, data.companyId, TRANSFER_FIN_FIELDS); } catch { /* skip */ }
+  const [row] = await db.insert(shareTransfers).values(values as InsertShareTransfer).returning();
   return row;
 }
 
@@ -2074,8 +2117,10 @@ export async function createShareTransfer(data: InsertShareTransfer) {
 export async function updateShareTransfer(companyId: number, id: number, data: Partial<InsertShareTransfer>) {
   const db = await getDb();
   if (!db) return null;
+  const values: Record<string, any> = { ...data, updatedAt: new Date() };
+  try { await encryptFinancialFields(values, companyId, TRANSFER_FIN_FIELDS); } catch { /* skip */ }
   const [row] = await db.update(shareTransfers)
-    .set({ ...data, updatedAt: new Date() })
+    .set(values)
     .where(and(eq(shareTransfers.id, id), eq(shareTransfers.companyId, companyId)))
     .returning();
   return row ?? null;

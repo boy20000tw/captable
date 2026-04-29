@@ -689,6 +689,12 @@ export const allocations = pgTable("allocations", {
     termSheetUrl: text("termSheetUrl"),
     agreementUrl: text("agreementUrl"),
 
+    // ── Encrypted financial fields (Phase 3 dual-write) ──
+    amountEnc: text("amount_enc"),
+    sharesAllocatedEnc: text("shares_allocated_enc"),
+    pricePerShareEnc: text("price_per_share_enc"),
+    fxToNtdEnc: text("fx_to_ntd_enc"),
+
     notes: text("notes"),
     createdByUserId: integer("createdByUserId"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -724,6 +730,12 @@ export const shareRegisterEntries = pgTable("share_register_entries", {
     effectiveDate: date("effectiveDate").notNull(),
     // Reversal linkage
     reversedEntryId: integer("reversedEntryId"),
+    // ── Encrypted financial fields (Phase 3 dual-write) ──
+    sharesEnc: text("shares_enc"),
+    pricePerShareEnc: text("price_per_share_enc"),
+    fxToNtdEnc: text("fx_to_ntd_enc"),
+    totalAmountEnc: text("total_amount_enc"),
+
     notes: text("notes"),
     createdByUserId: integer("createdByUserId"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -872,6 +884,19 @@ export const instruments = pgTable("instruments", {
     conversionDate: date("conversionDate"),
     conversionPriceNtd: decimal("conversionPriceNtd", { precision: 20, scale: 6 }),
     conversionShares: bigint("conversionShares", { mode: "number" }),
+
+    // ── Encrypted financial fields (Phase 3 dual-write) ──
+    investmentAmountNtdEnc: text("investment_amount_ntd_enc"),
+    investmentAmountUsdEnc: text("investment_amount_usd_enc"),
+    pricePerShareNtdEnc: text("price_per_share_ntd_enc"),
+    sharesIssuedEnc: text("shares_issued_enc"),
+    valuationCapNtdEnc: text("valuation_cap_ntd_enc"),
+    valuationCapUsdEnc: text("valuation_cap_usd_enc"),
+    discountRateEnc: text("discount_rate_enc"),
+    interestRateEnc: text("interest_rate_enc"),
+    accruedInterestNtdEnc: text("accrued_interest_ntd_enc"),
+    conversionPriceNtdEnc: text("conversion_price_ntd_enc"),
+    conversionSharesEnc: text("conversion_shares_enc"),
 
     // ── Meta ──
     notes: text("notes"),
@@ -1025,6 +1050,11 @@ export const shareTransfers = pgTable("share_transfers", {
     rofrWaivedAt: timestamp("rofr_waived_at"),
     boardApprovalDate: date("board_approval_date"),
     registerEntryId: integer("register_entry_id"),           // links to share_register after completion
+    // ── Encrypted financial fields (Phase 3 dual-write) ──
+    sharesEnc: text("shares_enc"),
+    pricePerShareEnc: text("price_per_share_enc"),
+    totalPriceEnc: text("total_price_enc"),
+
     notes: text("notes"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),

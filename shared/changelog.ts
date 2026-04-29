@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.16.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Security Phase 3 — 核心交易金額加密（AES-256-GCM 雙寫）",
+    description: "allocations / shareRegisterEntries / instruments / shareTransfers 四張核心交易表的金額與股數欄位加入 AES-256-GCM 加密雙寫，共 22 個財務欄位。",
+  },
+  {
     version: "2.15.0",
     date: "2026-04-29",
     type: "minor",

@@ -9,8 +9,9 @@ import {
   // V1 (what Cap Table / Dashboard actually read)
   createInvestor, getAllInvestors,
   createEsopPoolV1,
-  getDb,
+  getDb, resolveCompanyDek,
 } from "./db";
+import { encryptField } from "./encryption";
 import {
   shareRegisterEntries,
   snapshots as snapshotsV1,
@@ -208,7 +209,7 @@ async function writeRegisterEntriesFromSheet(
       const pricePerShare = sharesAmount > 0 && paidIn > 0
         ? (paidIn / sharesAmount).toFixed(6)
         : null;
-      await db.insert(shareRegisterEntries).values({
+      const regValues: Record<string, any> = {
         companyId,
         investorId,
         eventType: "issuance",
@@ -223,7 +224,15 @@ async function writeRegisterEntriesFromSheet(
         fundingRoundId: roundMatch?.id ?? null,
         reversedEntryId: null,
         notes: `[imported from Excel Register sheet row ${i + 1}${roundLabelRaw ? " · " + roundLabelRaw : ""}]`,
-      });
+      };
+      // Phase 3 dual-write
+      try {
+        const dek = await resolveCompanyDek(companyId);
+        for (const f of ["shares", "pricePerShare", "fxToNtd", "totalAmount"]) {
+          if (regValues[f] != null) regValues[`${f}Enc`] = encryptField(String(regValues[f]), dek);
+        }
+      } catch { /* skip */ }
+      await db.insert(shareRegisterEntries).values(regValues as any);
       count++;
     } catch (e) {
       errors.push(`Failed to write register entry for ${name}: ${e}`);

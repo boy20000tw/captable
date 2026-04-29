@@ -21,6 +21,15 @@ export type AdminChangelogEntry = {
 
 export const ADMIN_CHANGELOG: AdminChangelogEntry[] = [
   {
+    version: "1.6.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Security Phase 3 — 核心交易金額加密雙寫",
+    titleEn: "Security Phase 3 — Financial Data Encryption (Dual-Write)",
+    description: "allocations / shareRegisterEntries / instruments / shareTransfers 核心交易表的金額與股數欄位加入 AES-256-GCM 加密雙寫（22 個欄位）。",
+    descriptionEn: "Added AES-256-GCM dual-write encryption for 22 financial fields across allocations, share register entries, instruments, and share transfers tables.",
+  },
+  {
     version: "1.5.0",
     date: "2026-04-29",
     type: "minor",
