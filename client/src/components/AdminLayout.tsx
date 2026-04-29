@@ -4,35 +4,70 @@
  */
 
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useTranslation } from "react-i18next";
 import { SignIn } from "@clerk/clerk-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Tooltip, TooltipContent, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
-  LayoutDashboard,
-  LogOut,
-  Building2,
-  ClipboardList,
-  ArrowLeft,
-  ShieldCheck,
-  MessageSquare,
+  LayoutDashboard, LogOut, Building2, ClipboardList,
+  ArrowLeft, ShieldCheck, MessageSquare, Tag,
+  Lock, CreditCard, Users,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import LanguageToggle from "./LanguageToggle";
+import { type AdminNavKey, canSeeAdminNav, normalizeAdminRole } from "../../../shared/adminPermissions";
 
-const adminNav = [
-  { icon: LayoutDashboard, label: "Overview",        path: "/admin" },
-  { icon: Building2,       label: "Companies",       path: "/admin/companies" },
-  { icon: ClipboardList,   label: "Admin Activity",  path: "/admin/activity" },
-  { icon: MessageSquare,   label: "Support Tickets", path: "/admin/tickets" },
+type NavItem = { icon: typeof LayoutDashboard; labelKey: string; path: string; navKey: AdminNavKey };
+type NavGroup = { labelKey: string; items: NavItem[] };
+
+const adminNavGroups: NavGroup[] = [
+  {
+    labelKey: "nav.general",
+    items: [
+      { icon: LayoutDashboard, labelKey: "nav.overview",   path: "/admin",            navKey: "overview" },
+    ],
+  },
+  {
+    labelKey: "nav.management",
+    items: [
+      { icon: Building2,      labelKey: "nav.companies",   path: "/admin/companies",  navKey: "companies" },
+      { icon: MessageSquare,   labelKey: "nav.tickets",     path: "/admin/tickets",    navKey: "tickets" },
+      { icon: Users,           labelKey: "nav.team",        path: "/admin/team",       navKey: "team" },
+    ],
+  },
+  {
+    labelKey: "nav.logs",
+    items: [
+      { icon: ClipboardList,   labelKey: "nav.activity",    path: "/admin/activity",   navKey: "activity" },
+      { icon: Tag,             labelKey: "nav.versions",    path: "/admin/versions",   navKey: "versions" },
+    ],
+  },
+  {
+    labelKey: "nav.architecture",
+    items: [
+      { icon: Lock,           labelKey: "nav.security",    path: "/admin/security",   navKey: "security" },
+      { icon: CreditCard,     labelKey: "nav.payment",     path: "/admin/payment",    navKey: "payment" },
+    ],
+  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { loading, user, logout } = useAuth();
+  const { loading, user, logout, adminRole } = useAuth();
+  const { t } = useTranslation("admin");
   const [location, setLocation] = useLocation();
+
+  // Filter nav groups by admin role
+  // Default to super_admin for existing admins who don't have adminRole set yet (pre-migration)
+  const effectiveAdminRole = normalizeAdminRole(adminRole);
+  const filteredNavGroups = adminNavGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canSeeAdminNav(effectiveAdminRole, item.navKey)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   if (loading) {
     return (
@@ -88,71 +123,102 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-3 px-2 space-y-0.5">
-          {adminNav.map((item) => {
-            const isActive = location === item.path;
-            return (
-              <button
-                key={item.path}
-                onClick={() => setLocation(item.path)}
-                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm transition-colors ${
-                  isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                }`}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
+        <nav className="flex-1 py-3 px-2 space-y-3 overflow-y-auto">
+          {filteredNavGroups.map((group) => (
+            <div key={group.labelKey}>
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                {t(group.labelKey)}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = location === item.path;
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => setLocation(item.path)}
+                      className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm transition-colors ${
+                        isActive
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{t(item.labelKey)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
-        {/* Back to app + user */}
-        <div className="p-3 border-t border-sidebar-border space-y-2">
-          <button
-            onClick={() => setLocation("/")}
-            className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to App</span>
-          </button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 rounded px-2 py-2 hover:bg-sidebar-accent transition-colors w-full text-left focus:outline-none">
-                <Avatar className="h-7 w-7 border border-sidebar-border shrink-0">
-                  <AvatarFallback className="text-xs font-medium bg-sidebar-accent text-sidebar-accent-foreground">
-                    {user?.name?.charAt(0).toUpperCase() || "A"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate text-sidebar-foreground leading-none">
-                    {user?.name || "Admin"}
-                  </p>
-                  <p className="text-[10px] text-sidebar-foreground/50 truncate mt-0.5">
-                    {user?.email || ""}
-                  </p>
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={logout}
-                className="cursor-pointer text-destructive focus:text-destructive"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {/* User info */}
+        <div className="p-3 border-t border-sidebar-border">
+          <div className="flex items-center gap-3 px-2 py-1">
+            <Avatar className="h-7 w-7 border border-sidebar-border shrink-0">
+              <AvatarFallback className="text-xs font-medium bg-sidebar-accent text-sidebar-accent-foreground">
+                {user?.name?.charAt(0).toUpperCase() || "A"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate text-sidebar-foreground leading-none">
+                {user?.name || "Admin"}
+              </p>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate mt-0.5">
+                {user?.email || ""}
+              </p>
+            </div>
+          </div>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 min-h-screen">
-        {children}
-      </main>
+      {/* Right side: header + content */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Admin Header Bar */}
+        <header className="h-14 border-b bg-background flex items-center justify-between px-6 shrink-0">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold tracking-tight text-foreground">Caploom Admin</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLocation("/")}
+                  className="gap-1.5 text-xs h-8 px-2 text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>{t("header.backToApp")}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("header.backToAppTip")}</TooltipContent>
+            </Tooltip>
+
+            <LanguageToggle collapsed />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={logout}
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("header.signOut")}</TooltipContent>
+            </Tooltip>
+          </div>
+        </header>
+
+        {/* Main content */}
+        <main className="flex-1">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

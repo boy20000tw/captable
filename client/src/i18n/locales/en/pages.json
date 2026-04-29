@@ -309,6 +309,15 @@
   "admin.activity.title": "Admin Activity",
   "admin.activity.desc": "Log of all platform admin actions — who did what, when",
 
+  "admin.versions.title": "Version Log",
+  "admin.versions.desc": "Platform changelog — all versions and what changed",
+
+  "admin.security.title": "Security & Privacy",
+  "admin.security.desc": "Encryption, key management, and data protection architecture",
+
+  "admin.payment.title": "Payment Integration",
+  "admin.payment.desc": "Subscription billing and payment processing architecture",
+
   "notFound.title": "404",
   "notFound.desc": "Page Not Found"
 }

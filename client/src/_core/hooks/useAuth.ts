@@ -7,8 +7,13 @@ import {
   canAccessPath,
   getDefaultPath,
 } from "../../../../shared/rolePermissions";
+import {
+  type AdminRole,
+  getAdminCapabilities,
+  normalizeAdminRole,
+} from "../../../../shared/adminPermissions";
 
-export type { CompanyRole };
+export type { CompanyRole, AdminRole };
 
 export function useAuth() {
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
@@ -33,20 +38,31 @@ export function useAuth() {
     [companyRole]
   );
 
+  // Admin role (only meaningful when user.role === 'admin')
+  const rawAdminRole = meQuery.data?.adminRole ?? null;
+  const adminRole = rawAdminRole ? normalizeAdminRole(rawAdminRole as string) : null;
+  const adminCapabilities = useMemo(
+    () => (adminRole ? getAdminCapabilities(adminRole) : null),
+    [adminRole]
+  );
+
   const state = useMemo(() => ({
     user: meQuery.data ?? null,
     loading: !isLoaded || (isSignedIn && meQuery.isLoading),
     error: meQuery.error ?? null,
     isAuthenticated: Boolean(isSignedIn && meQuery.data),
     clerkUser,
-    // RBAC
+    // RBAC — company level
     companyRole,
     canEdit: capabilities?.canEdit ?? false,
     canManageTeam: capabilities?.canManageTeam ?? false,
     canTransferOwnership: capabilities?.canTransferOwnership ?? false,
     canExport: capabilities?.canExport ?? false,
     canManageCompany: capabilities?.canManageCompany ?? false,
-  }), [isLoaded, isSignedIn, meQuery.data, meQuery.error, meQuery.isLoading, clerkUser, companyRole, capabilities]);
+    // RBAC — admin level
+    adminRole,
+    adminCapabilities,
+  }), [isLoaded, isSignedIn, meQuery.data, meQuery.error, meQuery.isLoading, clerkUser, companyRole, capabilities, adminRole, adminCapabilities]);
 
   return {
     ...state,

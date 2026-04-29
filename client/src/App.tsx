@@ -35,6 +35,10 @@ import AdminOverviewPage from "./pages/admin/AdminOverview";
 import AdminCompaniesPage from "./pages/admin/AdminCompanies";
 import AdminActivityPage from "./pages/admin/AdminActivity";
 import AdminTicketsPage from "./pages/admin/AdminTickets";
+import AdminVersionsPage from "./pages/admin/AdminVersions";
+import AdminSecurityPage from "./pages/admin/AdminSecurity";
+import AdminPaymentPage from "./pages/admin/AdminPayment";
+import AdminTeamPage from "./pages/admin/AdminTeam";
 import SubscriptionPage from "./pages/Subscription";
 import PricingPage from "./pages/Pricing";
 import ComparePlansPage from "./pages/ComparePlans";
@@ -87,6 +91,10 @@ function Router() {
       <Route path="/admin/companies" component={AdminCompaniesPage} />
       <Route path="/admin/activity" component={AdminActivityPage} />
       <Route path="/admin/tickets" component={AdminTicketsPage} />
+      <Route path="/admin/versions" component={AdminVersionsPage} />
+      <Route path="/admin/security" component={AdminSecurityPage} />
+      <Route path="/admin/payment" component={AdminPaymentPage} />
+      <Route path="/admin/team" component={AdminTeamPage} />
 
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

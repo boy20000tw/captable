@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare, Clock, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
-import DashboardLayout from "@/components/DashboardLayout";
+import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,8 @@ export default function AdminTicketsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   return (
-    <DashboardLayout>
-      <div className="p-8 max-w-5xl mx-auto">
+    <AdminLayout>
+      <div className="p-8 max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <MessageSquare className="h-5 w-5 text-muted-foreground" />
           <div>
@@ -101,6 +101,6 @@ export default function AdminTicketsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

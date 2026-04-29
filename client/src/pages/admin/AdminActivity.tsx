@@ -36,7 +36,7 @@ function AdminActivityContent() {
   const { data: logs, isLoading } = trpc.admin.adminAuditLogs.useQuery({ limit: 200, offset: 0 });
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-8 max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <ClipboardList className="h-6 w-6 text-primary" /> {tPages("admin.activity.title")}
@@ -51,7 +51,7 @@ function AdminActivityContent() {
           <CardTitle className="text-base">{t("activity.activityLog")}</CardTitle>
           <CardDescription>{t("activity.recentActions")}</CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="px-4 pb-4 pt-0">
           {isLoading ? (
             <div className="p-4 space-y-2">
               {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-8 bg-muted rounded animate-pulse" />)}

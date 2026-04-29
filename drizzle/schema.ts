@@ -17,6 +17,7 @@ import {
 // Users enums
 export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
 export const userAppRoleEnum = pgEnum("user_app_role", ["owner", "admin", "cfo", "lawyer", "investor", "viewer"]);
+export const adminRoleEnum = pgEnum("admin_role", ["super_admin", "admin"]);
 
 // User invitations enums
 export const invitationAppRoleEnum = pgEnum("invitation_app_role", ["admin", "cfo", "lawyer", "investor", "viewer"]);
@@ -73,6 +74,7 @@ export const companyPlanEnum = pgEnum("company_plan", ["starter", "standard", "p
 export const adminAuditActionEnum = pgEnum("admin_audit_action", [
     "view_company", "update_plan", "update_permissions",
     "view_audit_log", "suspend_company", "reactivate_company",
+    "update_admin_role", "add_admin", "remove_admin", "transfer_super_admin",
 ]);
 
 // ─── Companies ──────────────────────────────────────────────────────────────
@@ -139,6 +141,7 @@ export const users = pgTable("users", {
     email: varchar("email", { length: 320 }),
     loginMethod: varchar("loginMethod", { length: 64 }),
     role: userRoleEnum("role").default("user").notNull(),
+    adminRole: adminRoleEnum("adminRole").default("admin"),
     appRole: userAppRoleEnum("appRole").default("viewer").notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -1155,3 +1158,16 @@ export const supportFaqs = pgTable("support_faqs", {
 });
 export type SupportFaq = typeof supportFaqs.$inferSelect;
 export type InsertSupportFaq = typeof supportFaqs.$inferInsert;
+
+// ─── Company Encryption Keys (per-tenant DEK for envelope encryption) ───────
+export const companyKeys = pgTable("company_keys", {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id").notNull().unique(),
+    encryptedDek: text("encrypted_dek").notNull(),          // KEK-encrypted DEK (base64)
+    dekVersion: integer("dek_version").default(1).notNull(),
+    algorithm: varchar("algorithm", { length: 32 }).default("aes-256-gcm").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    rotatedAt: timestamp("rotated_at"),
+});
+export type CompanyKey = typeof companyKeys.$inferSelect;
+export type InsertCompanyKey = typeof companyKeys.$inferInsert;

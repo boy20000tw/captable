@@ -20,6 +20,34 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.14.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Admin RBAC 精簡為 2 角色（super_admin / admin）",
+    description: "移除 support 與 viewer 兩個管理員角色，僅保留 super_admin 和 admin。精簡 DB enum、權限矩陣、團隊管理 UI 與 i18n 翻譯。",
+  },
+  {
+    version: "2.13.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Admin RBAC 權限系統 — 4 角色 + 團隊管理頁面",
+    description: "新增平台管理員 4 角色 RBAC（super_admin/admin/support/viewer），每角色有獨立的 sidebar 可視範圍與操作權限。新增 adminRole 欄位至 DB schema。後端新增 adminCompanyProcedure、superAdminProcedure 細粒度權限中介層。新增管理員團隊頁面（/admin/team）：列表、新增/移除管理員、角色變更、超級管理員移轉。Admin Header Bar 加入語言切換、登出、返回主站。全站 EN/zh-TW 雙語。",
+  },
+  {
+    version: "2.12.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Admin Panel 優化 — 豐富 Overview、分組 Sidebar、版本紀錄 + 架構頁面",
+    description: "AdminOverview 新增 4 張統計卡片、方案分佈、快速操作、近期公司與活動表格。Sidebar 重構為 4 組分類導航（一般/管理/日誌/架構）+ i18n。新增 Version Log 頁面顯示 shared/changelog.ts 完整記錄。新增安全隱私架構頁面（加密、金鑰管理、實施狀態）與金流串接架構頁面。AdminTickets 修正為 AdminLayout。全站雙語 i18n。",
+  },
+  {
+    version: "2.11.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "AES-256-GCM 加密基礎架構 (Phase 1)",
+    description: "新增 server/encryption.ts 核心模組（AES-256-GCM 欄位加密/解密、DEK cache、blind index）。新增 company_keys 表支援 per-company 獨立加密金鑰。公司建立時自動產生 DEK。支援 AWS KMS 生產模式與本地開發模式。",
+  },
+  {
     version: "2.10.1",
     date: "2026-04-28",
     type: "patch",

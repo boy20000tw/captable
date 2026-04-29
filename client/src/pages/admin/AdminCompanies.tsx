@@ -96,7 +96,7 @@ function CompanyListView({
 
       {/* Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="px-4 pb-4 pt-0">
           {isLoading ? (
             <div className="p-8 space-y-3">
               {[1, 2, 3].map(i => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}
@@ -203,7 +203,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
 
   if (isLoading) {
     return (
-      <div className="p-8 max-w-5xl mx-auto space-y-4">
+      <div className="p-8 max-w-6xl mx-auto space-y-4">
         {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}
       </div>
     );
@@ -211,7 +211,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
 
   if (!data) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-8 max-w-6xl mx-auto">
         <Button variant="ghost" onClick={onBack} className="mb-4 gap-1">
           <ChevronLeft className="h-4 w-4" /> {t("companies.back")}
         </Button>
@@ -223,7 +223,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
   const { company, members } = data;
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-8 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div>
         <Button variant="ghost" onClick={onBack} className="mb-2 gap-1 -ml-2">
@@ -286,7 +286,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
           <CardTitle className="text-base">{t("companies.teamMembers")}</CardTitle>
           <CardDescription>{t("companies.memberCount", { count: members.length })}</CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="px-4 pb-4 pt-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -318,7 +318,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
           <CardTitle className="text-base">{t("companies.recentActivity")}</CardTitle>
           <CardDescription>{t("companies.auditDesc")}</CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="px-4 pb-4 pt-0">
           {logsLoading ? (
             <div className="p-4 space-y-2">
               {[1, 2, 3].map(i => <div key={i} className="h-8 bg-muted rounded animate-pulse" />)}

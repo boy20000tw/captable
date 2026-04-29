@@ -309,5 +309,14 @@
   "admin.companies.desc": "管理所有已註冊公司",
 
   "admin.activity.title": "管理員操作日誌",
-  "admin.activity.desc": "所有平台管理操作記錄 — 誰做了什麼、何時做的"
+  "admin.activity.desc": "所有平台管理操作記錄 — 誰做了什麼、何時做的",
+
+  "admin.versions.title": "版本紀錄",
+  "admin.versions.desc": "平台更新日誌 — 所有版本與變更內容",
+
+  "admin.security.title": "安全與隱私",
+  "admin.security.desc": "加密、金鑰管理與資料保護架構",
+
+  "admin.payment.title": "金流串接",
+  "admin.payment.desc": "訂閱計費與支付處理架構"
 }

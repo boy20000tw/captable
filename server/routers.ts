@@ -1,5 +1,6 @@
 import {
   protectedProcedure, publicProcedure, router, adminProcedure,
+  adminCompanyProcedure, superAdminProcedure,
   companyProcedure, companyEditorProcedure, companyOwnerAdminProcedure, companyOwnerProcedure,
   requireFeature,
 } from "./_core/trpc";
@@ -53,6 +54,8 @@ import {
   adminListCompanies, adminGetCompanyDetail, adminUpdateCompanyPlan,
   adminGetCompanyAuditLogs, createAdminAuditLog, getAdminAuditLogs,
   adminGetPlatformStats,
+  adminListTeamMembers, adminUpdateAdminRole, adminPromoteUser,
+  adminDemoteUser, adminTransferSuperAdmin, getUserByEmail,
   // Notifications
   getNotifications, getUnreadNotificationCount, createNotification,
   markNotificationRead, markAllNotificationsRead, deleteNotification,
@@ -75,6 +78,9 @@ import { advanceAllocation, type AllocationStatus } from "../shared/allocationLi
 import { writeRegisterEntry, createManualSnapshot } from "./v1/registerWrite";
 import { deriveCapTable } from "./v1/capTable";
 import { planLimit, type PlanKey, type UsageLimitKey } from "../shared/plans";
+
+// Platform owner — auto-promoted to super_admin on login
+const PLATFORM_OWNER_EMAIL = "boy20000tw@gmail.com";
 
 /**
  * Check usage limit before a create operation.
@@ -2576,11 +2582,19 @@ export const appRouter = router({
     me: publicProcedure.query(async (opts) => {
       if (!opts.ctx.user) return null;
       const memberships = await getUserCompanyMemberships(opts.ctx.user.id);
+      const user = opts.ctx.user;
+
+      // Auto-promote platform owner to super_admin if not already set
+      if (user.role === "admin" && user.email === PLATFORM_OWNER_EMAIL && user.adminRole !== "super_admin") {
+        try { await adminUpdateAdminRole(user.id, "super_admin"); } catch { /* ignore if column missing */ }
+        (user as any).adminRole = "super_admin";
+      }
+
       // Spread user fields so existing frontend code (me.id, me.name, me.email, me.appRole)
       // keeps working; add `companies` for the company switcher.
       // `companyRole` = the role for the currently active company (from context).
       return {
-        ...opts.ctx.user,
+        ...user,
         companies: memberships,
         companyRole: opts.ctx.companyRole,
       };
@@ -2691,7 +2705,7 @@ export const appRouter = router({
       }),
 
     // ─── Platform Admin: Update company plan ──────────────────────────────
-    updatePlan: adminProcedure
+    updatePlan: adminCompanyProcedure
       .input(z.object({
         companyId: z.number(),
         plan: z.enum(["starter", "standard", "plus", "enterprise"]).optional(),
@@ -2786,6 +2800,92 @@ export const appRouter = router({
       await deleteSupportFaq(input.id);
       return { success: true };
     }),
+
+    // ─── Platform Admin: Team management ─────────────────────────────────
+
+    /** List all platform admin accounts */
+    listAdminTeam: adminProcedure.query(async () => {
+      return adminListTeamMembers();
+    }),
+
+    /** Update an admin's role (super_admin only) */
+    updateAdminRole: superAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        adminRole: z.enum(["super_admin", "admin"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Prevent self-demotion for super_admin
+        if (input.userId === ctx.user!.id && input.adminRole !== "super_admin") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot demote yourself. Transfer super_admin first." });
+        }
+        await adminUpdateAdminRole(input.userId, input.adminRole);
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "update_admin_role",
+          details: JSON.stringify({ targetUserId: input.userId, newRole: input.adminRole }),
+        });
+        return { success: true };
+      }),
+
+    /** Add a user as platform admin (by email) */
+    addAdmin: superAdminProcedure
+      .input(z.object({
+        email: z.string().email(),
+        adminRole: z.enum(["admin"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const target = await getUserByEmail(input.email);
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "User not found with this email." });
+        if (target.role === "admin") throw new TRPCError({ code: "BAD_REQUEST", message: "User is already a platform admin." });
+        await adminPromoteUser(target.id, input.adminRole);
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "add_admin",
+          details: JSON.stringify({ targetEmail: input.email, targetUserId: target.id, role: input.adminRole }),
+        });
+        return { success: true };
+      }),
+
+    /** Remove a user from platform admin (demote to regular user) */
+    removeAdmin: superAdminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.userId === ctx.user!.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot remove yourself from admin." });
+        }
+        await adminDemoteUser(input.userId);
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "remove_admin",
+          details: JSON.stringify({ targetUserId: input.userId }),
+        });
+        return { success: true };
+      }),
+
+    /** Transfer super_admin role to another admin */
+    transferSuperAdmin: superAdminProcedure
+      .input(z.object({ targetUserId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.targetUserId === ctx.user!.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "You are already the super admin." });
+        }
+        await adminTransferSuperAdmin(ctx.user!.id, input.targetUserId);
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "transfer_super_admin",
+          details: JSON.stringify({ targetUserId: input.targetUserId }),
+        });
+        return { success: true };
+      }),
   }),
 
   // ═══════════════════════════════════════════════════════════════════════════

@@ -3,6 +3,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { planHasFeature, minimumPlanFor, normalizePlan, type Feature, type PlanKey } from "../../shared/plans";
+import { type AdminRole, getAdminCapabilities, normalizeAdminRole } from "../../shared/adminPermissions";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -27,7 +28,41 @@ export const adminProcedure = t.procedure.use(
     if (!ctx.user || ctx.user.role !== 'admin') {
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
-    return next({ ctx: { ...ctx, user: ctx.user } });
+    const adminRole = normalizeAdminRole(ctx.user.adminRole ?? 'super_admin');
+    return next({ ctx: { ...ctx, user: ctx.user, adminRole } });
+  }),
+);
+
+// ─── Granular Admin Procedures ──────────────────────────────────────────────
+// Use these for admin routes that require specific capabilities.
+
+/** Require admin with canManageCompanies capability */
+export const adminCompanyProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user || ctx.user.role !== 'admin') {
+      throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+    }
+    const adminRole = normalizeAdminRole(ctx.user.adminRole ?? 'super_admin');
+    if (!getAdminCapabilities(adminRole).canManageCompanies) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient admin privileges for company management." });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user, adminRole } });
+  }),
+);
+
+/** Require admin with canManageAdminTeam capability (super_admin only) */
+export const superAdminProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user || ctx.user.role !== 'admin') {
+      throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
+    }
+    const adminRole = normalizeAdminRole(ctx.user.adminRole ?? 'super_admin');
+    if (!getAdminCapabilities(adminRole).canManageAdminTeam) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Only super admins can manage the admin team." });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user, adminRole } });
   }),
 );
 

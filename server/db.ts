@@ -41,7 +41,9 @@ import {
   closedCompanyShareRights, InsertClosedCompanyShareRight,
   supportTickets, InsertSupportTicket,
   supportFaqs, InsertSupportFaq,
+  companyKeys, InsertCompanyKey,
 } from "../drizzle/schema";
+import { generateCompanyDek, getCompanyDek as getCachedDek, invalidateDekCache } from "./encryption";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -70,7 +72,18 @@ export async function createCompany(data: InsertCompany): Promise<Company> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(companies).values(data).returning();
-  return result[0];
+  const company = result[0];
+
+  // Auto-generate per-company encryption key (DEK)
+  try {
+    await createCompanyKey(company.id);
+  } catch (err) {
+    console.warn("[DB] Failed to create encryption key for company", company.id, err);
+    // Non-blocking: company is created even if key generation fails.
+    // Key can be provisioned later via ensureCompanyKey().
+  }
+
+  return company;
 }
 
 export async function updateCompany(id: number, data: Partial<InsertCompany>): Promise<void> {
@@ -191,8 +204,30 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  try {
+    const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+    return result.length > 0 ? result[0] : undefined;
+  } catch (err: any) {
+    // Fallback: if adminRole column doesn't exist yet (pre-migration),
+    // query only the core columns to avoid crashing the entire auth flow.
+    if (err?.message?.includes("adminRole") || err?.message?.includes("column")) {
+      console.warn("[DB] adminRole column not found, using fallback query. Run `npm run db:push` to fix.");
+      const result = await db.select({
+        id: users.id,
+        openId: users.openId,
+        name: users.name,
+        email: users.email,
+        loginMethod: users.loginMethod,
+        role: users.role,
+        appRole: users.appRole,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        lastSignedIn: users.lastSignedIn,
+      }).from(users).where(eq(users.openId, openId)).limit(1);
+      return result.length > 0 ? { ...result[0], adminRole: null } as any : undefined;
+    }
+    throw err;
+  }
 }
 
 // ─── Shareholders ─────────────────────────────────────────────────────────────
@@ -1740,6 +1775,98 @@ export async function adminGetPlatformStats() {
   };
 }
 
+// ─── Admin Team Management ──────────────────────────────────────────────────────
+
+/** List all platform admins (users with role = 'admin'). */
+export async function adminListTeamMembers() {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    return await db.select({
+      id: users.id,
+      openId: users.openId,
+      name: users.name,
+      email: users.email,
+      adminRole: users.adminRole,
+      createdAt: users.createdAt,
+      lastSignedIn: users.lastSignedIn,
+    }).from(users)
+      .where(eq(users.role, "admin"))
+      .orderBy(asc(users.createdAt));
+  } catch (err: any) {
+    // Fallback if adminRole column doesn't exist yet
+    if (err?.message?.includes("adminRole") || err?.message?.includes("column")) {
+      console.warn("[DB] adminRole column not found in adminListTeamMembers. Run `npm run db:push`.");
+      const rows = await db.select({
+        id: users.id,
+        openId: users.openId,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+        lastSignedIn: users.lastSignedIn,
+      }).from(users)
+        .where(eq(users.role, "admin"))
+        .orderBy(asc(users.createdAt));
+      return rows.map(r => ({ ...r, adminRole: "admin" as const }));
+    }
+    throw err;
+  }
+}
+
+/** Update a user's admin role. */
+export async function adminUpdateAdminRole(userId: number, adminRole: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ adminRole: adminRole as any }).where(eq(users.id, userId));
+}
+
+/** Promote a regular user to platform admin. */
+export async function adminPromoteUser(userId: number, adminRole: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ role: "admin" as any, adminRole: adminRole as any }).where(eq(users.id, userId));
+}
+
+/** Demote a platform admin back to regular user. */
+export async function adminDemoteUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ role: "user" as any, adminRole: null as any }).where(eq(users.id, userId));
+}
+
+/** Transfer super_admin: set current super_admin to admin, set target to super_admin. */
+export async function adminTransferSuperAdmin(currentSuperAdminId: number, newSuperAdminId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Demote current
+  await db.update(users).set({ adminRole: "admin" as any }).where(eq(users.id, currentSuperAdminId));
+  // Promote target
+  await db.update(users).set({ role: "admin" as any, adminRole: "super_admin" as any }).where(eq(users.id, newSuperAdminId));
+}
+
+/** Look up a user by email (for adding new admin by email). */
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return row ?? null;
+  } catch (err: any) {
+    if (err?.message?.includes("adminRole") || err?.message?.includes("column")) {
+      console.warn("[DB] adminRole column not found in getUserByEmail. Run `npm run db:push`.");
+      const [row] = await db.select({
+        id: users.id, openId: users.openId, name: users.name,
+        email: users.email, loginMethod: users.loginMethod,
+        role: users.role, appRole: users.appRole,
+        createdAt: users.createdAt, updatedAt: users.updatedAt,
+        lastSignedIn: users.lastSignedIn,
+      }).from(users).where(eq(users.email, email)).limit(1);
+      return row ? { ...row, adminRole: null } as any : null;
+    }
+    throw err;
+  }
+}
+
 // ─── Notifications ─────────────────────────────────────────────────────────────
 
 /** Get notifications for a company (optionally filter by userId). */
@@ -2045,4 +2172,69 @@ export async function deleteSupportFaq(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(supportFaqs).where(eq(supportFaqs.id, id));
+}
+
+// ─── Company Encryption Keys (Per-Tenant DEK) ────────────────────────────────
+
+/** Create a new encryption key for a company. Returns the encrypted DEK stored in DB. */
+export async function createCompanyKey(companyId: number): Promise<string> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const { encryptedDek } = await generateCompanyDek();
+  await db.insert(companyKeys).values({
+    companyId,
+    encryptedDek,
+  });
+  return encryptedDek;
+}
+
+/** Get the encrypted DEK for a company. Returns null if not provisioned. */
+export async function getCompanyEncryptedDek(companyId: number): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select({ encryptedDek: companyKeys.encryptedDek })
+    .from(companyKeys)
+    .where(eq(companyKeys.companyId, companyId))
+    .limit(1);
+  return rows[0]?.encryptedDek ?? null;
+}
+
+/**
+ * Ensure a company has an encryption key. Creates one if missing.
+ * Useful for backfilling existing companies that were created before encryption was added.
+ */
+export async function ensureCompanyKey(companyId: number): Promise<string> {
+  const existing = await getCompanyEncryptedDek(companyId);
+  if (existing) return existing;
+  return createCompanyKey(companyId);
+}
+
+/**
+ * Resolve a company's plaintext DEK (from cache or KMS/local decrypt).
+ * This is the main entry point for encryption operations.
+ */
+export async function resolveCompanyDek(companyId: number): Promise<Buffer> {
+  const encryptedDek = await ensureCompanyKey(companyId);
+  return getCachedDek(companyId, encryptedDek);
+}
+
+/**
+ * Rotate a company's DEK: generate new DEK, store it, invalidate cache.
+ * NOTE: Existing encrypted data must be re-encrypted separately (Phase 4).
+ */
+export async function rotateCompanyKey(companyId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const { encryptedDek } = await generateCompanyDek();
+  await db.update(companyKeys)
+    .set({
+      encryptedDek,
+      dekVersion: sql`${companyKeys.dekVersion} + 1`,
+      rotatedAt: new Date(),
+    })
+    .where(eq(companyKeys.companyId, companyId));
+
+  invalidateDekCache(companyId);
 }
