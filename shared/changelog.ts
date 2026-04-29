@@ -20,6 +20,20 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.18.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Security Phase 5 — 金鑰輪替與稽核",
+    description: "Super Admin 可於安全頁面一鍵輪替平台 DEK，所有輪替操作自動記錄至 admin audit log。安全架構五階段全數完成。",
+  },
+  {
+    version: "2.17.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Security Phase 4 — DocuSeal API Key / Webhook Secret 加密",
+    description: "DocuSeal API 金鑰與 webhook secret 加入 AES-256-GCM 加密雙寫，讀取時優先解密 _enc 欄位。",
+  },
+  {
     version: "2.16.0",
     date: "2026-04-29",
     type: "minor",

@@ -75,6 +75,7 @@ export const adminAuditActionEnum = pgEnum("admin_audit_action", [
     "view_company", "update_plan", "update_permissions",
     "view_audit_log", "suspend_company", "reactivate_company",
     "update_admin_role", "add_admin", "remove_admin", "transfer_super_admin",
+    "rotate_company_dek", "rotate_platform_dek",
 ]);
 
 // ─── Companies ──────────────────────────────────────────────────────────────
@@ -111,6 +112,9 @@ export const companies = pgTable("companies", {
     signatureUrl: text("signature_url"),
     docusealTenantApiKey: text("docuseal_tenant_api_key"),
     docusealWebhookSecret: text("docuseal_webhook_secret"),
+    // Encrypted secrets (Phase 4 dual-write)
+    docusealTenantApiKeyEnc: text("docuseal_tenant_api_key_enc"),
+    docusealWebhookSecretEnc: text("docuseal_webhook_secret_enc"),
 
     // Preferences
     defaultCurrency: varchar("default_currency", { length: 8 }).default("NTD"),

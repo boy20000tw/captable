@@ -4,20 +4,30 @@
 // Fallback: if no per-company key, uses DOCUSEAL_API_KEY env var (platform-level).
 // Base URL defaults to https://api.docuseal.com, override with DOCUSEAL_API_URL.
 
-import { getCompanyById } from "./db";
+import { getCompanyById, resolveCompanyDek } from "./db";
+import { decryptField } from "./encryption";
 
 const DOCUSEAL_API_URL = process.env.DOCUSEAL_API_URL || "https://api.docuseal.com";
 const DOCUSEAL_API_KEY = process.env.DOCUSEAL_API_KEY || "";
 
 /**
  * Resolve the API key for a given company.
- * Priority: company-specific key > global env var.
+ * Priority: encrypted key > plaintext key > global env var.
  */
 export async function resolveApiKey(companyId?: number | null): Promise<string> {
   if (companyId) {
     const company = await getCompanyById(companyId);
-    if (company?.docusealTenantApiKey) {
-      return company.docusealTenantApiKey;
+    if (company) {
+      // Prefer encrypted version (Phase 4)
+      if (company.docusealTenantApiKeyEnc) {
+        try {
+          const dek = await resolveCompanyDek(companyId);
+          return decryptField(company.docusealTenantApiKeyEnc, dek);
+        } catch { /* fall through to plaintext */ }
+      }
+      if (company.docusealTenantApiKey) {
+        return company.docusealTenantApiKey;
+      }
     }
   }
   return DOCUSEAL_API_KEY;
@@ -28,7 +38,7 @@ export async function resolveApiKey(companyId?: number | null): Promise<string> 
  */
 export async function hasDocuSealConnection(companyId: number): Promise<boolean> {
   const company = await getCompanyById(companyId);
-  return !!(company?.docusealTenantApiKey);
+  return !!(company?.docusealTenantApiKeyEnc || company?.docusealTenantApiKey);
 }
 
 /**

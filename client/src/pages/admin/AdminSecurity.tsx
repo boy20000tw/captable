@@ -1,12 +1,16 @@
 /**
  * Admin Security & Privacy Architecture — overview of encryption,
- * key management, and data protection implementation status.
+ * key management, key rotation, and data protection implementation status.
  */
 
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import AdminLayout from "@/components/AdminLayout";
-import { Lock, ShieldCheck, Key, Globe, Database, Search } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { Lock, ShieldCheck, Key, Globe, Database, Search, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -24,8 +28,8 @@ const PHASES = [
   { nameKey: "security.phase1", statusKey: "security.phase1Status", done: true },
   { nameKey: "security.phase2", statusKey: "security.phase2Status", done: true },
   { nameKey: "security.phase3", statusKey: "security.phase3Status", done: true },
-  { nameKey: "security.phase4", statusKey: "security.phase4Status", done: false },
-  { nameKey: "security.phase5", statusKey: "security.phase5Status", done: false },
+  { nameKey: "security.phase4", statusKey: "security.phase4Status", done: true },
+  { nameKey: "security.phase5", statusKey: "security.phase5Status", done: true },
 ] as const;
 
 export default function AdminSecurityPage() {
@@ -39,6 +43,28 @@ export default function AdminSecurityPage() {
 function AdminSecurityContent() {
   const { t: tPages } = useTranslation("pages");
   const { t } = useTranslation("admin");
+  const { adminCapabilities } = useAuth();
+  const isSuperAdmin = adminCapabilities?.canEditPlatformConfig ?? false;
+
+  const [rotating, setRotating] = useState<"platform" | null>(null);
+  const [rotateResult, setRotateResult] = useState<string | null>(null);
+
+  const rotatePlatform = trpc.admin.rotatePlatformDek.useMutation({
+    onSuccess: () => {
+      setRotateResult(t("security.rotateSuccess"));
+      setRotating(null);
+    },
+    onError: (err: { message: string }) => {
+      setRotateResult(err.message);
+      setRotating(null);
+    },
+  });
+
+  const handleRotatePlatformDek = () => {
+    setRotating("platform");
+    setRotateResult(null);
+    rotatePlatform.mutate();
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
@@ -100,6 +126,38 @@ function AdminSecurityContent() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Key rotation (super_admin only) */}
+      {isSuperAdmin && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <RotateCw className="h-4 w-4" /> {t("security.keyRotation")}
+            </CardTitle>
+            <CardDescription>{t("security.keyRotationDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRotatePlatformDek}
+                disabled={rotating !== null}
+                className="gap-1.5"
+              >
+                <RotateCw className={`h-3.5 w-3.5 ${rotating === "platform" ? "animate-spin" : ""}`} />
+                {t("security.rotatePlatformDek")}
+              </Button>
+            </div>
+            {rotateResult && (
+              <p className="text-xs text-muted-foreground">{rotateResult}</p>
+            )}
+            <p className="text-xs text-muted-foreground/60">
+              {t("security.rotateWarning")}
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

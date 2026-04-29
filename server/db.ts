@@ -121,6 +121,13 @@ function encryptCompanyPiiFields(values: Record<string, any>, dek: Buffer): void
   if (values.representativeName) {
     values.representativeNameEnc = encryptField(values.representativeName, dek);
   }
+  // Phase 4: encrypt DocuSeal secrets
+  if (values.docusealTenantApiKey) {
+    values.docusealTenantApiKeyEnc = encryptField(values.docusealTenantApiKey, dek);
+  }
+  if (values.docusealWebhookSecret) {
+    values.docusealWebhookSecretEnc = encryptField(values.docusealWebhookSecret, dek);
+  }
 }
 
 // ─── Company Members ────────────────────────────────────────────────────────

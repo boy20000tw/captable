@@ -53,7 +53,7 @@ import {
   // Admin
   adminListCompanies, adminGetCompanyDetail, adminUpdateCompanyPlan,
   adminGetCompanyAuditLogs, createAdminAuditLog, getAdminAuditLogs,
-  adminGetPlatformStats,
+  adminGetPlatformStats, rotateCompanyKey, rotatePlatformKey,
   adminListTeamMembers, adminUpdateAdminRole, adminPromoteUser,
   adminDemoteUser, adminTransferSuperAdmin, getUserByEmail,
   // Notifications
@@ -2883,6 +2883,35 @@ export const appRouter = router({
           adminUserEmail: ctx.user!.email ?? undefined,
           action: "transfer_super_admin",
           details: JSON.stringify({ targetUserId: input.targetUserId }),
+        });
+        return { success: true };
+      }),
+
+    /** Rotate a company's encryption key (DEK). Existing encrypted data must be re-encrypted separately. */
+    rotateCompanyDek: superAdminProcedure
+      .input(z.object({ companyId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await rotateCompanyKey(input.companyId);
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "rotate_company_dek",
+          details: JSON.stringify({ companyId: input.companyId }),
+        });
+        return { success: true };
+      }),
+
+    /** Rotate the platform-level encryption key (used for cross-company user PII). */
+    rotatePlatformDek: superAdminProcedure
+      .mutation(async ({ ctx }) => {
+        await rotatePlatformKey();
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "rotate_platform_dek",
+          details: null,
         });
         return { success: true };
       }),

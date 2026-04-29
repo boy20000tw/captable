@@ -21,6 +21,24 @@ export type AdminChangelogEntry = {
 
 export const ADMIN_CHANGELOG: AdminChangelogEntry[] = [
   {
+    version: "1.8.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Security Phase 5 — 金鑰輪替與稽核 UI",
+    titleEn: "Security Phase 5 — Key Rotation & Audit UI",
+    description: "安全頁面新增平台 DEK 輪替按鈕（僅 Super Admin），所有階段狀態更新為已完成。輪替操作自動記錄至 admin audit log。",
+    descriptionEn: "Added platform DEK rotation button on Security page (super_admin only). All 5 phases marked completed. Rotation operations are auto-logged to admin audit log.",
+  },
+  {
+    version: "1.7.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Security Phase 4 — DocuSeal 密鑰加密",
+    titleEn: "Security Phase 4 — DocuSeal Secret Encryption",
+    description: "DocuSeal API 金鑰與 webhook secret 加入 AES-256-GCM 加密雙寫。",
+    descriptionEn: "Added AES-256-GCM dual-write encryption for DocuSeal API key and webhook secret.",
+  },
+  {
     version: "1.6.0",
     date: "2026-04-29",
     type: "minor",
