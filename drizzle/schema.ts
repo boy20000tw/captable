@@ -95,6 +95,10 @@ export const companies = pgTable("companies", {
     phone: text("phone"),
     contactEmail: text("contact_email"),
     website: text("website"),
+    // Encrypted PII (Phase 2)
+    contactEmailEnc: text("contact_email_enc"),
+    contactEmailBi: varchar("contact_email_bi", { length: 64 }),
+    representativeNameEnc: text("representative_name_enc"),
 
     // Branding
     logoUrl: text("logo_url"),
@@ -139,6 +143,10 @@ export const users = pgTable("users", {
     openId: varchar("openId", { length: 64 }).notNull().unique(),
     name: text("name"),
     email: varchar("email", { length: 320 }),
+    // Encrypted PII (Phase 2) — dual-write: plaintext kept until migration complete
+    nameEnc: text("name_enc"),                       // AES-256-GCM encrypted name
+    emailEnc: text("email_enc"),                     // AES-256-GCM encrypted email
+    emailBi: varchar("email_bi", { length: 64 }),    // HMAC-SHA256 blind index for email lookup
     loginMethod: varchar("loginMethod", { length: 64 }),
     role: userRoleEnum("role").default("user").notNull(),
     adminRole: adminRoleEnum("adminRole").default("admin"),
@@ -209,6 +217,11 @@ export const shareholders = pgTable("shareholders", {
     type: shareholderTypeEnum("type").default("other").notNull(),
     email: varchar("email", { length: 320 }),
     phone: varchar("phone", { length: 64 }),
+    // Encrypted PII (Phase 2)
+    nameEnc: text("name_enc"),
+    emailEnc: text("email_enc"),
+    emailBi: varchar("email_bi", { length: 64 }),
+    phoneEnc: text("phone_enc"),
     nationality: varchar("nationality", { length: 100 }),
     isEntity: boolean("isEntity").default(false).notNull(),
     notes: text("notes"),
@@ -623,6 +636,11 @@ export const investors = pgTable("investors", {
     entityKind: investorEntityKindEnum("entityKind").default("individual").notNull(),
     email: varchar("email", { length: 320 }),
     phone: varchar("phone", { length: 64 }),
+    // ── Encrypted PII (Phase 2 dual-write) ──
+    nameEnc: text("name_enc"),
+    emailEnc: text("email_enc"),
+    emailBi: varchar("email_bi", { length: 64 }),
+    phoneEnc: text("phone_enc"),
     nationality: varchar("nationality", { length: 100 }),
     status: investorStatusEnum("status").default("prospect").notNull(),
     // Investor profile / meta

@@ -21,6 +21,15 @@ export type AdminChangelogEntry = {
 
 export const ADMIN_CHANGELOG: AdminChangelogEntry[] = [
   {
+    version: "1.5.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Security Phase 2 — PII 欄位級加密雙寫",
+    titleEn: "Security Phase 2 — PII Field-Level Encryption (Dual-Write)",
+    description: "users / companies / shareholders / investors 的 PII 欄位加入 AES-256-GCM 加密雙寫模式。新增 platform DEK 與 blind index 支援加密後 email 查詢。",
+    descriptionEn: "Added AES-256-GCM dual-write encryption for PII fields across users, companies, shareholders, and investors tables. Introduced platform DEK and blind index for encrypted email lookup.",
+  },
+  {
     version: "1.4.0",
     date: "2026-04-29",
     type: "minor",

@@ -43,7 +43,10 @@ import {
   supportFaqs, InsertSupportFaq,
   companyKeys, InsertCompanyKey,
 } from "../drizzle/schema";
-import { generateCompanyDek, getCompanyDek as getCachedDek, invalidateDekCache } from "./encryption";
+import {
+  generateCompanyDek, getCompanyDek as getCachedDek, invalidateDekCache,
+  encryptField, decryptField, blindIndex,
+} from "./encryption";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -71,7 +74,16 @@ export async function getCompanyById(id: number): Promise<Company | undefined> {
 export async function createCompany(data: InsertCompany): Promise<Company> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(companies).values(data).returning();
+
+  // Phase 2 dual-write: encrypt company PII
+  const values = { ...data };
+  try {
+    // Use platform DEK initially; company DEK not yet created
+    const dek = await resolvePlatformDek();
+    encryptCompanyPiiFields(values, dek);
+  } catch { /* encryption not configured — skip */ }
+
+  const result = await db.insert(companies).values(values).returning();
   const company = result[0];
 
   // Auto-generate per-company encryption key (DEK)
@@ -89,7 +101,26 @@ export async function createCompany(data: InsertCompany): Promise<Company> {
 export async function updateCompany(id: number, data: Partial<InsertCompany>): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(companies).set({ ...data, updatedAt: new Date() }).where(eq(companies.id, id));
+
+  const values: Record<string, any> = { ...data, updatedAt: new Date() };
+  // Phase 2 dual-write
+  try {
+    const dek = await resolveCompanyDek(id);
+    encryptCompanyPiiFields(values, dek);
+  } catch { /* encryption not configured — skip */ }
+
+  await db.update(companies).set(values).where(eq(companies.id, id));
+}
+
+/** Mutate values in-place to add _enc / _bi fields for company PII */
+function encryptCompanyPiiFields(values: Record<string, any>, dek: Buffer): void {
+  if (values.contactEmail) {
+    values.contactEmailEnc = encryptField(values.contactEmail, dek);
+    values.contactEmailBi = blindIndex(values.contactEmail);
+  }
+  if (values.representativeName) {
+    values.representativeNameEnc = encryptField(values.representativeName, dek);
+  }
 }
 
 // ─── Company Members ────────────────────────────────────────────────────────
@@ -194,6 +225,25 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.role !== undefined) { values.role = user.role; updateSet.role = user.role; }
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
     if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
+
+    // Phase 2 dual-write: encrypt PII fields alongside plaintext
+    try {
+      const dek = await resolvePlatformDek();
+      if (values.name) {
+        values.nameEnc = encryptField(values.name, dek);
+        updateSet.nameEnc = values.nameEnc;
+      }
+      if (values.email) {
+        values.emailEnc = encryptField(values.email, dek);
+        values.emailBi = blindIndex(values.email);
+        updateSet.emailEnc = values.emailEnc;
+        updateSet.emailBi = values.emailBi;
+      }
+    } catch (encErr) {
+      // Encryption not configured yet — skip dual-write, plaintext still works
+      console.warn("[DB] PII encryption skipped (not configured):", (encErr as Error).message);
+    }
+
     await db.insert(users).values(values).onConflictDoUpdate({
       target: users.openId,
       set: updateSet
@@ -251,7 +301,9 @@ export async function getShareholderById(companyId: number, id: number) {
 export async function createShareholder(data: InsertShareholder) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(shareholders).values(data).returning({ id: shareholders.id });
+  const values: Record<string, any> = { ...data };
+  if (data.companyId) { try { await encryptContactPii(values, data.companyId); } catch { /* skip */ } }
+  const result = await db.insert(shareholders).values(values as InsertShareholder).returning({ id: shareholders.id });
   if (!result[0]) throw new Error("Failed to create shareholder: no result returned");
   const rows = await db.select().from(shareholders).where(eq(shareholders.id, result[0].id)).limit(1);
   if (!rows[0]) throw new Error("Failed to fetch created shareholder");
@@ -261,7 +313,9 @@ export async function createShareholder(data: InsertShareholder) {
 export async function updateShareholder(companyId: number, id: number, data: Partial<InsertShareholder>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(shareholders).set(data)
+  const values: Record<string, any> = { ...data };
+  try { await encryptContactPii(values, companyId); } catch { /* skip */ }
+  return db.update(shareholders).set(values)
     .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)));
 }
 
@@ -1162,13 +1216,17 @@ export async function getInvestorById(companyId: number, id: number) {
 export async function createInvestor(data: InsertInvestor) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const rows = await db.insert(investors).values(data).returning();
+  const values: Record<string, any> = { ...data };
+  try { await encryptContactPii(values, data.companyId); } catch { /* skip */ }
+  const rows = await db.insert(investors).values(values as InsertInvestor).returning();
   return rows[0];
 }
 export async function updateInvestor(companyId: number, id: number, data: Partial<InsertInvestor>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(investors).set({ ...data, updatedAt: new Date() })
+  const values: Record<string, any> = { ...data, updatedAt: new Date() };
+  try { await encryptContactPii(values, companyId); } catch { /* skip */ }
+  await db.update(investors).set(values)
     .where(and(eq(investors.id, id), eq(investors.companyId, companyId)));
 }
 export async function deleteInvestor(companyId: number, id: number) {
@@ -1849,6 +1907,14 @@ export async function getUserByEmail(email: string) {
   const db = await getDb();
   if (!db) return null;
   try {
+    // Try blind index lookup first (encrypted path)
+    try {
+      const bi = blindIndex(email);
+      const [row] = await db.select().from(users).where(eq(users.emailBi, bi)).limit(1);
+      if (row) return decryptUserPii(row);
+    } catch { /* blind index not configured, fall through to plaintext */ }
+
+    // Fallback: plaintext email lookup
     const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     return row ?? null;
   } catch (err: any) {
@@ -1864,6 +1930,46 @@ export async function getUserByEmail(email: string) {
       return row ? { ...row, adminRole: null } as any : null;
     }
     throw err;
+  }
+}
+
+/**
+ * Decrypt user PII: prefer _enc fields when available, fallback to plaintext.
+ * Safe to call even when encryption is not configured (returns row as-is).
+ */
+async function decryptUserPii<T extends Record<string, any>>(row: T): Promise<T> {
+  if (!row) return row;
+  try {
+    const dek = await resolvePlatformDek();
+    const result = { ...row } as any;
+    if (result.nameEnc) {
+      result.name = decryptField(result.nameEnc, dek);
+    }
+    if (result.emailEnc) {
+      result.email = decryptField(result.emailEnc, dek);
+    }
+    return result;
+  } catch {
+    // Encryption not configured — return plaintext as-is
+    return row;
+  }
+}
+
+/**
+ * Encrypt name/email/phone PII for company-scoped entities (shareholders, investors).
+ * Mutates `values` in-place, adding _enc and _bi fields alongside plaintext (dual-write).
+ */
+async function encryptContactPii(values: Record<string, any>, companyId: number): Promise<void> {
+  const dek = await resolveCompanyDek(companyId);
+  if (values.name) {
+    values.nameEnc = encryptField(values.name, dek);
+  }
+  if (values.email) {
+    values.emailEnc = encryptField(values.email, dek);
+    values.emailBi = blindIndex(values.email);
+  }
+  if (values.phone) {
+    values.phoneEnc = encryptField(values.phone, dek);
   }
 }
 
@@ -2237,4 +2343,29 @@ export async function rotateCompanyKey(companyId: number): Promise<void> {
     .where(eq(companyKeys.companyId, companyId));
 
   invalidateDekCache(companyId);
+}
+
+// ─── Platform DEK (cross-company user PII encryption) ──────────────────────
+// Uses companyId = 0 as sentinel in company_keys table.
+
+const PLATFORM_KEY_ID = 0;
+
+/** Create the platform-level DEK (companyId=0). Called once during setup. */
+export async function createPlatformKey(): Promise<string> {
+  return createCompanyKey(PLATFORM_KEY_ID);
+}
+
+/** Ensure the platform DEK exists, creating if necessary. */
+export async function ensurePlatformKey(): Promise<string> {
+  return ensureCompanyKey(PLATFORM_KEY_ID);
+}
+
+/** Resolve the platform's plaintext DEK for encrypt/decrypt operations. */
+export async function resolvePlatformDek(): Promise<Buffer> {
+  return resolveCompanyDek(PLATFORM_KEY_ID);
+}
+
+/** Rotate the platform DEK (existing data must be re-encrypted separately). */
+export async function rotatePlatformKey(): Promise<void> {
+  return rotateCompanyKey(PLATFORM_KEY_ID);
 }

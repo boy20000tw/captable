@@ -22,7 +22,7 @@ const SECTIONS = [
 
 const PHASES = [
   { nameKey: "security.phase1", statusKey: "security.phase1Status", done: true },
-  { nameKey: "security.phase2", statusKey: "security.phase2Status", done: false },
+  { nameKey: "security.phase2", statusKey: "security.phase2Status", done: true },
   { nameKey: "security.phase3", statusKey: "security.phase3Status", done: false },
   { nameKey: "security.phase4", statusKey: "security.phase4Status", done: false },
   { nameKey: "security.phase5", statusKey: "security.phase5Status", done: false },

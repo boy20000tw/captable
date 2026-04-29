@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.15.0",
+    date: "2026-04-29",
+    type: "minor",
+    title: "Security Phase 2 — PII 欄位級加密（AES-256-GCM 雙寫模式）",
+    description: "users / companies / shareholders / investors 四張表的 PII 欄位加入 AES-256-GCM 加密雙寫。新增 platform DEK、blind index（HMAC-SHA256）供加密後 email 查詢。",
+  },
+  {
     version: "2.14.0",
     date: "2026-04-29",
     type: "minor",
