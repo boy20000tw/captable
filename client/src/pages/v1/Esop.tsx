@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Link } from "wouter";
-import { Plus, Edit2, Trash2, Briefcase, Play, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Edit2, Trash2, Briefcase, Play, ChevronDown, ChevronUp, Banknote } from "lucide-react";
+import { FeatureGate } from "@/components/FeatureGate";
 import { VestingTimeline } from "@/components/v1/VestingTimeline";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -58,13 +59,15 @@ export default function EsopV1Page() {
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type GrantStatus = "active" | "fully_vested" | "exercised" | "cancelled";
+type GrantStatus = "active" | "fully_vested" | "exercised" | "cancelled" | "settled";
+type GrantType = "option" | "rsu";
 
 function grantStatusBadge(status: GrantStatus, t: any) {
   const map: Record<GrantStatus, { cls: string; key: string }> = {
     active: { cls: "bg-blue-100 text-blue-700 border-transparent", key: "esop.active" },
     fully_vested: { cls: "bg-green-100 text-green-700 border-transparent", key: "esop.fullyVested" },
     exercised: { cls: "bg-purple-100 text-purple-700 border-transparent", key: "esop.exercised" },
+    settled: { cls: "bg-indigo-100 text-indigo-700 border-transparent", key: "esop.settled" },
     cancelled: { cls: "bg-red-100 text-red-700 border-transparent", key: "esop.cancelled" },
   };
   const info = map[status];
@@ -112,6 +115,7 @@ const EMPTY_POOL_FORM: PoolForm = {
 };
 
 type GrantForm = {
+  grantType: GrantType;
   poolId: string;
   investorId: string;
   grantDate: string;
@@ -123,10 +127,12 @@ type GrantForm = {
   vestingTotalMonths: string;
   expiryDate: string;
   notes: string;
+  fairMarketValue: string;
   // Edit-only extras
   sharesVested: string;
   sharesExercised: string;
   sharesCancelled: string;
+  sharesSettled: string;
   status: GrantStatus;
 };
 
@@ -135,6 +141,7 @@ function todayIso(): string {
 }
 
 const EMPTY_GRANT_FORM: GrantForm = {
+  grantType: "option",
   poolId: "",
   investorId: "",
   grantDate: todayIso(),
@@ -146,9 +153,11 @@ const EMPTY_GRANT_FORM: GrantForm = {
   vestingTotalMonths: "48",
   expiryDate: "",
   notes: "",
+  fairMarketValue: "",
   sharesVested: "0",
   sharesExercised: "0",
   sharesCancelled: "0",
+  sharesSettled: "0",
   status: "active",
 };
 
@@ -174,6 +183,14 @@ function EsopV1Content() {
   const [grantDialogOpen, setGrantDialogOpen] = useState(false);
   const [editGrantId, setEditGrantId] = useState<number | null>(null);
   const [grantForm, setGrantForm] = useState<GrantForm>(EMPTY_GRANT_FORM);
+
+  // ─── Tab state (Options / RSU) ─────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<GrantType>("option");
+
+  // ─── RSU Settle dialog state ──────────────────────────────────────────────
+  const [settleDialogGrant, setSettleDialogGrant] = useState<any | null>(null);
+  const [settleShares, setSettleShares] = useState("");
+  const [settleFmv, setSettleFmv] = useState("");
 
   // ─── Filters ──────────────────────────────────────────────────────────────
   const [poolFilter, setPoolFilter] = useState<string>("all");
@@ -215,6 +232,10 @@ function EsopV1Content() {
     onSuccess: () => { invalidateAll(); setExerciseDialogGrant(null); toast.success(t("esop.grantExercisedFull")); },
     onError: (e) => toast.error(e.message),
   });
+  const settleRsuMut = trpc.v1.esop.settleRsuVesting.useMutation({
+    onSuccess: () => { invalidateAll(); setSettleDialogGrant(null); toast.success(t("esop.rsuSettled")); },
+    onError: (e) => toast.error(e.message),
+  });
 
   // Exercise dialog state
   const [exerciseDialogGrant, setExerciseDialogGrant] = useState<any | null>(null);
@@ -247,11 +268,14 @@ function EsopV1Content() {
   const filteredGrants = useMemo(() => {
     const list = grants ?? [];
     return list.filter((g) => {
+      // Filter by grant type (tab)
+      const gType = (g as any).grantType ?? "option";
+      if (gType !== activeTab) return false;
       if (poolFilter !== "all" && String(g.poolId) !== poolFilter) return false;
       if (statusFilter !== "all" && g.status !== statusFilter) return false;
       return true;
     });
-  }, [grants, poolFilter, statusFilter]);
+  }, [grants, poolFilter, statusFilter, activeTab]);
 
   // ─── Pool dialog handlers ────────────────────────────────────────────────
   function openPoolCreate() {
@@ -313,13 +337,14 @@ function EsopV1Content() {
   // ─── Grant dialog handlers ───────────────────────────────────────────────
   function openGrantCreate() {
     setEditGrantId(null);
-    setGrantForm({ ...EMPTY_GRANT_FORM });
+    setGrantForm({ ...EMPTY_GRANT_FORM, grantType: activeTab });
     setGrantDialogOpen(true);
   }
 
   function openGrantEdit(g: NonNullable<typeof grants>[number]) {
     setEditGrantId(g.id);
     setGrantForm({
+      grantType: ((g as any).grantType as GrantType) ?? "option",
       poolId: String(g.poolId),
       investorId: String(g.investorId),
       grantDate: g.grantDate ?? todayIso(),
@@ -331,9 +356,11 @@ function EsopV1Content() {
       vestingTotalMonths: String(g.vestingTotalMonths ?? 48),
       expiryDate: g.expiryDate ?? "",
       notes: g.notes ?? "",
+      fairMarketValue: (g as any).fairMarketValue ?? "",
       sharesVested: String(g.sharesVested ?? 0),
       sharesExercised: String(g.sharesExercised ?? 0),
       sharesCancelled: String(g.sharesCancelled ?? 0),
+      sharesSettled: String((g as any).sharesSettled ?? 0),
       status: (g.status as GrantStatus) ?? "active",
     });
     setGrantDialogOpen(true);
@@ -351,13 +378,16 @@ function EsopV1Content() {
       const sv = Number(grantForm.sharesVested);
       const se = Number(grantForm.sharesExercised);
       const sc = Number(grantForm.sharesCancelled);
+      const ss = Number(grantForm.sharesSettled);
       updateGrantMut.mutate({
         id: editGrantId,
         data: {
           sharesVested: Number.isFinite(sv) ? sv : undefined,
           sharesExercised: Number.isFinite(se) ? se : undefined,
           sharesCancelled: Number.isFinite(sc) ? sc : undefined,
+          sharesSettled: Number.isFinite(ss) ? ss : undefined,
           exercisePrice: grantForm.exercisePrice || null,
+          fairMarketValue: grantForm.fairMarketValue || null,
           vestingStartDate: grantForm.vestingStartDate || null,
           vestingCliffMonths: Number(grantForm.vestingCliffMonths) || undefined,
           vestingTotalMonths: Number(grantForm.vestingTotalMonths) || undefined,
@@ -383,12 +413,14 @@ function EsopV1Content() {
       investorId: Number(grantForm.investorId),
       grantDate: grantForm.grantDate,
       sharesGranted: shares,
-      exercisePrice: grantForm.exercisePrice || undefined,
+      grantType: grantForm.grantType,
+      exercisePrice: grantForm.grantType === "rsu" ? undefined : (grantForm.exercisePrice || undefined),
       currency: grantForm.currency || "NTD",
       vestingStartDate: grantForm.vestingStartDate || undefined,
       vestingCliffMonths: Number(grantForm.vestingCliffMonths) || 12,
       vestingTotalMonths: Number(grantForm.vestingTotalMonths) || 48,
-      expiryDate: grantForm.expiryDate || undefined,
+      expiryDate: grantForm.grantType === "rsu" ? undefined : (grantForm.expiryDate || undefined),
+      fairMarketValue: grantForm.grantType === "rsu" ? (grantForm.fairMarketValue || undefined) : undefined,
       notes: grantForm.notes || undefined,
     });
   }
@@ -432,6 +464,30 @@ function EsopV1Content() {
         </div>
       </div>
 
+      {/* Tab Switcher: Options / RSU */}
+      <div className="flex items-center gap-1 border-b">
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "option"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setActiveTab("option")}
+        >
+          {t("esop.tabOptions")}
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "rsu"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setActiveTab("rsu")}
+        >
+          {t("esop.tabRsu")}
+        </button>
+      </div>
+
       {/* KPI Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryCard
@@ -449,11 +505,19 @@ function EsopV1Content() {
           value={summaryLoading ? "…" : formatNumber(summary?.totalUnallocated ?? 0)}
           subtitle={t("esop.unallocatedSub")}
         />
-        <SummaryCard
-          title={t("esop.totalGrants")}
-          value={summaryLoading ? "…" : formatNumber(summary?.grantCount ?? 0)}
-          subtitle={t("esop.totalGrantsSub")}
-        />
+        {activeTab === "option" ? (
+          <SummaryCard
+            title={t("esop.totalGrants")}
+            value={summaryLoading ? "…" : formatNumber((summary as any)?.optionGrantCount ?? summary?.grantCount ?? 0)}
+            subtitle={t("esop.totalGrantsSub")}
+          />
+        ) : (
+          <SummaryCard
+            title={t("esop.totalSettled")}
+            value={summaryLoading ? "…" : formatNumber((summary as any)?.totalSettled ?? 0)}
+            subtitle={t("esop.totalSettledSub")}
+          />
+        )}
       </div>
 
       {/* Pools */}
@@ -535,7 +599,8 @@ function EsopV1Content() {
         </CardContent>
       </Card>
 
-      {/* Grants */}
+      {/* Grants — RSU tab wrapped with FeatureGate */}
+      <MaybeFeatureGate active={activeTab === "rsu"}>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
@@ -588,9 +653,11 @@ function EsopV1Content() {
                 {([
                   { value: "active", label: t("esop.active") },
                   { value: "fully_vested", label: t("esop.fullyVested") },
-                  { value: "exercised", label: t("esop.exercised") },
+                  ...(activeTab === "option"
+                    ? [{ value: "exercised", label: t("esop.exercised") }]
+                    : [{ value: "settled", label: t("esop.settled") }]),
                   { value: "cancelled", label: t("esop.cancelled") },
-                ] as const).map((o) => (
+                ] as { value: string; label: string }[]).map((o) => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -616,7 +683,7 @@ function EsopV1Content() {
                   <TableHead>{t("esop.grantDate")}</TableHead>
                   <TableHead className="text-right">{t("esop.granted")}</TableHead>
                   <TableHead className="text-right">{t("esop.vested")}</TableHead>
-                  <TableHead className="text-right">{t("esop.exercised")}</TableHead>
+                  <TableHead className="text-right">{activeTab === "rsu" ? t("esop.delivered") : t("esop.exercised")}</TableHead>
                   <TableHead>{t("esop.status")}</TableHead>
                   <TableHead>{t("esop.vesting")}</TableHead>
                   <TableHead className="w-[100px]"></TableHead>
@@ -642,7 +709,11 @@ function EsopV1Content() {
                       </TableCell>
                       <TableCell className="text-right">{formatNumber(g.sharesGranted)}</TableCell>
                       <TableCell className="text-right">{formatNumber(g.sharesVested)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(g.sharesExercised)}</TableCell>
+                      <TableCell className="text-right">
+                        {activeTab === "rsu"
+                          ? formatNumber((g as any).sharesSettled ?? 0)
+                          : formatNumber(g.sharesExercised)}
+                      </TableCell>
                       <TableCell>{grantStatusBadge(g.status as GrantStatus, t)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">
@@ -652,21 +723,39 @@ function EsopV1Content() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          {canEdit && g.status !== "cancelled" && g.status !== "exercised" && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const exercisable = g.sharesGranted - g.sharesExercised - g.sharesCancelled;
-                                setExerciseShares(String(exercisable));
-                                setExerciseDialogGrant(g);
-                              }}
-                              title="Exercise"
-                              className="text-green-600 hover:text-green-700"
-                            >
-                              <Play className="h-3.5 w-3.5" />
-                            </Button>
+                          {canEdit && g.status !== "cancelled" && g.status !== "exercised" && g.status !== "settled" && (
+                            activeTab === "rsu" ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const settleable = g.sharesGranted - ((g as any).sharesSettled ?? 0) - g.sharesCancelled;
+                                  setSettleShares(String(settleable));
+                                  setSettleFmv((g as any).fairMarketValue ?? "");
+                                  setSettleDialogGrant(g);
+                                }}
+                                title="Settle"
+                                className="text-indigo-600 hover:text-indigo-700"
+                              >
+                                <Banknote className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const exercisable = g.sharesGranted - g.sharesExercised - g.sharesCancelled;
+                                  setExerciseShares(String(exercisable));
+                                  setExerciseDialogGrant(g);
+                                }}
+                                title="Exercise"
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                <Play className="h-3.5 w-3.5" />
+                              </Button>
+                            )
                           )}
                           {canEdit && (
                             <Button
@@ -703,6 +792,7 @@ function EsopV1Content() {
           )}
         </CardContent>
       </Card>
+      </MaybeFeatureGate>
 
       {/* Pool Dialog */}
       <Dialog open={poolDialogOpen} onOpenChange={(v) => (v ? setPoolDialogOpen(true) : closePoolDialog())}>
@@ -789,6 +879,28 @@ function EsopV1Content() {
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Grant Type - locked on edit */}
+            {editGrantId == null && (
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>{t("esop.grantType")} *</Label>
+                <Select
+                  value={grantForm.grantType}
+                  onValueChange={(v) => setGrantForm((f) => ({ ...f, grantType: v as GrantType }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="option">{t("esop.grantTypeOption")}</SelectItem>
+                    <SelectItem value="rsu">{t("esop.grantTypeRsu")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {grantForm.grantType === "rsu" && (
+                  <p className="text-xs text-muted-foreground">{t("esop.rsuNoExercise")}</p>
+                )}
+              </div>
+            )}
+
             {/* Pool - locked on edit */}
             <div className="space-y-1.5">
               <Label>{t("esop.pool")} *</Label>
@@ -856,15 +968,29 @@ function EsopV1Content() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label>{t("esop.exercisePriceLabel")}</Label>
-              <Input
-                type="text"
-                value={grantForm.exercisePrice}
-                onChange={(e) => setGrantForm((f) => ({ ...f, exercisePrice: e.target.value }))}
-                placeholder={t("esop.perShare")}
-              />
-            </div>
+            {grantForm.grantType === "option" && (
+              <div className="space-y-1.5">
+                <Label>{t("esop.exercisePriceLabel")}</Label>
+                <Input
+                  type="text"
+                  value={grantForm.exercisePrice}
+                  onChange={(e) => setGrantForm((f) => ({ ...f, exercisePrice: e.target.value }))}
+                  placeholder={t("esop.perShare")}
+                />
+              </div>
+            )}
+
+            {grantForm.grantType === "rsu" && (
+              <div className="space-y-1.5">
+                <Label>{t("esop.fairMarketValue")}</Label>
+                <Input
+                  type="text"
+                  value={grantForm.fairMarketValue}
+                  onChange={(e) => setGrantForm((f) => ({ ...f, fairMarketValue: e.target.value }))}
+                  placeholder={t("esop.fmvPerShare")}
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>{t("esop.currency")}</Label>
@@ -885,14 +1011,16 @@ function EsopV1Content() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label>{t("esop.expiryDate")}</Label>
-              <Input
-                type="date"
-                value={grantForm.expiryDate}
-                onChange={(e) => setGrantForm((f) => ({ ...f, expiryDate: e.target.value }))}
-              />
-            </div>
+            {grantForm.grantType === "option" && (
+              <div className="space-y-1.5">
+                <Label>{t("esop.expiryDate")}</Label>
+                <Input
+                  type="date"
+                  value={grantForm.expiryDate}
+                  onChange={(e) => setGrantForm((f) => ({ ...f, expiryDate: e.target.value }))}
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>{t("esop.cliffMonths")}</Label>
@@ -939,9 +1067,11 @@ function EsopV1Content() {
                       {([
                           { value: "active", label: t("esop.active") },
                           { value: "fully_vested", label: t("esop.fullyVested") },
-                          { value: "exercised", label: t("esop.exercised") },
+                          ...(grantForm.grantType === "rsu"
+                            ? [{ value: "settled", label: t("esop.settled") }]
+                            : [{ value: "exercised", label: t("esop.exercised") }]),
                           { value: "cancelled", label: t("esop.cancelled") },
-                        ] as const).map((o) => (
+                        ] as { value: string; label: string }[]).map((o) => (
                           <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                         ))}
                     </SelectContent>
@@ -958,15 +1088,27 @@ function EsopV1Content() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label>{t("esop.sharesExercised")}</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={grantForm.sharesExercised}
-                    onChange={(e) => setGrantForm((f) => ({ ...f, sharesExercised: e.target.value }))}
-                  />
-                </div>
+                {grantForm.grantType === "option" ? (
+                  <div className="space-y-1.5">
+                    <Label>{t("esop.sharesExercised")}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={grantForm.sharesExercised}
+                      onChange={(e) => setGrantForm((f) => ({ ...f, sharesExercised: e.target.value }))}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>{t("esop.settledShares")}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={grantForm.sharesSettled}
+                      onChange={(e) => setGrantForm((f) => ({ ...f, sharesSettled: e.target.value }))}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-1.5 md:col-span-2">
                   <Label>{t("esop.sharesCancelled")}</Label>
@@ -998,6 +1140,112 @@ function EsopV1Content() {
               disabled={createGrantMut.isPending || updateGrantMut.isPending}
             >
               {editGrantId != null ? t("esop.saveChanges") : t("esop.createGrant")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* RSU Settle Dialog */}
+      <Dialog open={!!settleDialogGrant} onOpenChange={(v) => { if (!v) setSettleDialogGrant(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("esop.settleVesting")}</DialogTitle>
+            <DialogDescription>
+              {t("esop.settleDesc")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {settleDialogGrant && (() => {
+            const g = settleDialogGrant;
+            const totalSettled = (g as any).sharesSettled ?? 0;
+            const settleable = g.sharesGranted - totalSettled - g.sharesCancelled;
+            const vested = computeVestedAsOfToday(g.sharesGranted, g.vestingStartDate, g.vestingCliffMonths, g.vestingTotalMonths);
+            const vestedSettleable = Math.max(0, vested - totalSettled);
+            const requestedShares = Number(settleShares) || 0;
+            const fmv = Number(settleFmv) || 0;
+
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t("esop.grantee")}</p>
+                    <p className="font-medium">{investorMap.get(g.investorId)?.name ?? `#${g.investorId}`}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t("esop.totalGranted")}</p>
+                    <p className="font-medium">{formatNumber(g.sharesGranted)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t("esop.vestedToday")}</p>
+                    <p className="font-medium text-green-600">{formatNumber(vested)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t("esop.settledShares")}</p>
+                    <p className="font-medium">{formatNumber(totalSettled)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">{t("esop.settleable")}</p>
+                    <p className="font-medium text-indigo-600">{formatNumber(vestedSettleable)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>{t("esop.sharesToSettle")}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={settleable}
+                    value={settleShares}
+                    onChange={(e) => setSettleShares(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>{t("esop.fairMarketValue")} *</Label>
+                  <Input
+                    type="text"
+                    value={settleFmv}
+                    onChange={(e) => setSettleFmv(e.target.value)}
+                    placeholder={t("esop.fmvPerShare")}
+                  />
+                </div>
+
+                {requestedShares > 0 && fmv > 0 && (
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Banknote className="h-3 w-3" /> {t("esop.taxableIncome")}
+                    </p>
+                    <p className="text-lg font-semibold">
+                      {grantForm.currency || "NTD"} {formatNumber(Math.round(fmv * requestedShares))}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("esop.taxFormula")}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettleDialogGrant(null)}>{t("esop.cancel")}</Button>
+            <Button
+              disabled={
+                settleRsuMut.isPending ||
+                !settleShares ||
+                Number(settleShares) <= 0 ||
+                !settleFmv ||
+                Number(settleFmv) <= 0 ||
+                Number(settleShares) > (settleDialogGrant ? settleDialogGrant.sharesGranted - ((settleDialogGrant as any).sharesSettled ?? 0) - settleDialogGrant.sharesCancelled : 0)
+              }
+              onClick={() => {
+                if (!settleDialogGrant) return;
+                settleRsuMut.mutate({
+                  grantId: settleDialogGrant.id,
+                  sharesToSettle: Number(settleShares),
+                  fairMarketValue: settleFmv,
+                });
+              }}
+            >
+              {settleRsuMut.isPending ? t("esop.settling") : t("esop.settleAndDeliver")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1106,6 +1354,12 @@ function EsopV1Content() {
       </Dialog>
     </div>
   );
+}
+
+// ─── Conditional FeatureGate wrapper ────────────────────────────────────────
+function MaybeFeatureGate({ active, children }: { active: boolean; children: React.ReactNode }) {
+  if (!active) return <>{children}</>;
+  return <FeatureGate feature="equity.rsu">{children}</FeatureGate>;
 }
 
 // ─── KPI card helper ────────────────────────────────────────────────────────

@@ -34,6 +34,7 @@ export type Feature =
   | "equity.preferredShares"
   | "equity.customClasses"
   | "equity.vestingExercise"
+  | "equity.rsu"
   // Fundraising
   | "fundraising.rounds"
   | "fundraising.investors"
@@ -109,6 +110,8 @@ const PLUS_FEATURES = new Set<Feature>([
   "analysis.antiDilution",
   // Investor portal & reports
   "investorPortal",
+  // RSU (Restricted Stock Units)
+  "equity.rsu",
   // Transfers
   "shareTransfers",
   // US compliance (expansion stage)

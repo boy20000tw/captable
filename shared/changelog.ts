@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.19.0",
+    date: "2026-04-30",
+    type: "minor",
+    title: "RSU（限制性股票單位）— Plus/Enterprise",
+    description: "ESOP 頁面新增 Options/RSU 分頁切換。RSU 完整生命週期：Grant → Vest → 自動交割普通股至股東名冊。歸屬交割時自動計算台灣應稅所得（FMV × 交割股數）。功能僅限 Plus/Enterprise 方案。",
+  },
+  {
     version: "2.18.0",
     date: "2026-04-29",
     type: "minor",

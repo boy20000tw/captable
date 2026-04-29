@@ -1149,14 +1149,16 @@ const v1EsopRouter = router({
   createGrant: companyEditorProcedure.input(z.object({
     poolId: z.number(),
     investorId: z.number(),
+    grantType: z.enum(["option", "rsu"]).default("option"),
     grantDate: z.string(),                                  // YYYY-MM-DD
     sharesGranted: z.number().positive(),
-    exercisePrice: z.string().optional(),                   // numeric-as-string
+    exercisePrice: z.string().optional(),                   // numeric-as-string; RSU should be null/0
+    fairMarketValue: z.string().optional(),                 // FMV at grant (for RSU tax calc)
     currency: z.string().default("NTD"),
     vestingStartDate: z.string().optional(),
     vestingCliffMonths: z.number().default(12),
     vestingTotalMonths: z.number().default(48),
-    expiryDate: z.string().optional(),
+    expiryDate: z.string().optional(),                      // Options only; RSU omit
     notes: z.string().optional(),
   })).mutation(async ({ ctx, input }) => {
     // Guard: pool must have enough unallocated shares
@@ -1184,12 +1186,14 @@ const v1EsopRouter = router({
     data: z.object({
       sharesVested: z.number().optional(),
       sharesExercised: z.number().optional(),
+      sharesSettled: z.number().optional(),
       sharesCancelled: z.number().optional(),
       exercisePrice: z.string().optional().nullable(),
+      fairMarketValue: z.string().optional().nullable(),
       vestingStartDate: z.string().optional().nullable(),
       vestingCliffMonths: z.number().optional(),
       vestingTotalMonths: z.number().optional(),
-      status: z.enum(["active", "fully_vested", "exercised", "cancelled"]).optional(),
+      status: z.enum(["active", "fully_vested", "exercised", "cancelled", "settled"]).optional(),
       expiryDate: z.string().optional().nullable(),
       notes: z.string().optional().nullable(),
     }),
@@ -1219,6 +1223,7 @@ const v1EsopRouter = router({
     .mutation(async ({ ctx, input }) => {
       const grant = await getEsopGrantV1ById(ctx.companyId, input.grantId);
       if (!grant) throw new TRPCError({ code: "NOT_FOUND", message: "Grant not found" });
+      if (grant.grantType === "rsu") throw new TRPCError({ code: "BAD_REQUEST", message: "RSU grants cannot be exercised. Use 'Settle Vesting' instead." });
       if (grant.status === "cancelled") throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot exercise a cancelled grant" });
       if (grant.status === "exercised") throw new TRPCError({ code: "BAD_REQUEST", message: "Grant already fully exercised" });
 
@@ -1267,6 +1272,77 @@ const v1EsopRouter = router({
       return { grant: { ...grant, sharesExercised: newExercised }, entry, snapshot };
     }),
 
+  // ── RSU Settle Vesting → auto-deliver shares to register ──────────────
+  settleRsuVesting: companyEditorProcedure
+    .input(z.object({
+      grantId: z.number(),
+      sharesToSettle: z.number().int().positive(),
+      fairMarketValue: z.string(),              // FMV per share at vest time (for tax)
+      effectiveDate: z.string().optional(),      // defaults to today
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const grant = await getEsopGrantV1ById(ctx.companyId, input.grantId);
+      if (!grant) throw new TRPCError({ code: "NOT_FOUND", message: "Grant not found" });
+      if (grant.grantType !== "rsu") throw new TRPCError({ code: "BAD_REQUEST", message: "Only RSU grants can be settled" });
+      if (grant.status === "cancelled") throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot settle a cancelled grant" });
+      if (grant.status === "settled") throw new TRPCError({ code: "BAD_REQUEST", message: "Grant already fully settled" });
+
+      const settledSoFar = (grant as any).sharesSettled ?? 0;
+      const settleable = grant.sharesGranted - settledSoFar - grant.sharesCancelled;
+      if (input.sharesToSettle > settleable) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Only ${settleable} shares available to settle` });
+      }
+
+      const newSettled = settledSoFar + input.sharesToSettle;
+      const fullySettled = newSettled >= grant.sharesGranted - grant.sharesCancelled;
+      const effectiveDate = input.effectiveDate || new Date().toISOString().slice(0, 10);
+
+      // 1. Update grant record
+      await updateEsopGrantV1(ctx.companyId, input.grantId, {
+        sharesSettled: newSettled,
+        sharesVested: Math.max(grant.sharesVested, newSettled), // vest ≥ settled
+        fairMarketValue: input.fairMarketValue,
+        status: fullySettled ? "settled" : "active",
+      } as any);
+
+      // 2. Write Common shares to share register (RSU settlement → auto-deliver)
+      const { entry, snapshot } = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
+        investorId: grant.investorId,
+        eventType: "rsu_settlement" as any,
+        shareClass: "common" as any,
+        shares: input.sharesToSettle,
+        effectiveDate,
+        pricePerShare: "0",                     // RSU: no exercise cost
+        currency: grant.currency ?? "NTD",
+        totalAmount: "0",
+        notes: `RSU settlement: ${input.sharesToSettle} shares from grant #${grant.id} (FMV: ${input.fairMarketValue})`,
+      });
+
+      // 3. Calculate Taiwan income tax (vest-time FMV × shares = taxable income)
+      const taxableIncome = Number(input.fairMarketValue) * input.sharesToSettle;
+
+      // 4. Audit log
+      await createAuditLog({
+        companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "esop_grant_v1", resourceId: input.grantId,
+        resourceName: `RSU settle ${input.sharesToSettle} shares`,
+        changesAfter: JSON.stringify({
+          sharesSettled: newSettled,
+          status: fullySettled ? "settled" : "active",
+          registerEntryId: entry.id,
+          fairMarketValue: input.fairMarketValue,
+          taxableIncome,
+        }),
+      });
+
+      return {
+        grant: { ...grant, sharesSettled: newSettled },
+        entry,
+        snapshot,
+        taxableIncome,
+      };
+    }),
+
   // Pool + usage summary (for Cap Table + Dashboard)
   poolSummary: companyProcedure.query(async ({ ctx }) => {
     const pools = await getAllEsopPoolsV1(ctx.companyId);
@@ -1275,6 +1351,9 @@ const v1EsopRouter = router({
     const totalAllocated = grants.reduce((s, g) => s + g.sharesGranted - g.sharesCancelled, 0);
     const totalVested = grants.reduce((s, g) => s + g.sharesVested, 0);
     const totalExercised = grants.reduce((s, g) => s + g.sharesExercised, 0);
+    const totalSettled = grants.reduce((s, g) => s + ((g as any).sharesSettled ?? 0), 0);
+    const optionGrants = grants.filter(g => (g.grantType ?? "option") === "option");
+    const rsuGrants = grants.filter(g => g.grantType === "rsu");
     return {
       pools,
       totalPool,
@@ -1282,7 +1361,10 @@ const v1EsopRouter = router({
       totalUnallocated: totalPool - totalAllocated,
       totalVested,
       totalExercised,
+      totalSettled,
       grantCount: grants.length,
+      optionGrantCount: optionGrants.length,
+      rsuGrantCount: rsuGrants.length,
     };
   }),
 });

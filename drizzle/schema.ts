@@ -624,6 +624,7 @@ export const registerEventTypeEnum = pgEnum("register_event_type", [
     "cancellation",    // shares retired / cancelled
     "reversal",        // corrects a prior entry (points via reversedEntryId)
     "esop_exercise",   // ESOP grant exercised → Common Stock issued
+    "rsu_settlement",  // RSU vested → Common Stock delivered automatically
 ]);
 export const snapshotTriggerEnum = pgEnum("snapshot_trigger", [
     "register_write",
@@ -792,23 +793,29 @@ export const esopGrantV1StatusEnum = pgEnum("esop_grant_v1_status", [
     "fully_vested",
     "exercised",
     "cancelled",
+    "settled",       // RSU: all shares delivered after vesting
 ]);
 
 // ─── V1 ESOP Grants ─────────────────────────────────────────────────────────
 // Replaces legacy `esop_grants`. Always points at an `investors` row via
 // `investorId` (V1-native, no legacy shareholderId). Employees who are not
 // investors should be added to `investors` first.
+export const esopGrantV1TypeEnum = pgEnum("esop_grant_v1_type", ["option", "rsu"]);
+
 export const esopGrantsV1 = pgTable("esop_grants_v1", {
     id: serial("id").primaryKey(),
     companyId: integer("companyId").notNull(),
     poolId: integer("poolId").notNull(),
     investorId: integer("investorId").notNull(),
+    grantType: esopGrantV1TypeEnum("grantType").default("option").notNull(),
     grantDate: date("grantDate").notNull(),
     sharesGranted: bigint("sharesGranted", { mode: "number" }).notNull(),
     sharesVested: bigint("sharesVested", { mode: "number" }).default(0).notNull(),
     sharesExercised: bigint("sharesExercised", { mode: "number" }).default(0).notNull(),
+    sharesSettled: bigint("sharesSettled", { mode: "number" }).default(0).notNull(),  // RSU: shares delivered upon vest
     sharesCancelled: bigint("sharesCancelled", { mode: "number" }).default(0).notNull(),
-    exercisePrice: decimal("exercisePrice", { precision: 20, scale: 6 }),
+    exercisePrice: decimal("exercisePrice", { precision: 20, scale: 6 }),  // Options only; RSU = null/0
+    fairMarketValue: decimal("fairMarketValue", { precision: 20, scale: 6 }),  // FMV at vest time (for RSU tax calc)
     currency: varchar("currency", { length: 8 }).default("NTD"),
     vestingStartDate: date("vestingStartDate"),
     vestingCliffMonths: integer("vestingCliffMonths").default(12),
