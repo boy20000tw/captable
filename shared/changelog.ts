@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.21.0",
+    date: "2026-04-30",
+    type: "minor",
+    title: "Onboarding Wizard — 新使用者引導流程",
+    description: "全新註冊使用者首次登入時，自動顯示引導精靈。透過簡潔的 2 步驟流程（公司名稱 + 英文名 + 統編 → 完成），快速建立公司並進入儀表板。支援中英雙語。",
+  },
+  {
     version: "2.20.1",
     date: "2026-04-30",
     type: "patch",

@@ -14,7 +14,9 @@ import {
   Building2, ChevronRight, Lightbulb, Upload,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import OnboardingWizard from "@/components/OnboardingWizard";
 
 // ════════════════════════════════════════════════════════════════════════════
 // Dashboard — SPEC-mvp-split.md §2 V1 #6:
@@ -40,6 +42,11 @@ function DashboardContent() {
   const { t } = useTranslation("pages");
   const [, setLocation] = useLocation();
   const { formatAmount } = useCurrency();
+  const { user, loading: authLoading } = useAuth();
+  const [skippedOnboarding, setSkippedOnboarding] = useState(false);
+
+  // Show onboarding wizard for brand-new users (no company yet)
+  const needsOnboarding = !skippedOnboarding && !authLoading && user && Array.isArray((user as any).companies) && (user as any).companies.length === 0;
 
   const capTable = trpc.v1.capTable.current.useQuery();
   const investors = trpc.v1.investors.list.useQuery();
@@ -152,6 +159,18 @@ function DashboardContent() {
   }
 
   const hasData = totalShares > 0 || investorCount > 0;
+
+  // Show onboarding wizard overlay for first-time users
+  if (needsOnboarding) {
+    return (
+      <>
+        <div className="p-8 max-w-7xl mx-auto">
+          <div className="h-8 w-64 bg-muted animate-pulse rounded" />
+        </div>
+        <OnboardingWizard onSkip={() => setSkippedOnboarding(true)} />
+      </>
+    );
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-10">

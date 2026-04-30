@@ -319,5 +319,29 @@
   "admin.payment.desc": "Subscription billing and payment processing architecture",
 
   "notFound.title": "404",
-  "notFound.desc": "Page Not Found"
+  "notFound.desc": "Page Not Found",
+
+  "onboarding.welcome": "Welcome to Caploom",
+  "onboarding.welcomeUser": "Welcome, {{name}}!",
+  "onboarding.welcomeDesc": "Let's set up your company profile. This takes less than a minute.",
+  "onboarding.step1Label": "Company Info",
+  "onboarding.step2Label": "Ready to Go",
+  "onboarding.companyName": "Company Name",
+  "onboarding.companyNamePlaceholder": "e.g. 台灣生技股份有限公司",
+  "onboarding.companyNameEn": "English Name",
+  "onboarding.companyNameEnPlaceholder": "e.g. Taiwan Biotech Inc.",
+  "onboarding.taxId": "Tax ID (統一編號)",
+  "onboarding.taxIdPlaceholder": "e.g. 12345678",
+  "onboarding.optional": "optional",
+  "onboarding.createCompany": "Create Company",
+  "onboarding.errorNameRequired": "Company name is required",
+  "onboarding.creating": "Setting up your company...",
+  "onboarding.creatingDesc": "Creating company profile and initializing your workspace.",
+  "onboarding.doneTitle": "You're all set!",
+  "onboarding.doneDesc": "\"{{name}}\" has been created. You can now start managing your cap table.",
+  "onboarding.nextSteps": "Suggested next steps",
+  "onboarding.tip1": "Go to Company Settings to add more details (address, representative, etc.)",
+  "onboarding.tip2": "Follow the Quick Start guide on the dashboard to set up your cap table",
+  "onboarding.startUsing": "Go to Dashboard",
+  "onboarding.skip": "Skip for now — I'll set up later"
 }

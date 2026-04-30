@@ -713,6 +713,8 @@ const companiesRouter = router({
   // Create a new company; caller becomes the owner
   create: protectedProcedure.input(z.object({
     name: z.string().min(1).max(255),
+    nameEn: z.string().max(255).optional(),
+    taxId: z.string().max(50).optional(),
     slug: z.string().max(100).optional(),
   })).mutation(async ({ ctx, input }) => {
     // Usage limit check: companies

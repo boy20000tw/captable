@@ -318,5 +318,29 @@
   "admin.security.desc": "加密、金鑰管理與資料保護架構",
 
   "admin.payment.title": "金流串接",
-  "admin.payment.desc": "訂閱計費與支付處理架構"
+  "admin.payment.desc": "訂閱計費與支付處理架構",
+
+  "onboarding.welcome": "歡迎使用 Caploom",
+  "onboarding.welcomeUser": "歡迎，{{name}}！",
+  "onboarding.welcomeDesc": "讓我們建立您的公司檔案，只需不到一分鐘。",
+  "onboarding.step1Label": "公司資訊",
+  "onboarding.step2Label": "準備就緒",
+  "onboarding.companyName": "公司名稱",
+  "onboarding.companyNamePlaceholder": "例如：台灣生技股份有限公司",
+  "onboarding.companyNameEn": "英文名稱",
+  "onboarding.companyNameEnPlaceholder": "例如：Taiwan Biotech Inc.",
+  "onboarding.taxId": "統一編號",
+  "onboarding.taxIdPlaceholder": "例如：12345678",
+  "onboarding.optional": "選填",
+  "onboarding.createCompany": "建立公司",
+  "onboarding.errorNameRequired": "公司名稱為必填",
+  "onboarding.creating": "正在建立您的公司...",
+  "onboarding.creatingDesc": "建立公司檔案並初始化您的工作空間。",
+  "onboarding.doneTitle": "設定完成！",
+  "onboarding.doneDesc": "「{{name}}」已建立完成。您現在可以開始管理股權結構表了。",
+  "onboarding.nextSteps": "建議的下一步",
+  "onboarding.tip1": "前往公司設定新增更多資訊（地址、負責人等）",
+  "onboarding.tip2": "依照儀表板上的快速入門指南設定您的股權結構表",
+  "onboarding.startUsing": "前往儀表板",
+  "onboarding.skip": "先跳過 — 稍後再設定"
 }
