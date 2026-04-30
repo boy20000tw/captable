@@ -982,9 +982,21 @@ export type SigningRequest = typeof signingRequests.$inferSelect;
 export type InsertSigningRequest = typeof signingRequests.$inferInsert;
 
 // ─── Signing Templates (reusable document templates) ────────────────────────
-// scope = "platform" → visible to all companies (admin-managed)
+// scope = "platform" → visible to all companies (admin-managed, filtered by minPlan)
 // scope = "company"  → visible only to that company
 export const signingTemplateScopeEnum = pgEnum("signing_template_scope", ["platform", "company"]);
+
+// User-facing category for template library browsing
+export const templateCategoryEnum = pgEnum("template_category", [
+    "shareholder_agreement",   // 股東協議
+    "investment_agreement",    // 投資協議
+    "employee_contract",       // 員工合約
+    "board_resolution",        // 董事會決議
+    "equity_certificate",      // 股權憑證
+    "esop_grant",              // ESOP 授予
+    "nda",                     // 保密協議
+    "other",                   // 其他
+]);
 
 export const signingTemplates = pgTable("signing_templates", {
     id: serial("id").primaryKey(),
@@ -992,8 +1004,12 @@ export const signingTemplates = pgTable("signing_templates", {
 
     scope: signingTemplateScopeEnum("scope").default("company").notNull(),
     docType: signingDocTypeEnum("docType").notNull(),
+    category: templateCategoryEnum("category").default("other").notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     description: text("description"),
+
+    // Minimum plan required to see this template (platform-scope only)
+    minPlan: companyPlanEnum("minPlan").default("starter").notNull(),
 
     // DocuSeal template ID (created when the file is uploaded)
     docusealTemplateId: integer("docusealTemplateId"),

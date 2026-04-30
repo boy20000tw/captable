@@ -1850,10 +1850,11 @@ const esignRouter = router({
 
   // ─── Template Library ───────────────────────────────────────────────────
 
-  /** List templates visible to this company (platform + own) */
-  templates: companyProcedure.query(({ ctx }) =>
-    getSigningTemplatesForCompany(ctx.companyId)
-  ),
+  /** List templates visible to this company (platform filtered by plan + own) */
+  templates: companyProcedure.query(async ({ ctx }) => {
+    const company = await getCompanyById(ctx.companyId);
+    return getSigningTemplatesForCompany(ctx.companyId, company?.plan ?? "starter");
+  }),
 
   /** Platform templates only (for admin panel) */
   platformTemplates: protectedProcedure.query(() =>
@@ -1916,6 +1917,8 @@ const esignRouter = router({
   uploadPlatformTemplate: protectedProcedure
     .input(z.object({
       docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]),
+      category: z.enum(["shareholder_agreement", "investment_agreement", "employee_contract", "board_resolution", "equity_certificate", "esop_grant", "nda", "other"]).default("other"),
+      minPlan: z.enum(["starter", "standard", "plus", "enterprise"]).default("starter"),
       name: z.string().min(1),
       description: z.string().optional(),
       fileName: z.string(),
@@ -1944,6 +1947,8 @@ const esignRouter = router({
         companyId: null,
         scope: "platform",
         docType: input.docType,
+        category: input.category,
+        minPlan: input.minPlan,
         name: input.name,
         description: input.description,
         docusealTemplateId: dsTemplate.id,
@@ -1958,6 +1963,57 @@ const esignRouter = router({
         resourceName: `[Platform] ${input.name}`,
       });
       return row;
+    }),
+
+  /** Update a platform template (admin only) */
+  updatePlatformTemplate: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      data: z.object({
+        name: z.string().min(1).optional(),
+        description: z.string().nullable().optional(),
+        category: z.enum(["shareholder_agreement", "investment_agreement", "employee_contract", "board_resolution", "equity_certificate", "esop_grant", "nda", "other"]).optional(),
+        minPlan: z.enum(["starter", "standard", "plus", "enterprise"]).optional(),
+        docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]).optional(),
+      }),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user!.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only platform admins can update platform templates" });
+      }
+      const tmpl = await getSigningTemplateById(input.id);
+      if (!tmpl) throw new TRPCError({ code: "NOT_FOUND" });
+      if (tmpl.scope !== "platform") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Can only update platform-scope templates via admin" });
+      }
+      await updateSigningTemplate(input.id, input.data);
+      await createAuditLog({
+        userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "update", resourceType: "signing_template",
+        resourceId: input.id, resourceName: `[Platform] ${input.data.name ?? tmpl.name}`,
+      });
+      return { success: true };
+    }),
+
+  /** Delete a platform template (admin only — no company context needed) */
+  deletePlatformTemplate: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user!.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only platform admins can delete platform templates" });
+      }
+      const tmpl = await getSigningTemplateById(input.id);
+      if (!tmpl) throw new TRPCError({ code: "NOT_FOUND" });
+      if (tmpl.scope !== "platform") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Can only delete platform-scope templates via admin" });
+      }
+      await deleteSigningTemplate(input.id);
+      await createAuditLog({
+        userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+        action: "delete", resourceType: "signing_template",
+        resourceId: input.id, resourceName: `[Platform] ${tmpl.name}`,
+      });
+      return { success: true };
     }),
 
   /** Delete a template */

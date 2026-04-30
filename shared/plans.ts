@@ -181,6 +181,19 @@ export const PLANS: Record<PlanKey, PlanDef> = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+/** Plan ordering — higher number = higher tier */
+const PLAN_LEVEL: Record<PlanKey, number> = {
+  starter: 0,
+  standard: 1,
+  plus: 2,
+  enterprise: 3,
+};
+
+/** Check if companyPlan meets or exceeds the required minPlan */
+export function planMeetsMinimum(companyPlan: PlanKey, minPlan: PlanKey): boolean {
+  return PLAN_LEVEL[companyPlan] >= PLAN_LEVEL[minPlan];
+}
+
 /** Check if a plan includes a specific feature */
 export function planHasFeature(plan: PlanKey, feature: Feature): boolean {
   return PLANS[plan].features.has(feature);

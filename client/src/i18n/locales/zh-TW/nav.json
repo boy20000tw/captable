@@ -19,6 +19,7 @@
   "analysis.antiDilution": "反稀釋 (Anti-Dilution)",
 
   "investorPortal": "投資人入口 (Investor Portal)",
+  "portal": "入口",
 
   "compliance": "合規 & 稅務",
   "compliance.tw": "台灣法規",
@@ -36,6 +37,8 @@
   "settings.snapshots": "快照 (Snapshots)",
   "settings.auditLog": "稽核日誌 (Audit Log)",
   "settings.legal": "法律條款",
+  "settings.subscription": "訂閱方案",
+  "settings.help": "說明與支援",
 
   "searchPlaceholder": "搜尋選單...",
   "more": "更多",

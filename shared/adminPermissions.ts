@@ -15,13 +15,14 @@ export type AdminNavKey =
   | "companies"
   | "tickets"
   | "team"
+  | "templates"
   | "activity"
   | "versions"
   | "security"
   | "payment";
 
 const ALL_ADMIN_NAV: AdminNavKey[] = [
-  "overview", "companies", "tickets", "team",
+  "overview", "companies", "tickets", "team", "templates",
   "activity", "versions", "security", "payment",
 ];
 

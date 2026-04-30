@@ -20,6 +20,20 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.20.1",
+    date: "2026-04-30",
+    type: "patch",
+    title: "手機版改善 — 登出按鈕 + 更多選單完善",
+    description: "手機版 header 新增登出按鈕。「更多」選單加入使用者資訊區塊（頭像 + 名稱 + 登出）、Compliance & Tax 完整導航、訂閱與說明入口。修正 Investors 頁面 15 個缺漏 i18n key。修正桌面版 signOut 翻譯 key 路徑。",
+  },
+  {
+    version: "2.20.0",
+    date: "2026-04-30",
+    type: "minor",
+    title: "平台範本管理 — Admin 後台統一管理電子簽名範本",
+    description: "Admin Panel 新增 Templates 頁面。平台管理員可上傳、編輯、刪除合約範本，並依文件類型分類、設定最低方案門檻。公司端依訂閱方案即時可見對應範本，無需手動推送。",
+  },
+  {
     version: "2.19.0",
     date: "2026-04-30",
     type: "minor",

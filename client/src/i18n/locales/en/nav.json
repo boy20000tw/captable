@@ -19,6 +19,7 @@
   "analysis.antiDilution": "Anti-Dilution",
 
   "investorPortal": "Investor Portal",
+  "portal": "Portal",
 
   "compliance": "Compliance & Tax",
   "compliance.tw": "Taiwan Regulations",
@@ -36,6 +37,8 @@
   "settings.snapshots": "Snapshots",
   "settings.auditLog": "Audit Log",
   "settings.legal": "Legal",
+  "settings.subscription": "Subscription",
+  "settings.help": "Help & Support",
 
   "searchPlaceholder": "Search menu...",
   "more": "More",

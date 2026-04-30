@@ -1612,13 +1612,21 @@ export async function deleteSigningRequest(companyId: number, id: number) {
 
 // ─── Signing Templates ──────────────────────────────────────────────────────
 
-/** Get templates visible to a company: platform-scope + company's own */
-export async function getSigningTemplatesForCompany(companyId: number) {
+/** Get templates visible to a company: platform-scope (filtered by plan) + company's own */
+export async function getSigningTemplatesForCompany(companyId: number, companyPlan?: string) {
   const db = await getDb();
   if (!db) return [];
+  // Plan hierarchy for filtering platform templates
+  const planLevels: Record<string, number> = { starter: 0, standard: 1, plus: 2, enterprise: 3 };
+  const level = planLevels[companyPlan ?? "starter"] ?? 0;
+  const visiblePlans = Object.entries(planLevels)
+    .filter(([, v]) => v <= level)
+    .map(([k]) => k);
+
   return db.select().from(signingTemplates)
     .where(
-      sql`${signingTemplates.scope} = 'platform' OR ${signingTemplates.companyId} = ${companyId}`
+      sql`(${signingTemplates.scope} = 'platform' AND ${signingTemplates.minPlan} IN (${sql.join(visiblePlans.map(p => sql`${p}`), sql`, `)}))
+          OR ${signingTemplates.companyId} = ${companyId}`
     )
     .orderBy(asc(signingTemplates.scope), asc(signingTemplates.name));
 }

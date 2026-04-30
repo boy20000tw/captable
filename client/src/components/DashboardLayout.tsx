@@ -600,8 +600,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               <button
                 onClick={logout}
                 className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
-                aria-label={t("nav.signOut")}
-                title={t("nav.signOut")}
+                aria-label={t("signOut")}
+                title={t("signOut")}
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -617,13 +617,20 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                 alt="Caploom"
                 className="h-6 w-auto object-contain"
               />
-            </div>
-            <div className="flex items-center gap-2">
               <span className="text-sm font-medium tracking-tight truncate">
                 {getActiveLabel(navStructure, location)}
               </span>
+            </div>
+            <div className="flex items-center gap-1.5">
               <LanguageToggle collapsed />
               <NotificationBell />
+              <button
+                onClick={logout}
+                className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+                aria-label={t("signOut")}
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
         )}

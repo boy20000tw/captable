@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   LayoutDashboard,
   PieChart,
@@ -22,6 +24,14 @@ import {
   Camera,
   ClipboardList,
   BarChart3,
+  Receipt,
+  Landmark,
+  DollarSign,
+  FileCheck,
+  ArrowRightLeft,
+  LogOut,
+  HelpCircle,
+  CreditCard,
 } from "lucide-react";
 
 type TabItem = {
@@ -39,6 +49,7 @@ export default function MobileBottomNav() {
   const [location, setLocation] = useLocation();
   const [showMore, setShowMore] = useState(false);
   const { t } = useTranslation("nav");
+  const { user, logout } = useAuth();
 
   const mobileSections: TabSection[] = useMemo(() => [
     {
@@ -68,14 +79,31 @@ export default function MobileBottomNav() {
       ],
     },
     {
+      section: t("compliance"),
+      items: [
+        { icon: Receipt,        label: t("compliance.tw.techShare"),     path: "/tech-share-tax" },
+        { icon: Landmark,       label: t("compliance.tw.closedCompany"), path: "/closed-company" },
+        { icon: DollarSign,     label: t("compliance.us.409a"),          path: "/409a" },
+        { icon: FileCheck,      label: t("compliance.us.83b"),           path: "/83b" },
+        { icon: ArrowRightLeft, label: t("compliance.us.transfers"),     path: "/transfers" },
+      ],
+    },
+    {
+      section: t("portal"),
+      items: [
+        { icon: UserCheck, label: t("investorPortal"), path: "/investor-portal" },
+      ],
+    },
+    {
       section: t("settings"),
       items: [
-        { icon: UserCheck,     label: t("investorPortal"),     path: "/investor-portal" },
         { icon: Settings,      label: t("settings.company"),   path: "/settings" },
         { icon: UserCog,       label: t("settings.team"),      path: "/team" },
         { icon: Upload,        label: t("settings.import"),    path: "/import" },
         { icon: Camera,        label: t("settings.snapshots"), path: "/snapshots" },
         { icon: ClipboardList, label: t("settings.auditLog"),  path: "/audit-log" },
+        { icon: CreditCard,    label: t("settings.subscription") || "Subscription", path: "/subscription" },
+        { icon: HelpCircle,    label: t("settings.help") || "Help", path: "/help" },
       ],
     },
   ], [t]);
@@ -98,45 +126,74 @@ export default function MobileBottomNav() {
           onClick={() => setShowMore(false)}
         >
           <div
-            className="absolute bottom-16 left-0 right-0 bg-background border-t rounded-t-2xl shadow-xl p-4 space-y-3 safe-area-bottom"
+            className="absolute bottom-16 left-0 right-0 bg-background border-t rounded-t-2xl shadow-xl safe-area-bottom max-h-[70vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {mobileSections.map((section) => {
-              const visibleItems = section.items.filter(
-                (item) => !primaryTabs.some((p) => p.path === item.path),
-              );
-              if (visibleItems.length === 0) return null;
-              return (
-                <div key={section.section}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5">
-                    {section.section}
-                  </p>
-                  <div className="space-y-0.5">
-                    {visibleItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = location === item.path;
-                      return (
-                        <button
-                          key={item.path}
-                          onClick={() => {
-                            setLocation(item.path);
-                            setShowMore(false);
-                          }}
-                          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                            isActive
-                              ? "bg-primary/10 text-primary font-medium"
-                              : "text-foreground hover:bg-muted"
-                          }`}
-                        >
-                          <Icon className="h-4 w-4 shrink-0" />
-                          <span>{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+            {/* User info header */}
+            <div className="sticky top-0 bg-background border-b px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback className="text-xs font-medium bg-primary/10 text-primary">
+                    {user?.name?.charAt(0).toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{user?.email || ""}</p>
                 </div>
-              );
-            })}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  logout();
+                  setShowMore(false);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span>{t("signOut")}</span>
+              </button>
+            </div>
+
+            {/* Navigation sections */}
+            <div className="p-4 space-y-3">
+              {mobileSections.map((section) => {
+                const visibleItems = section.items.filter(
+                  (item) => !primaryTabs.some((p) => p.path === item.path),
+                );
+                if (visibleItems.length === 0) return null;
+                return (
+                  <div key={section.section}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5">
+                      {section.section}
+                    </p>
+                    <div className="space-y-0.5">
+                      {visibleItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location === item.path;
+                        return (
+                          <button
+                            key={item.path}
+                            onClick={() => {
+                              setLocation(item.path);
+                              setShowMore(false);
+                            }}
+                            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                              isActive
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-foreground hover:bg-muted"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
