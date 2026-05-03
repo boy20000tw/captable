@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Link } from "wouter";
 import { Plus, Edit2, Trash2, Briefcase, Play, ChevronDown, ChevronUp, Banknote } from "lucide-react";
 import { FeatureGate } from "@/components/FeatureGate";
+import ErrorState from "@/components/ErrorState";
 import { VestingTimeline } from "@/components/v1/VestingTimeline";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
@@ -168,11 +169,21 @@ function EsopV1Content() {
   const { canEdit, canDelete } = usePermissions();
   const utils = trpc.useUtils();
 
-  const { data: summary, isLoading: summaryLoading } = trpc.v1.esop.poolSummary.useQuery();
-  const { data: pools, isLoading: poolsLoading } = trpc.v1.esop.pools.useQuery();
-  const { data: grants, isLoading: grantsLoading } = trpc.v1.esop.grants.useQuery();
+  const { data: summary, isLoading: summaryLoading, isError: summaryError, refetch: refetchSummary } = trpc.v1.esop.poolSummary.useQuery();
+  const { data: pools, isLoading: poolsLoading, isError: poolsError, refetch: refetchPools } = trpc.v1.esop.pools.useQuery();
+  const { data: grants, isLoading: grantsLoading, isError: grantsError, refetch: refetchGrants } = trpc.v1.esop.grants.useQuery();
   const { data: investors } = trpc.v1.investors.list.useQuery();
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
+
+  const isError = summaryError || poolsError || grantsError;
+  if (isError) {
+    const refetch = () => {
+      if (summaryError) refetchSummary();
+      if (poolsError) refetchPools();
+      if (grantsError) refetchGrants();
+    };
+    return <ErrorState onRetry={refetch} />;
+  }
 
   // ─── Pool dialog state ────────────────────────────────────────────────────
   const [poolDialogOpen, setPoolDialogOpen] = useState(false);

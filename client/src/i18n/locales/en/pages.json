@@ -321,6 +321,10 @@
   "notFound.title": "404",
   "notFound.desc": "Page Not Found",
 
+  "error.title": "Something went wrong",
+  "error.desc": "Failed to load data. Please check your connection and try again.",
+  "error.retry": "Retry",
+
   "onboarding.welcome": "Welcome to Caploom",
   "onboarding.welcomeUser": "Welcome, {{name}}!",
   "onboarding.welcomeDesc": "Let's set up your company profile. This takes less than a minute.",

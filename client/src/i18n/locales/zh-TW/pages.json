@@ -320,6 +320,10 @@
   "admin.payment.title": "金流串接",
   "admin.payment.desc": "訂閱計費與支付處理架構",
 
+  "error.title": "發生錯誤",
+  "error.desc": "資料載入失敗，請檢查網路連線後重試。",
+  "error.retry": "重試",
+
   "onboarding.welcome": "歡迎使用 Caploom",
   "onboarding.welcomeUser": "歡迎，{{name}}！",
   "onboarding.welcomeDesc": "讓我們建立您的公司檔案，只需不到一分鐘。",

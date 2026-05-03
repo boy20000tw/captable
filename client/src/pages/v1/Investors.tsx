@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Plus, Edit2, Trash2, Users, Search } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
+import ErrorState from "@/components/ErrorState";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -115,7 +116,11 @@ function V1InvestorsContent() {
   const { t } = useTranslation("fundraising");
   const { canEdit, canDelete } = usePermissions();
   const utils = trpc.useUtils();
-  const { data: investors, isLoading } = trpc.v1.investors.list.useQuery();
+  const { data: investors, isLoading, isError, refetch } = trpc.v1.investors.list.useQuery();
+
+  if (isError) {
+    return <ErrorState onRetry={() => refetch()} />;
+  }
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);

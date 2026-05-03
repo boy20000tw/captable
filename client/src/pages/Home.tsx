@@ -42,11 +42,11 @@ function DashboardContent() {
   const { t } = useTranslation("pages");
   const [, setLocation] = useLocation();
   const { formatAmount } = useCurrency();
-  const { user, loading: authLoading } = useAuth();
+  const { hasCompany, loading: authLoading } = useAuth();
   const [skippedOnboarding, setSkippedOnboarding] = useState(false);
 
   // Show onboarding wizard for brand-new users (no company yet)
-  const needsOnboarding = !skippedOnboarding && !authLoading && user && Array.isArray((user as any).companies) && (user as any).companies.length === 0;
+  const needsOnboarding = !skippedOnboarding && !authLoading && !hasCompany;
 
   const capTable = trpc.v1.capTable.current.useQuery();
   const investors = trpc.v1.investors.list.useQuery();

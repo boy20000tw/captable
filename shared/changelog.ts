@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.21.1",
+    date: "2026-05-04",
+    type: "patch",
+    title: "QA Fixes — Critical & High Priority",
+    description: "RoleGuard 安全性修補（阻擋無公司使用者直接進入頁面）、所有主要頁面加入 Error State、Admin 範本路由改用 adminProcedure、補齊遺漏 i18n 翻譯鍵。",
+  },
+  {
     version: "2.21.0",
     date: "2026-04-30",
     type: "minor",

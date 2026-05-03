@@ -213,5 +213,6 @@
   "instruments.conversionPriceLabel": "轉換價格",
   "instruments.conversionPriceFormula": "轉換價 = min(折扣價, 上限價)",
   "instruments.sharesLabel": "股數",
-  "instruments.sharesFormula": "股數 = floor(本金 / 轉換價)。可轉換債本金 = 投資金額 + 應計利息。"
+  "instruments.sharesFormula": "股數 = floor(本金 / 轉換價)。可轉換債本金 = 投資金額 + 應計利息。",
+  "instruments.conversionSuccess": "可轉換工具已成功轉換"
 }

@@ -1859,7 +1859,7 @@ const esignRouter = router({
   }),
 
   /** Platform templates only (for admin panel) */
-  platformTemplates: protectedProcedure.query(() =>
+  platformTemplates: adminProcedure.query(() =>
     getPlatformSigningTemplates()
   ),
 
@@ -1916,7 +1916,7 @@ const esignRouter = router({
     }),
 
   /** Upload a platform template (admin only — uses protectedProcedure) */
-  uploadPlatformTemplate: protectedProcedure
+  uploadPlatformTemplate: adminProcedure
     .input(z.object({
       docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]),
       category: z.enum(["shareholder_agreement", "investment_agreement", "employee_contract", "board_resolution", "equity_certificate", "esop_grant", "nda", "other"]).default("other"),
@@ -1927,11 +1927,6 @@ const esignRouter = router({
       fileBase64: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Only app admins can create platform templates
-      if (ctx.user!.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only platform admins can create platform templates" });
-      }
-
       const { storagePut } = await import("./storage");
       const buffer = Buffer.from(input.fileBase64, "base64");
       const ext = input.fileName.split(".").pop() || "pdf";
@@ -1968,7 +1963,7 @@ const esignRouter = router({
     }),
 
   /** Update a platform template (admin only) */
-  updatePlatformTemplate: protectedProcedure
+  updatePlatformTemplate: adminProcedure
     .input(z.object({
       id: z.number(),
       data: z.object({
@@ -1980,9 +1975,6 @@ const esignRouter = router({
       }),
     }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.user!.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only platform admins can update platform templates" });
-      }
       const tmpl = await getSigningTemplateById(input.id);
       if (!tmpl) throw new TRPCError({ code: "NOT_FOUND" });
       if (tmpl.scope !== "platform") {
@@ -1998,12 +1990,9 @@ const esignRouter = router({
     }),
 
   /** Delete a platform template (admin only — no company context needed) */
-  deletePlatformTemplate: protectedProcedure
+  deletePlatformTemplate: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      if (ctx.user!.role !== "admin") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only platform admins can delete platform templates" });
-      }
       const tmpl = await getSigningTemplateById(input.id);
       if (!tmpl) throw new TRPCError({ code: "NOT_FOUND" });
       if (tmpl.scope !== "platform") {

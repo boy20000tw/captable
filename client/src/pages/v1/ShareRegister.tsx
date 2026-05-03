@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { BookOpen, UserPen, Edit2, FileSpreadsheet, Award } from "lucide-react";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import ErrorState from "@/components/ErrorState";
 import { trpc } from "@/lib/trpc";
 import { getActiveCompanyId } from "@/lib/activeCompany";
 import { formatDate } from "@/lib/utils";
@@ -102,15 +103,24 @@ function allocationStatusBadge(status: AllocationStatus) {
 function V1ShareRegisterContent() {
   const { t: tPages } = useTranslation("pages");
   const { t } = useTranslation("equity");
-  const { data: entries, isLoading: entriesLoading } =
+  const { data: entries, isLoading: entriesLoading, isError: entriesError, refetch: refetchEntries } =
     trpc.v1.register.list.useQuery();
-  const { data: allocations, isLoading: allocLoading } =
+  const { data: allocations, isLoading: allocLoading, isError: allocError, refetch: refetchAlloc } =
     trpc.v1.allocations.list.useQuery({});
   const { data: investors } = trpc.v1.investors.list.useQuery();
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
   const { canEdit } = usePermissions();
   const { formatAmount, formatPrice } = useCurrency();
   const utils = trpc.useUtils();
+
+  const isError = entriesError || allocError;
+  if (isError) {
+    const refetch = () => {
+      if (entriesError) refetchEntries();
+      if (allocError) refetchAlloc();
+    };
+    return <ErrorState onRetry={refetch} />;
+  }
 
   const [investorFilter, setInvestorFilter] = useState<string>("all");
   const [roundFilter, setRoundFilter] = useState<string>("all");

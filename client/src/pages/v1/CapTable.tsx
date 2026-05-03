@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { PieChart, ArrowRight, Download, FileSpreadsheet, FileText } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import ErrorState from "@/components/ErrorState";
 import { trpc } from "@/lib/trpc";
 import { getActiveCompanyId } from "@/lib/activeCompany";
 import { Switch } from "@/components/ui/switch";
@@ -56,8 +57,12 @@ function V1CapTableContent() {
   const { t: tPages } = useTranslation("pages");
   const { t } = useTranslation("equity");
   const [, setLocation] = useLocation();
-  const { data, isLoading } = trpc.v1.capTable.current.useQuery();
+  const { data, isLoading, isError, refetch } = trpc.v1.capTable.current.useQuery();
   const [includeEsop, setIncludeEsop] = useState(false);
+
+  if (isError) {
+    return <ErrorState onRetry={() => refetch()} />;
+  }
 
   const isEmpty =
     !isLoading && (!data || (data.holdings?.length ?? 0) === 0);
@@ -170,9 +175,7 @@ function V1CapTableContent() {
                 {t("capTable.goToRounds")} <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Create an allocation under a round, then advance it through the
-                lifecycle — reaching <strong>Issued</strong> writes a register
-                entry and your cap table will populate automatically.
+                {t("capTable.emptyHint")}
               </p>
             </div>
           ) : (

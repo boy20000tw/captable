@@ -46,11 +46,15 @@ export function useAuth() {
     [adminRole]
   );
 
+  // Whether the user belongs to at least one company
+  const hasCompany = Array.isArray((meQuery.data as any)?.companies) && (meQuery.data as any).companies.length > 0;
+
   const state = useMemo(() => ({
     user: meQuery.data ?? null,
     loading: !isLoaded || (isSignedIn && meQuery.isLoading),
     error: meQuery.error ?? null,
     isAuthenticated: Boolean(isSignedIn && meQuery.data),
+    hasCompany,
     clerkUser,
     // RBAC — company level
     companyRole,
@@ -62,7 +66,7 @@ export function useAuth() {
     // RBAC — admin level
     adminRole,
     adminCapabilities,
-  }), [isLoaded, isSignedIn, meQuery.data, meQuery.error, meQuery.isLoading, clerkUser, companyRole, capabilities, adminRole, adminCapabilities]);
+  }), [isLoaded, isSignedIn, meQuery.data, meQuery.error, meQuery.isLoading, clerkUser, hasCompany, companyRole, capabilities, adminRole, adminCapabilities]);
 
   return {
     ...state,

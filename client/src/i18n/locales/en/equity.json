@@ -10,6 +10,7 @@
   "capTable.holdingsDesc": "Sum of register entries which are not in any round allocations",
   "capTable.emptyState": "No shares issued yet",
   "capTable.goToRounds": "Go to Funding Rounds",
+  "capTable.emptyHint": "Create an allocation under a round, then advance it through the lifecycle — reaching Issued writes a register entry and your cap table will populate automatically.",
   "capTable.registerEntries": "Register entries",
   "capTable.entity": "Entity",
   "capTable.shares": "Shares",

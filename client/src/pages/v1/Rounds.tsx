@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Plus, Edit2, Trash2, Rocket, ArrowRight } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
+import ErrorState from "@/components/ErrorState";
 import { trpc } from "@/lib/trpc";
 import { formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -94,7 +95,11 @@ function V1RoundsContent() {
   const { canEdit, canDelete } = usePermissions();
   const { formatAmount } = useCurrency();
   const utils = trpc.useUtils();
-  const { data: rounds, isLoading } = trpc.fundingRounds.list.useQuery();
+  const { data: rounds, isLoading, isError, refetch } = trpc.fundingRounds.list.useQuery();
+
+  if (isError) {
+    return <ErrorState onRetry={() => refetch()} />;
+  }
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);

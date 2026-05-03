@@ -10,6 +10,7 @@
   "capTable.holdingsDesc": "不在任何輪次分配中的股東名冊彙總",
   "capTable.emptyState": "尚未發行任何股份",
   "capTable.goToRounds": "前往募資輪次",
+  "capTable.emptyHint": "在募資輪次下建立分配，並推進至「已發行」狀態 — 系統會自動寫入股東名冊，股權結構表將自動更新。",
   "capTable.registerEntries": "名冊紀錄",
   "capTable.entity": "主體",
   "capTable.shares": "股數",

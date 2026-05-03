@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
+import ErrorState from "@/components/ErrorState";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatValuation } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -132,19 +133,28 @@ function V1RoundDetailContent() {
   const roundId = params ? parseInt(params.id) : NaN;
   const hasId = !isNaN(roundId);
 
-  const { data: round, isLoading: roundLoading } =
+  const { data: round, isLoading: roundLoading, isError: roundError, refetch: refetchRound } =
     trpc.fundingRounds.get.useQuery(
       { id: roundId },
       { enabled: hasId }
     );
 
-  const { data: allocations, isLoading: allocLoading } =
+  const { data: allocations, isLoading: allocLoading, isError: allocError, refetch: refetchAlloc } =
     trpc.v1.allocations.list.useQuery(
       { roundId },
       { enabled: hasId }
     );
 
   const { data: investors } = trpc.v1.investors.list.useQuery();
+
+  const isError = roundError || allocError;
+  if (isError) {
+    const refetch = () => {
+      if (roundError) refetchRound();
+      if (allocError) refetchAlloc();
+    };
+    return <ErrorState onRetry={refetch} />;
+  }
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AllocationRow | null>(null);
