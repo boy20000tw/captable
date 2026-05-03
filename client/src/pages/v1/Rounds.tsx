@@ -242,89 +242,91 @@ function V1RoundsContent() {
               )}
             </div>
           ) : (
-            <Table className="min-w-[640px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("rounds.name")}</TableHead>
-                  <TableHead>{t("rounds.date")}</TableHead>
-                  <TableHead className="text-right">{t("rounds.pricePerShare")}</TableHead>
-                  <TableHead className="text-right">{t("rounds.raised")}</TableHead>
-                  <TableHead className="text-right">{t("rounds.preMoney")}</TableHead>
-                  <TableHead className="text-right font-semibold">{t("rounds.postMoney")}</TableHead>
-                  <TableHead>{t("rounds.status")}</TableHead>
-                  <TableHead className="w-[120px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.map((r) => {
-                  const postMoney = (r as any).postMoneyCalc ?? parseFloat(r.postMoneyValuationNtd || "0");
-                  const raised = parseFloat(r.moneyRaisedNtd || "0");
-                  const preMoney = postMoney > 0 && raised > 0 ? postMoney - raised : parseFloat(r.preMoneyValuationNtd || "0");
-                  return (
-                  <TableRow
-                    key={r.id}
-                    className="cursor-pointer hover:bg-secondary/30"
-                    onClick={() => setLocation(`/funding-rounds/${r.id}`)}
-                  >
-                    <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="text-muted-foreground ">
-                      {formatDate(r.roundDate)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-mono">
-                      {r.pricePerShareNtd
-                        ? `NT$ ${Number(r.pricePerShareNtd).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatAmount(r.moneyRaisedNtd)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {preMoney > 0 ? formatAmount(preMoney) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold">
-                      {postMoney > 0 ? formatAmount(postMoney) : "—"}
-                    </TableCell>
-                    <TableCell>{statusBadge(r.status as RoundStatus, t)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        {canEdit && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(e) => openEdit(r, e)}
-                            title="Edit"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(e) => handleDelete(r, e)}
-                            title="Delete"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLocation(`/funding-rounds/${r.id}`);
-                          }}
-                          title="View"
-                        >
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[640px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("rounds.name")}</TableHead>
+                    <TableHead>{t("rounds.date")}</TableHead>
+                    <TableHead className="text-right">{t("rounds.pricePerShare")}</TableHead>
+                    <TableHead className="text-right">{t("rounds.raised")}</TableHead>
+                    <TableHead className="text-right">{t("rounds.preMoney")}</TableHead>
+                    <TableHead className="text-right font-semibold">{t("rounds.postMoney")}</TableHead>
+                    <TableHead>{t("rounds.status")}</TableHead>
+                    <TableHead className="w-[120px]"></TableHead>
                   </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {sorted.map((r) => {
+                    const postMoney = (r as any).postMoneyCalc ?? parseFloat(r.postMoneyValuationNtd || "0");
+                    const raised = parseFloat(r.moneyRaisedNtd || "0");
+                    const preMoney = postMoney > 0 && raised > 0 ? postMoney - raised : parseFloat(r.preMoneyValuationNtd || "0");
+                    return (
+                    <TableRow
+                      key={r.id}
+                      className="cursor-pointer hover:bg-secondary/30"
+                      onClick={() => setLocation(`/funding-rounds/${r.id}`)}
+                    >
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell className="text-muted-foreground ">
+                        {formatDate(r.roundDate)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-mono">
+                        {r.pricePerShareNtd
+                          ? `NT$ ${Number(r.pricePerShareNtd).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatAmount(r.moneyRaisedNtd)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {preMoney > 0 ? formatAmount(preMoney) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold">
+                        {postMoney > 0 ? formatAmount(postMoney) : "—"}
+                      </TableCell>
+                      <TableCell>{statusBadge(r.status as RoundStatus, t)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {canEdit && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => openEdit(r, e)}
+                              title={t("rounds.edit")}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => handleDelete(r, e)}
+                              title={t("rounds.delete")}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLocation(`/funding-rounds/${r.id}`);
+                            }}
+                            title={t("rounds.view")}
+                          >
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

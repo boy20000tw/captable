@@ -299,6 +299,7 @@ function ShareTransfersContent() {
                           <Button
                             variant="ghost" size="sm"
                             onClick={() => { if (confirm(t("transfers.confirmDelete"))) deleteMut.mutate({ id: t.id }); }}
+                            disabled={deleteMut.isPending}
                           >
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>

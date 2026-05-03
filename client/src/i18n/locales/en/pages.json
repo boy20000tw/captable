@@ -347,5 +347,6 @@
   "onboarding.tip1": "Go to Company Settings to add more details (address, representative, etc.)",
   "onboarding.tip2": "Follow the Quick Start guide on the dashboard to set up your cap table",
   "onboarding.startUsing": "Go to Dashboard",
-  "onboarding.skip": "Skip for now — I'll set up later"
+  "onboarding.skip": "Skip for now — I'll set up later",
+  "onboarding.timeoutError": "Request timed out. Please try again."
 }

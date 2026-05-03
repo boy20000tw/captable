@@ -562,7 +562,8 @@ function ShareClassesContent() {
                         </button>
                         <button
                           onClick={e => { e.stopPropagation(); if (confirm(t("sc.deleteConfirm", {name: sc.name}))) deleteMut.mutate({ id: sc.id }); }}
-                          className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
+                          disabled={deleteMut.isPending}
+                          className="p-1.5 hover:bg-destructive/10 rounded transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </button>

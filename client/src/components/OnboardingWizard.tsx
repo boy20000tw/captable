@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -6,6 +6,8 @@ import {
   Building2, ArrowRight, ArrowLeft, Check, Loader2,
   Rocket, Sparkles,
 } from "lucide-react";
+
+const CREATE_TIMEOUT_MS = 15_000;
 
 type Step = "welcome" | "creating" | "done";
 
@@ -22,14 +24,24 @@ export default function OnboardingWizard({ onSkip }: OnboardingWizardProps) {
   const [nameEn, setNameEn] = useState("");
   const [taxId, setTaxId] = useState("");
   const [error, setError] = useState("");
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const createMutation = trpc.companies.create.useMutation({
     onSuccess: async () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setStep("done");
       // Refetch auth so the wizard won't show again
       await refresh();
     },
     onError: (err) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setError(err.message);
       setStep("welcome");
     },
@@ -42,6 +54,13 @@ export default function OnboardingWizard({ onSkip }: OnboardingWizardProps) {
     }
     setError("");
     setStep("creating");
+
+    // Timeout guard
+    timeoutRef.current = setTimeout(() => {
+      setError(t("onboarding.timeoutError"));
+      setStep("welcome");
+    }, CREATE_TIMEOUT_MS);
+
     createMutation.mutate({
       name: name.trim(),
       ...(nameEn.trim() ? { nameEn: nameEn.trim() } : {}),

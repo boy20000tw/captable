@@ -346,5 +346,6 @@
   "onboarding.tip1": "前往公司設定新增更多資訊（地址、負責人等）",
   "onboarding.tip2": "依照儀表板上的快速入門指南設定您的股權結構表",
   "onboarding.startUsing": "前往儀表板",
-  "onboarding.skip": "先跳過 — 稍後再設定"
+  "onboarding.skip": "先跳過 — 稍後再設定",
+  "onboarding.timeoutError": "請求逾時，請再試一次。"
 }

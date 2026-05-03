@@ -164,7 +164,7 @@ function V1CapTableContent() {
         <CardContent>
           {isLoading ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              Loading cap table...
+              {t("capTable.loading")}
             </div>
           ) : isEmpty ? (
             <div className="py-16 text-center space-y-4">
@@ -179,6 +179,7 @@ function V1CapTableContent() {
               </p>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
@@ -236,7 +237,7 @@ function V1CapTableContent() {
                         variant="outline"
                         className="text-[11px] uppercase"
                       >
-                        Reserved
+                        {t("capTable.reserved")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-semibold">
@@ -264,6 +265,7 @@ function V1CapTableContent() {
                 </TableRow>
               </TableFooter>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

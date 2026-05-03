@@ -702,7 +702,8 @@ function TeamContent() {
                               </button>
                               <button
                                 onClick={() => revokeInvite.mutate({ id: inv.id })}
-                                className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                                disabled={revokeInvite.isPending}
+                                className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
                               >
                                 <Trash2 className="h-3 w-3" /> {t("team.revoke")}
                               </button>

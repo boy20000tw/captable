@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.22.0",
+    date: "2026-05-04",
+    type: "minor",
+    title: "QA Fixes — Medium Priority",
+    description: "表格手機端橫向捲動、OnboardingWizard 防閃爍 + 逾時處理、表單按鈕 pending 狀態、後端錯誤格式化、v1 頁面硬編碼字串全面 i18n 化。",
+  },
+  {
     version: "2.21.1",
     date: "2026-05-04",
     type: "patch",

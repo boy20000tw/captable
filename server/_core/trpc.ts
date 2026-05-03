@@ -7,6 +7,23 @@ import { type AdminRole, getAdminCapabilities, normalizeAdminRole } from "../../
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    // Sanitise raw DB / internal errors so they don't leak to the client.
+    // TRPCErrors with explicit messages (auth, validation, plan guard) pass through unchanged.
+    if (error.code === "INTERNAL_SERVER_ERROR") {
+      console.error("[tRPC] Internal error:", error.cause ?? error.message);
+      return {
+        ...shape,
+        message: "An unexpected error occurred. Please try again.",
+        data: { ...shape.data, stack: undefined },
+      };
+    }
+    // Strip stack traces in production for all error types
+    return {
+      ...shape,
+      data: { ...shape.data, stack: process.env.NODE_ENV === "production" ? undefined : shape.data.stack },
+    };
+  },
 });
 
 export const router = t.router;

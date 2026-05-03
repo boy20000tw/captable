@@ -329,7 +329,8 @@ function AdminTeamContent() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("team.cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-purple-600 text-white hover:bg-purple-700"
+              className="bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:pointer-events-none"
+              disabled={transferMut.isPending}
               onClick={() => transferConfirm && transferMut.mutate({ targetUserId: transferConfirm.userId })}
             >
               {t("team.confirmTransfer")}

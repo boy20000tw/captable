@@ -256,6 +256,7 @@ function Election83bContent() {
                           <Button
                             variant="ghost" size="sm"
                             onClick={() => { if (confirm(t("e83b.confirmDelete"))) deleteMut.mutate({ id: e.id }); }}
+                            disabled={deleteMut.isPending}
                           >
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>

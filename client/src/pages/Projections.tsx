@@ -420,43 +420,45 @@ function ProjectionTable({ rows }: { rows: YearlyPnL[] }) {
   const { t } = useTranslation("analysis");
   const ROW_DEFS = getRowDefs(t);
   return (
-    <table className="w-full text-sm min-w-[800px]">
-      <thead>
-        <tr className="border-b border-border">
-          <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide">
-            Line Item (hardcoded - no i18n key)
-          </th>
-          {rows.map((r) => (
-            <th
-              key={r.year}
-              className="text-right px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide"
-            >
-              {t("projections.year")} {r.year}
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm min-w-[800px]">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide">
+              Line Item (hardcoded - no i18n key)
             </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {ROW_DEFS.map((def) => (
-          <tr
-            key={def.key}
-            className={`border-b border-border/50 ${def.bold ? "bg-secondary/20" : ""}`}
-          >
-            <td className={`px-3 py-2 ${def.bold ? "font-semibold" : ""}`}>
-              {def.label}
-            </td>
             {rows.map((r) => (
-              <td
+              <th
                 key={r.year}
-                className={`text-right px-3 py-2 tabular-nums ${def.bold ? "font-semibold" : ""}`}
+                className="text-right px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide"
               >
-                {fmtCurrency(r[def.key] as number)}
-              </td>
+                {t("projections.year")} {r.year}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {ROW_DEFS.map((def) => (
+            <tr
+              key={def.key}
+              className={`border-b border-border/50 ${def.bold ? "bg-secondary/20" : ""}`}
+            >
+              <td className={`px-3 py-2 ${def.bold ? "font-semibold" : ""}`}>
+                {def.label}
+              </td>
+              {rows.map((r) => (
+                <td
+                  key={r.year}
+                  className={`text-right px-3 py-2 tabular-nums ${def.bold ? "font-semibold" : ""}`}
+                >
+                  {fmtCurrency(r[def.key] as number)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

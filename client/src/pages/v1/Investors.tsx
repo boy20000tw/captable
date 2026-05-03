@@ -188,7 +188,7 @@ function V1InvestorsContent() {
 
   function handleSubmit() {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error(t("investors.nameRequiredError"));
       return;
     }
     if (editId != null) {
@@ -225,7 +225,7 @@ function V1InvestorsContent() {
 
   function handleDelete(inv: NonNullable<typeof investors>[number], e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(t("investors.deleteConfirm", { name: inv.name }) || `Delete "${inv.name}"? This cannot be undone.`)) return;
+    if (!confirm(t("investors.confirmDelete", { name: inv.name }))) return;
     deleteMut.mutate({ id: inv.id });
   }
 
@@ -318,7 +318,7 @@ function V1InvestorsContent() {
         <CardContent>
           {isLoading ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              {t("common.loading") || "Loading..."}
+              {t("investors.loading")}
             </div>
           ) : isEmpty ? (
             <div className="py-12 text-center space-y-3">
@@ -336,68 +336,70 @@ function V1InvestorsContent() {
               {t("investors.noMatch") || "No investors match the current filters."}
             </div>
           ) : (
-            <Table className="min-w-[640px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("investors.name")}</TableHead>
-                  <TableHead>{t("investors.entityKind")}</TableHead>
-                  <TableHead>{t("investors.status")}</TableHead>
-                  <TableHead>{t("investors.email")}</TableHead>
-                  <TableHead>{t("investors.phone")}</TableHead>
-                  <TableHead>{t("investors.lastContact") || "Last Contact"}</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((inv) => (
-                  <TableRow key={inv.id} className="hover:bg-secondary/30">
-                    <TableCell className="font-medium">
-                      {inv.name}
-                      {inv.aka && inv.aka !== inv.name && (
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          ({inv.aka})
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>{entityBadge(inv.entityKind as EntityKind)}</TableCell>
-                    <TableCell>{statusBadge(inv.status as InvestorStatus, t)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {inv.email ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {inv.phone ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {inv.lastContactAt ? formatDate(inv.lastContactAt) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        {canEdit && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(e) => openEdit(inv, e)}
-                            title="Edit"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={(e) => handleDelete(inv, e)}
-                            title="Delete"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[640px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("investors.name")}</TableHead>
+                    <TableHead>{t("investors.entityKind")}</TableHead>
+                    <TableHead>{t("investors.status")}</TableHead>
+                    <TableHead>{t("investors.email")}</TableHead>
+                    <TableHead>{t("investors.phone")}</TableHead>
+                    <TableHead>{t("investors.lastContact") || "Last Contact"}</TableHead>
+                    <TableHead className="w-[100px]"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((inv) => (
+                    <TableRow key={inv.id} className="hover:bg-secondary/30">
+                      <TableCell className="font-medium">
+                        {inv.name}
+                        {inv.aka && inv.aka !== inv.name && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ({inv.aka})
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{entityBadge(inv.entityKind as EntityKind)}</TableCell>
+                      <TableCell>{statusBadge(inv.status as InvestorStatus, t)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {inv.email ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {inv.phone ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {inv.lastContactAt ? formatDate(inv.lastContactAt) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {canEdit && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => openEdit(inv, e)}
+                              title={t("investors.edit")}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => handleDelete(inv, e)}
+                              title={t("investors.delete")}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -530,14 +532,14 @@ function V1InvestorsContent() {
                 rows={3}
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Optional..."
+                placeholder={t("investors.optional")}
               />
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeDialog}>
-              {t("investors.cancel")}
+              {t("investors.cancelButton")}
             </Button>
             <Button
               onClick={handleSubmit}

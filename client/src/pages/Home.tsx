@@ -44,9 +44,14 @@ function DashboardContent() {
   const { formatAmount } = useCurrency();
   const { hasCompany, loading: authLoading } = useAuth();
   const [skippedOnboarding, setSkippedOnboarding] = useState(false);
+  // Once wizard is shown, keep it visible to prevent flicker during refresh()
+  const [wizardShown, setWizardShown] = useState(false);
 
   // Show onboarding wizard for brand-new users (no company yet)
-  const needsOnboarding = !skippedOnboarding && !authLoading && !hasCompany;
+  const shouldShowWizard = !skippedOnboarding && !authLoading && !hasCompany;
+  // Latch: once wizard appears, don't hide it mid-creation
+  if (shouldShowWizard && !wizardShown) setWizardShown(true);
+  const needsOnboarding = wizardShown && !skippedOnboarding;
 
   const capTable = trpc.v1.capTable.current.useQuery();
   const investors = trpc.v1.investors.list.useQuery();

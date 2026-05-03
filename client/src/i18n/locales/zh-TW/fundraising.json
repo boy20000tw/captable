@@ -109,6 +109,17 @@
   "investors.akaPlaceholder": "別名 / 簡稱",
   "investors.linkedinUrl": "LinkedIn 網址",
   "investors.linkedinPlaceholder": "https://linkedin.com/in/...",
+  "investors.loading": "載入中...",
+  "investors.nameRequiredError": "請輸入名稱",
+  "investors.confirmDelete": "確定刪除「{{name}}」？此操作無法復原。",
+  "investors.edit": "編輯",
+  "investors.delete": "刪除",
+  "investors.cancelButton": "取消",
+  "investors.optional": "選填...",
+
+  "roundDetail.confirmDelete": "確定刪除「{{name}}」的分配？此操作無法復原。",
+  "roundDetail.edit": "編輯",
+  "roundDetail.delete": "刪除",
 
   "instruments.addInstrument": "新增工具",
   "instruments.allInstruments": "所有金融工具",

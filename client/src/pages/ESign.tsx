@@ -715,7 +715,7 @@ function RequestsSection() {
                         </a>
                       )}
                       {canEdit && req.status === "draft" && (
-                        <button onClick={() => { if (confirm("Delete this signing request?")) deleteMut.mutate({ id: req.id }); }} className="p-1.5 text-destructive hover:text-destructive/80" title="Delete">
+                        <button onClick={() => { if (confirm("Delete this signing request?")) deleteMut.mutate({ id: req.id }); }} disabled={deleteMut.isPending} className="p-1.5 text-destructive hover:text-destructive/80 disabled:opacity-50 disabled:pointer-events-none" title="Delete">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}

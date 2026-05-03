@@ -109,6 +109,17 @@
   "investors.akaPlaceholder": "Alias / short name",
   "investors.linkedinUrl": "LinkedIn URL",
   "investors.linkedinPlaceholder": "https://linkedin.com/in/...",
+  "investors.loading": "Loading...",
+  "investors.nameRequiredError": "Name is required",
+  "investors.confirmDelete": "Delete \"{{name}}\"? This cannot be undone.",
+  "investors.edit": "Edit",
+  "investors.delete": "Delete",
+  "investors.cancelButton": "Cancel",
+  "investors.optional": "Optional...",
+
+  "roundDetail.confirmDelete": "Delete allocation for \"{{name}}\"? This cannot be undone.",
+  "roundDetail.edit": "Edit",
+  "roundDetail.delete": "Delete",
 
   "instruments.addInstrument": "Add Instrument",
   "instruments.allInstruments": "All Instruments",

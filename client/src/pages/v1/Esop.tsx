@@ -563,49 +563,51 @@ function EsopV1Content() {
               )}
             </div>
           ) : (
-            <Table className="min-w-[640px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("esop.poolName")}</TableHead>
-                  <TableHead className="text-right">{t("esop.totalShares")}</TableHead>
-                  <TableHead className="text-right">{t("esop.allocated")}</TableHead>
-                  <TableHead className="text-right">{t("esop.unallocated")}</TableHead>
-                  <TableHead>{t("esop.created")}</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(pools ?? []).map((p) => {
-                  const allocated = allocatedByPool.get(p.id) ?? 0;
-                  const unallocated = p.totalShares - allocated;
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell className="text-right">{formatNumber(p.totalShares)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(allocated)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(unallocated)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {p.createdAt ? formatDate(p.createdAt) : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          {canEdit && (
-                            <Button size="icon" variant="ghost" onClick={(e) => openPoolEdit(p, e)} title="Edit">
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <Button size="icon" variant="ghost" onClick={(e) => handlePoolDelete(p, e)} title="Delete">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[640px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("esop.poolName")}</TableHead>
+                    <TableHead className="text-right">{t("esop.totalShares")}</TableHead>
+                    <TableHead className="text-right">{t("esop.allocated")}</TableHead>
+                    <TableHead className="text-right">{t("esop.unallocated")}</TableHead>
+                    <TableHead>{t("esop.created")}</TableHead>
+                    <TableHead className="w-[100px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(pools ?? []).map((p) => {
+                    const allocated = allocatedByPool.get(p.id) ?? 0;
+                    const unallocated = p.totalShares - allocated;
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="text-right">{formatNumber(p.totalShares)}</TableCell>
+                        <TableCell className="text-right">{formatNumber(allocated)}</TableCell>
+                        <TableCell className="text-right">{formatNumber(unallocated)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {p.createdAt ? formatDate(p.createdAt) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            {canEdit && (
+                              <Button size="icon" variant="ghost" onClick={(e) => openPoolEdit(p, e)} title="Edit">
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button size="icon" variant="ghost" onClick={(e) => handlePoolDelete(p, e)} title="Delete">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -686,79 +688,80 @@ function EsopV1Content() {
               {t("esop.noGrantsFilter")}
             </div>
           ) : (
-            <Table className="min-w-[640px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("esop.grantee")}</TableHead>
-                  <TableHead>{t("esop.pool")}</TableHead>
-                  <TableHead>{t("esop.grantDate")}</TableHead>
-                  <TableHead className="text-right">{t("esop.granted")}</TableHead>
-                  <TableHead className="text-right">{t("esop.vested")}</TableHead>
-                  <TableHead className="text-right">{activeTab === "rsu" ? t("esop.delivered") : t("esop.exercised")}</TableHead>
-                  <TableHead>{t("esop.status")}</TableHead>
-                  <TableHead>{t("esop.vesting")}</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredGrants.map((g) => {
-                  const investor = investorMap.get(g.investorId);
-                  const pool = poolMap.get(g.poolId);
-                  const isExpanded = expandedGrantId === g.id;
-                  return (
-                    <React.Fragment key={g.id}>
-                    <TableRow
-                      className="cursor-pointer hover:bg-secondary/30"
-                      onClick={() => setExpandedGrantId(isExpanded ? null : g.id)}
-                    >
-                      <TableCell className="font-medium">
-                        {investor?.name ?? `Investor #${g.investorId}`}
-                      </TableCell>
-                      <TableCell>{pool?.name ?? `Pool #${g.poolId}`}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {g.grantDate ? formatDate(g.grantDate) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right">{formatNumber(g.sharesGranted)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(g.sharesVested)}</TableCell>
-                      <TableCell className="text-right">
-                        {activeTab === "rsu"
-                          ? formatNumber((g as any).sharesSettled ?? 0)
-                          : formatNumber(g.sharesExercised)}
-                      </TableCell>
-                      <TableCell>{grantStatusBadge(g.status as GrantStatus, t)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          {t("esop.cliffVesting", { cliff: g.vestingCliffMonths ?? 0, total: g.vestingTotalMonths ?? 0 })}
-                          {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          {canEdit && g.status !== "cancelled" && g.status !== "exercised" && g.status !== "settled" && (
-                            activeTab === "rsu" ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const settleable = g.sharesGranted - ((g as any).sharesSettled ?? 0) - g.sharesCancelled;
-                                  setSettleShares(String(settleable));
-                                  setSettleFmv((g as any).fairMarketValue ?? "");
-                                  setSettleDialogGrant(g);
-                                }}
-                                title="Settle"
-                                className="text-indigo-600 hover:text-indigo-700"
-                              >
-                                <Banknote className="h-3.5 w-3.5" />
-                              </Button>
-                            ) : (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const exercisable = g.sharesGranted - g.sharesExercised - g.sharesCancelled;
-                                  setExerciseShares(String(exercisable));
+            <div className="overflow-x-auto">
+              <Table className="min-w-[640px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("esop.grantee")}</TableHead>
+                    <TableHead>{t("esop.pool")}</TableHead>
+                    <TableHead>{t("esop.grantDate")}</TableHead>
+                    <TableHead className="text-right">{t("esop.granted")}</TableHead>
+                    <TableHead className="text-right">{t("esop.vested")}</TableHead>
+                    <TableHead className="text-right">{activeTab === "rsu" ? t("esop.delivered") : t("esop.exercised")}</TableHead>
+                    <TableHead>{t("esop.status")}</TableHead>
+                    <TableHead>{t("esop.vesting")}</TableHead>
+                    <TableHead className="w-[100px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredGrants.map((g) => {
+                    const investor = investorMap.get(g.investorId);
+                    const pool = poolMap.get(g.poolId);
+                    const isExpanded = expandedGrantId === g.id;
+                    return (
+                      <React.Fragment key={g.id}>
+                      <TableRow
+                        className="cursor-pointer hover:bg-secondary/30"
+                        onClick={() => setExpandedGrantId(isExpanded ? null : g.id)}
+                      >
+                        <TableCell className="font-medium">
+                          {investor?.name ?? `Investor #${g.investorId}`}
+                        </TableCell>
+                        <TableCell>{pool?.name ?? `Pool #${g.poolId}`}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {g.grantDate ? formatDate(g.grantDate) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">{formatNumber(g.sharesGranted)}</TableCell>
+                        <TableCell className="text-right">{formatNumber(g.sharesVested)}</TableCell>
+                        <TableCell className="text-right">
+                          {activeTab === "rsu"
+                            ? formatNumber((g as any).sharesSettled ?? 0)
+                            : formatNumber(g.sharesExercised)}
+                        </TableCell>
+                        <TableCell>{grantStatusBadge(g.status as GrantStatus, t)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            {t("esop.cliffVesting", { cliff: g.vestingCliffMonths ?? 0, total: g.vestingTotalMonths ?? 0 })}
+                            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            {canEdit && g.status !== "cancelled" && g.status !== "exercised" && g.status !== "settled" && (
+                              activeTab === "rsu" ? (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const settleable = g.sharesGranted - ((g as any).sharesSettled ?? 0) - g.sharesCancelled;
+                                    setSettleShares(String(settleable));
+                                    setSettleFmv((g as any).fairMarketValue ?? "");
+                                    setSettleDialogGrant(g);
+                                  }}
+                                  title="Settle"
+                                  className="text-indigo-600 hover:text-indigo-700"
+                                >
+                                  <Banknote className="h-3.5 w-3.5" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const exercisable = g.sharesGranted - g.sharesExercised - g.sharesCancelled;
+                                    setExerciseShares(String(exercisable));
                                   setExerciseDialogGrant(g);
                                 }}
                                 title="Exercise"
@@ -800,6 +803,7 @@ function EsopV1Content() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -250,10 +250,10 @@ function V1ShareRegisterContent() {
           <div className="flex flex-wrap gap-3 items-center">
             <Select value={investorFilter} onValueChange={setInvestorFilter}>
               <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Filter by investor" />
+                <SelectValue placeholder={t("register.filterByInvestor")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All investors</SelectItem>
+                <SelectItem value="all">{t("register.allInvestors")}</SelectItem>
                 {(investors ?? []).map((inv) => (
                   <SelectItem key={inv.id} value={String(inv.id)}>
                     {inv.name}
@@ -276,7 +276,7 @@ function V1ShareRegisterContent() {
             <CardContent>
               {entriesLoading ? (
                 <div className="py-12 text-center text-muted-foreground text-sm">
-                  Loading...
+                  {t("register.loading")}
                 </div>
               ) : filteredEntries.length === 0 ? (
                 <div className="py-12 text-center space-y-2">
@@ -289,122 +289,124 @@ function V1ShareRegisterContent() {
                   </p>
                 </div>
               ) : (
-                <Table className="min-w-[640px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("register.date")}</TableHead>
-                      <TableHead>{t("register.investor")}</TableHead>
-                      <TableHead>{t("register.status")}</TableHead>
-                      <TableHead>{t("register.shareClass")}</TableHead>
-                      <TableHead className="text-right">{t("register.shares")}</TableHead>
-                      <TableHead className="text-right">{t("register.priceShare")}</TableHead>
-                      <TableHead className="text-right">{t("register.totalValue")}</TableHead>
-                      <TableHead>{t("register.registerEntry")}</TableHead>
-                      {canEdit && <TableHead className="w-[80px]"></TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredEntries.map((r) => {
-                      const sharesNum = Number(r.shares ?? 0);
-                      const signClass =
-                        sharesNum > 0
-                          ? "text-green-700"
-                          : sharesNum < 0
-                          ? "text-red-700"
-                          : "text-muted-foreground";
-                      return (
-                        <TableRow
-                          key={r.id}
-                          className="hover:bg-secondary/30"
-                        >
-                          <TableCell className="text-muted-foreground">
-                            {formatDate(r.effectiveDate)}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-1">
-                              <span>{investorName(r.investorId)}</span>
-                              {canEdit && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                                  onClick={() => setEditingInvestorId(r.investorId)}
-                                  title="Edit investor"
-                                >
-                                  <UserPen className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {eventTypeBadge(r.eventType as RegisterEventType)}
-                          </TableCell>
-                          <TableCell className="capitalize ">
-                            {String(r.shareClass).replace(/_/g, " ")}
-                          </TableCell>
-                          <TableCell
-                            className={`text-right tabular-nums ${signClass}`}
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[640px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("register.date")}</TableHead>
+                        <TableHead>{t("register.investor")}</TableHead>
+                        <TableHead>{t("register.status")}</TableHead>
+                        <TableHead>{t("register.shareClass")}</TableHead>
+                        <TableHead className="text-right">{t("register.shares")}</TableHead>
+                        <TableHead className="text-right">{t("register.priceShare")}</TableHead>
+                        <TableHead className="text-right">{t("register.totalValue")}</TableHead>
+                        <TableHead>{t("register.registerEntry")}</TableHead>
+                        {canEdit && <TableHead className="w-[80px]"></TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredEntries.map((r) => {
+                        const sharesNum = Number(r.shares ?? 0);
+                        const signClass =
+                          sharesNum > 0
+                            ? "text-green-700"
+                            : sharesNum < 0
+                            ? "text-red-700"
+                            : "text-muted-foreground";
+                        return (
+                          <TableRow
+                            key={r.id}
+                            className="hover:bg-secondary/30"
                           >
-                            {sharesNum > 0 ? "+" : ""}
-                            {sharesNum.toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums font-mono">
-                            {formatPrice(r.pricePerShare)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {formatAmount(r.totalAmount)}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {r.fundingRoundId != null ? (
-                              <span>Round: {roundName(r.fundingRoundId)}</span>
-                            ) : r.allocationId != null ? (
-                              <span>Alloc #{r.allocationId}</span>
-                            ) : (
-                              "—"
-                            )}
-                          </TableCell>
-                          {canEdit && (
-                            <TableCell>
-                              <div className="flex items-center gap-0.5">
-                                {(r.eventType === "issuance" || r.eventType === "esop_exercise") && sharesNum > 0 && (
+                            <TableCell className="text-muted-foreground">
+                              {formatDate(r.effectiveDate)}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-1">
+                                <span>{investorName(r.investorId)}</span>
+                                {canEdit && (
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    onClick={() => {
-                                      const params = new URLSearchParams({
-                                        companyId: String(getActiveCompanyId()),
-                                        investorId: String(r.investorId),
-                                        shareClass: String(r.shareClass),
-                                        shares: String(Math.abs(sharesNum)),
-                                        effectiveDate: r.effectiveDate,
-                                        registerEntryId: String(r.id),
-                                        ...(r.pricePerShare ? { pricePerShare: r.pricePerShare } : {}),
-                                        ...(r.currency ? { currency: r.currency } : {}),
-                                      });
-                                      window.open(`/api/export/certificate.pdf?${params}`, "_blank");
-                                    }}
-                                    title="Download share certificate"
-                                    className="text-amber-600 hover:text-amber-700"
+                                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                    onClick={() => setEditingInvestorId(r.investorId)}
+                                    title={t("register.editInvestor")}
                                   >
-                                    <Award className="h-3.5 w-3.5" />
+                                    <UserPen className="h-3.5 w-3.5" />
                                   </Button>
                                 )}
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => setEditingEntryId(r.id)}
-                                  title="Edit register entry"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </Button>
                               </div>
                             </TableCell>
-                          )}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                            <TableCell>
+                              {eventTypeBadge(r.eventType as RegisterEventType)}
+                            </TableCell>
+                            <TableCell className="capitalize ">
+                              {String(r.shareClass).replace(/_/g, " ")}
+                            </TableCell>
+                            <TableCell
+                              className={`text-right tabular-nums ${signClass}`}
+                            >
+                              {sharesNum > 0 ? "+" : ""}
+                              {sharesNum.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums font-mono">
+                              {formatPrice(r.pricePerShare)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {formatAmount(r.totalAmount)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {r.fundingRoundId != null ? (
+                                <span>Round: {roundName(r.fundingRoundId)}</span>
+                              ) : r.allocationId != null ? (
+                                <span>Alloc #{r.allocationId}</span>
+                              ) : (
+                                "—"
+                              )}
+                            </TableCell>
+                            {canEdit && (
+                              <TableCell>
+                                <div className="flex items-center gap-0.5">
+                                  {(r.eventType === "issuance" || r.eventType === "esop_exercise") && sharesNum > 0 && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        const params = new URLSearchParams({
+                                          companyId: String(getActiveCompanyId()),
+                                          investorId: String(r.investorId),
+                                          shareClass: String(r.shareClass),
+                                          shares: String(Math.abs(sharesNum)),
+                                          effectiveDate: r.effectiveDate,
+                                          registerEntryId: String(r.id),
+                                          ...(r.pricePerShare ? { pricePerShare: r.pricePerShare } : {}),
+                                          ...(r.currency ? { currency: r.currency } : {}),
+                                        });
+                                        window.open(`/api/export/certificate.pdf?${params}`, "_blank");
+                                      }}
+                                      title={t("register.downloadCert")}
+                                      className="text-amber-600 hover:text-amber-700"
+                                    >
+                                      <Award className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => setEditingEntryId(r.id)}
+                                    title={t("register.editEntry")}
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -415,10 +417,10 @@ function V1ShareRegisterContent() {
           <div className="flex flex-wrap gap-3 items-center">
             <Select value={roundFilter} onValueChange={setRoundFilter}>
               <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Filter by round" />
+                <SelectValue placeholder={t("register.filterByRound")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All rounds</SelectItem>
+                <SelectItem value="all">{t("register.allRounds")}</SelectItem>
                 {(rounds ?? []).map((r) => (
                   <SelectItem key={r.id} value={String(r.id)}>
                     {r.name}
@@ -428,10 +430,10 @@ function V1ShareRegisterContent() {
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[170px]">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={t("register.filterByStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">{t("register.allStatuses")}</SelectItem>
                 {ALLOCATION_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}
@@ -453,7 +455,7 @@ function V1ShareRegisterContent() {
             <CardContent>
               {allocLoading ? (
                 <div className="py-12 text-center text-muted-foreground text-sm">
-                  Loading...
+                  {t("register.loading")}
                 </div>
               ) : filteredAllocations.length === 0 ? (
                 <div className="py-12 text-center space-y-2">
@@ -465,75 +467,77 @@ function V1ShareRegisterContent() {
                   </p>
                 </div>
               ) : (
-                <Table className="min-w-[640px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("register.roundCol")}</TableHead>
-                      <TableHead>{t("register.investor")}</TableHead>
-                      <TableHead>{t("register.shareClass")}</TableHead>
-                      <TableHead className="text-right">{t("register.amountCol")}</TableHead>
-                      <TableHead className="text-right">{t("register.shares")}</TableHead>
-                      <TableHead className="text-right">{t("register.priceShare")}</TableHead>
-                      <TableHead>{t("register.status")}</TableHead>
-                      <TableHead>{t("register.updatedCol")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAllocations
-                      .slice()
-                      .sort(
-                        (a, b) =>
-                          statusIndex(b.status) - statusIndex(a.status) ||
-                          a.id - b.id
-                      )
-                      .map((a) => (
-                        <TableRow
-                          key={a.id}
-                          className="cursor-pointer hover:bg-secondary/30"
-                          onClick={() => openEdit(a)}
-                        >
-                          <TableCell className="text-muted-foreground">
-                            {roundName(a.fundingRoundId)}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {investorName(a.investorId)}
-                          </TableCell>
-                          <TableCell className="capitalize ">
-                            {a.shareClass.replace(/_/g, " ")}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {a.amount
-                              ? `${a.currency} ${Number(
-                                  a.amount
-                                ).toLocaleString()}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {a.sharesAllocated != null
-                              ? a.sharesAllocated.toLocaleString()
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums font-mono">
-                            {a.pricePerShare
-                              ? `${a.currency} ${Number(
-                                  a.pricePerShare
-                                ).toLocaleString(undefined, {
-                                  maximumFractionDigits: 4,
-                                })}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell>
-                            {allocationStatusBadge(a.status)}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {(a as any).updatedAt
-                              ? formatDate((a as any).updatedAt)
-                              : "—"}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[640px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("register.roundCol")}</TableHead>
+                        <TableHead>{t("register.investor")}</TableHead>
+                        <TableHead>{t("register.shareClass")}</TableHead>
+                        <TableHead className="text-right">{t("register.amountCol")}</TableHead>
+                        <TableHead className="text-right">{t("register.shares")}</TableHead>
+                        <TableHead className="text-right">{t("register.priceShare")}</TableHead>
+                        <TableHead>{t("register.status")}</TableHead>
+                        <TableHead>{t("register.updatedCol")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAllocations
+                        .slice()
+                        .sort(
+                          (a, b) =>
+                            statusIndex(b.status) - statusIndex(a.status) ||
+                            a.id - b.id
+                        )
+                        .map((a) => (
+                          <TableRow
+                            key={a.id}
+                            className="cursor-pointer hover:bg-secondary/30"
+                            onClick={() => openEdit(a)}
+                          >
+                            <TableCell className="text-muted-foreground">
+                              {roundName(a.fundingRoundId)}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {investorName(a.investorId)}
+                            </TableCell>
+                            <TableCell className="capitalize ">
+                              {a.shareClass.replace(/_/g, " ")}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {a.amount
+                                ? `${a.currency} ${Number(
+                                    a.amount
+                                  ).toLocaleString()}`
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {a.sharesAllocated != null
+                                ? a.sharesAllocated.toLocaleString()
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums font-mono">
+                              {a.pricePerShare
+                                ? `${a.currency} ${Number(
+                                    a.pricePerShare
+                                  ).toLocaleString(undefined, {
+                                    maximumFractionDigits: 4,
+                                  })}`
+                                : "—"}
+                            </TableCell>
+                            <TableCell>
+                              {allocationStatusBadge(a.status)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {(a as any).updatedAt
+                                ? formatDate((a as any).updatedAt)
+                                : "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -687,7 +691,7 @@ function InvestorEditDialog({
               <Input id="inv-name" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="inv-aka">Alias / English Name</Label>
+              <Label htmlFor="inv-aka">{t("register.alias")}</Label>
               <Input id="inv-aka" value={aka} onChange={(e) => setAka(e.target.value)} />
             </div>
           </div>
@@ -700,8 +704,8 @@ function InvestorEditDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="individual">Individual</SelectItem>
-                  <SelectItem value="entity">Entity</SelectItem>
+                  <SelectItem value="individual">{t("register.individual")}</SelectItem>
+                  <SelectItem value="entity">{t("register.entity")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -724,7 +728,7 @@ function InvestorEditDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="inv-website">Website</Label>
+              <Label htmlFor="inv-website">{t("register.website")}</Label>
               <Input id="inv-website" value={website} onChange={(e) => setWebsite(e.target.value)} />
             </div>
             <div className="space-y-1.5">
@@ -734,16 +738,16 @@ function InvestorEditDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="inv-notes">Notes</Label>
+            <Label htmlFor="inv-notes">{t("register.notes")}</Label>
             <Textarea id="inv-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t("register.cancel")}
             </Button>
             <Button type="submit" disabled={saving || !name.trim()}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("register.saving") : t("register.save")}
             </Button>
           </DialogFooter>
         </form>
@@ -870,7 +874,7 @@ function RegisterWriteDialog({
               <Label>{isTransfer ? t("register.fromInvestor") + " *" : t("register.investor") + " *"}</Label>
               <Select value={investorId} onValueChange={setInvestorId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select investor" />
+                  <SelectValue placeholder={t("register.selectInvestor")} />
                 </SelectTrigger>
                 <SelectContent>
                   {investors.map((inv) => (
@@ -886,7 +890,7 @@ function RegisterWriteDialog({
                 <Label>{t("register.toInvestor")} *</Label>
                 <Select value={toInvestorId} onValueChange={setToInvestorId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select investor" />
+                    <SelectValue placeholder={t("register.selectInvestor")} />
                   </SelectTrigger>
                   <SelectContent>
                     {investors
@@ -904,7 +908,7 @@ function RegisterWriteDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>{t("register.shareClass")} *</Label>
+              <Label>{t("register.shareClassRequired")}</Label>
               <Select value={shareClass} onValueChange={setShareClass}>
                 <SelectTrigger>
                   <SelectValue />
@@ -922,7 +926,7 @@ function RegisterWriteDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Shares *</Label>
+              <Label>{t("register.sharesRequired")}</Label>
               <Input
                 type="number"
                 min={1}
@@ -944,10 +948,10 @@ function RegisterWriteDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Funding Round</Label>
+              <Label>{t("register.fundingRound")}</Label>
               <Select value={roundId} onValueChange={setRoundId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Optional" />
+                  <SelectValue placeholder={t("register.optional")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
@@ -963,18 +967,18 @@ function RegisterWriteDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Price / Share</Label>
+              <Label>{t("register.pricePerShare")}</Label>
               <Input
                 type="number"
                 step="0.0001"
                 min={0}
                 value={pricePerShare}
                 onChange={(e) => setPricePerShare(e.target.value)}
-                placeholder="Optional"
+                placeholder={t("register.optional")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Currency</Label>
+              <Label>{t("register.currency")}</Label>
               <Select value={currency} onValueChange={setCurrency}>
                 <SelectTrigger>
                   <SelectValue />
@@ -988,19 +992,19 @@ function RegisterWriteDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Notes</Label>
+            <Label>{t("register.notes")}</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t("register.cancel")}
             </Button>
             <Button
               type="submit"
               disabled={saving || !investorId || !shares || (isTransfer && !toInvestorId)}
             >
-              {saving ? "Recording..." : isTransfer ? "Transfer" : "Issue Shares"}
+              {saving ? t("register.recording") : isTransfer ? t("register.transfer") : t("register.issueShares")}
             </Button>
           </DialogFooter>
         </form>
@@ -1039,6 +1043,7 @@ function EntryEditDialog({
   onSave: (id: number, data: EntryUpdateData) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation("equity");
   const entry = entries.find((e) => e.id === entryId);
   const { data: shareClassesDynEdit } = trpc.shareClasses.list.useQuery();
   const SHARE_CLASSES = shareClassesDynEdit && shareClassesDynEdit.length > 0
@@ -1073,16 +1078,16 @@ function EntryEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Register Entry</DialogTitle>
+          <DialogTitle>{t("register.editEntry")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Effective Date *</Label>
+              <Label>{t("register.effectiveDateRequired")}</Label>
               <Input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
-              <Label>Event Type *</Label>
+              <Label>{t("register.eventTypeRequired")}</Label>
               <Select value={eventType} onValueChange={setEventType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1096,7 +1101,7 @@ function EntryEditDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Share Class *</Label>
+              <Label>{t("register.shareClassRequired")}</Label>
               <Select value={shareClass} onValueChange={setShareClass}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1110,18 +1115,18 @@ function EntryEditDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Shares *</Label>
+              <Label>{t("register.sharesRequired")}</Label>
               <Input type="number" min={1} value={shares} onChange={(e) => setShares(e.target.value)} required />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Price / Share</Label>
-              <Input type="number" step="0.0001" min={0} value={pricePerShare} onChange={(e) => setPricePerShare(e.target.value)} placeholder="Optional" />
+              <Label>{t("register.pricePerShare")}</Label>
+              <Input type="number" step="0.0001" min={0} value={pricePerShare} onChange={(e) => setPricePerShare(e.target.value)} placeholder={t("register.optional")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Total Amount</Label>
+              <Label>{t("register.totalAmount")}</Label>
               <Input
                 type="text"
                 readOnly
@@ -1132,14 +1137,14 @@ function EntryEditDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Notes</Label>
+            <Label>{t("register.notes")}</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("register.cancel")}</Button>
             <Button type="submit" disabled={saving || !shares}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("register.saving") : t("register.save")}
             </Button>
           </DialogFooter>
         </form>

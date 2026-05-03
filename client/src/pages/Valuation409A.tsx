@@ -249,6 +249,7 @@ function Valuation409AContent() {
                           <Button
                             variant="ghost" size="sm"
                             onClick={() => { if (confirm(t("v409a.confirmDelete"))) deleteMut.mutate({ id: v.id }); }}
+                            disabled={deleteMut.isPending}
                           >
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>

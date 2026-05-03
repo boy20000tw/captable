@@ -206,7 +206,7 @@ function V1RoundDetailContent() {
   function handleDelete(a: AllocationRow, e: React.MouseEvent) {
     e.stopPropagation();
     const name = investorName(a.investorId);
-    if (!confirm(`Delete allocation for "${name}"? This cannot be undone.`)) return;
+    if (!confirm(t("roundDetail.confirmDelete", { name }))) return;
     deleteMut.mutate({ id: a.id });
   }
 
@@ -331,95 +331,97 @@ function V1RoundDetailContent() {
               )}
             </div>
           ) : (
-            <Table className="min-w-[640px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("roundDetail.investor")}</TableHead>
-                  <TableHead>{t("roundDetail.shareClass") || "Share Class"}</TableHead>
-                  <TableHead className="text-right">{t("roundDetail.shares")}</TableHead>
-                  <TableHead className="text-right">{t("roundDetail.pricePerShare")}</TableHead>
-                  <TableHead className="text-right">{t("roundDetail.amount") || "Amount"}</TableHead>
-                  <TableHead>{t("roundDetail.status")}</TableHead>
-                  <TableHead className="w-[180px] text-right">{t("roundDetail.actions") || "Actions"}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {allocs.map((a) => {
-                  const isIssued = a.status === "issued";
-                  const isTerminal = isIssued;
-                  return (
-                    <TableRow
-                      key={a.id}
-                      className="cursor-pointer hover:bg-secondary/30"
-                      onClick={() => openEdit(a)}
-                    >
-                      <TableCell className="font-medium">
-                        {investorName(a.investorId)}
-                      </TableCell>
-                      <TableCell className="capitalize text-xs">
-                        {a.shareClass.replace(/_/g, " ")}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {a.sharesAllocated != null
-                          ? a.sharesAllocated.toLocaleString()
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-xs font-mono">
-                        {a.pricePerShare
-                          ? `${a.currency} ${Number(a.pricePerShare).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {a.amount
-                          ? `${a.currency} ${Number(a.amount).toLocaleString()}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <StatusStepper status={a.status} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          {canEdit && !isTerminal && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => handleAdvance(a, e)}
-                              disabled={advanceMut.isPending}
-                              title={t("roundDetail.advanceTooltip") || "Advance to next status"}
-                            >
-                              {t("roundDetail.advance") || "Advance"}
-                            </Button>
-                          )}
-                          {canEdit && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEdit(a);
-                              }}
-                              title="Edit"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {canDelete && !isIssued && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={(e) => handleDelete(a, e)}
-                              title="Delete"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[640px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("roundDetail.investor")}</TableHead>
+                    <TableHead>{t("roundDetail.shareClass") || "Share Class"}</TableHead>
+                    <TableHead className="text-right">{t("roundDetail.shares")}</TableHead>
+                    <TableHead className="text-right">{t("roundDetail.pricePerShare")}</TableHead>
+                    <TableHead className="text-right">{t("roundDetail.amount") || "Amount"}</TableHead>
+                    <TableHead>{t("roundDetail.status")}</TableHead>
+                    <TableHead className="w-[180px] text-right">{t("roundDetail.actions") || "Actions"}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allocs.map((a) => {
+                    const isIssued = a.status === "issued";
+                    const isTerminal = isIssued;
+                    return (
+                      <TableRow
+                        key={a.id}
+                        className="cursor-pointer hover:bg-secondary/30"
+                        onClick={() => openEdit(a)}
+                      >
+                        <TableCell className="font-medium">
+                          {investorName(a.investorId)}
+                        </TableCell>
+                        <TableCell className="capitalize text-xs">
+                          {a.shareClass.replace(/_/g, " ")}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {a.sharesAllocated != null
+                            ? a.sharesAllocated.toLocaleString()
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-xs font-mono">
+                          {a.pricePerShare
+                            ? `${a.currency} ${Number(a.pricePerShare).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {a.amount
+                            ? `${a.currency} ${Number(a.amount).toLocaleString()}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <StatusStepper status={a.status} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            {canEdit && !isTerminal && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => handleAdvance(a, e)}
+                                disabled={advanceMut.isPending}
+                                title={t("roundDetail.advanceTooltip") || "Advance to next status"}
+                              >
+                                {t("roundDetail.advance") || "Advance"}
+                              </Button>
+                            )}
+                            {canEdit && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEdit(a);
+                                }}
+                                title={t("roundDetail.edit")}
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {canDelete && !isIssued && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={(e) => handleDelete(a, e)}
+                                title={t("roundDetail.delete")}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
