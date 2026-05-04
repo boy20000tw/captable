@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.22.2",
+    date: "2026-05-04",
+    type: "patch",
+    title: "QA Round 2 Fixes",
+    description: "修正 Home.tsx setState-during-render（改用 useEffect）、Rounds 表單新增財務欄位驗證、ShareRegister toast 錯誤訊息加上前綴、Esop.tsx 6 處 title 屬性 i18n 化、ShareRegister 殘留英文全部替換為 t() 呼叫。",
+  },
+  {
     version: "2.22.1",
     date: "2026-05-04",
     type: "patch",

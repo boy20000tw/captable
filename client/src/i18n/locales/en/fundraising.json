@@ -111,6 +111,7 @@
   "investors.linkedinPlaceholder": "https://linkedin.com/in/...",
   "investors.loading": "Loading...",
   "investors.nameRequiredError": "Name is required",
+  "rounds.invalidNumber": "{{field}} must be a valid non-negative number",
   "investors.confirmDelete": "Delete \"{{name}}\"? This cannot be undone.",
   "investors.edit": "Edit",
   "investors.delete": "Delete",

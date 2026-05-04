@@ -134,10 +134,10 @@ function V1ShareRegisterContent() {
     onSuccess: () => {
       utils.v1.investors.list.invalidate();
       utils.v1.capTable.current.invalidate();
-      toast.success("Investor updated");
+      toast.success(t("register.investorUpdated"));
       setEditingInvestorId(null);
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(`${t("register.updateFailed")}: ${err.message}`),
   });
 
   const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -148,10 +148,10 @@ function V1ShareRegisterContent() {
     onSuccess: () => {
       utils.v1.register.list.invalidate();
       utils.v1.capTable.current.invalidate();
-      toast.success("Entry updated");
+      toast.success(t("register.entryUpdated"));
       setEditingEntryId(null);
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(`${t("register.updateFailed")}: ${err.message}`),
   });
 
   const writeRegister = trpc.v1.register.write.useMutation({
@@ -159,12 +159,12 @@ function V1ShareRegisterContent() {
       utils.v1.register.list.invalidate();
       utils.v1.capTable.current.invalidate();
       utils.v1.snapshots.list.invalidate();
-      const verb = variables.eventType === "issuance" ? "Issuance" : "Transfer";
-      toast.success(`${verb} recorded successfully`);
+      const verb = variables.eventType === "issuance" ? t("register.issuance") : t("register.transferLabel");
+      toast.success(`${verb} ${t("register.recordedSuccess")}`);
       setShowTransferDialog(false);
       setShowIssuanceDialog(false);
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(`${t("register.updateFailed")}: ${err.message}`),
   });
 
   const investorName = useMemo(() => {
@@ -267,10 +267,7 @@ function V1ShareRegisterContent() {
             <CardHeader>
               <CardTitle>{t("register.tabEntries")}</CardTitle>
               <CardDescription>
-                {filteredEntries.length} entr
-                {filteredEntries.length === 1 ? "y" : "ies"} · read-only, append-only.
-                Entries with no Round / Price are legacy founder issuances migrated from
-                the pre-V1 share_transactions table.
+                {t("register.entryCount", { count: filteredEntries.length })}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -284,8 +281,7 @@ function V1ShareRegisterContent() {
                     {t("register.emptyEntries")}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Entries are written when an allocation advances to{" "}
-                    <strong>issued</strong>.
+                    {t("register.emptyEntriesHint")}
                   </p>
                 </div>
               ) : (
@@ -447,9 +443,7 @@ function V1ShareRegisterContent() {
             <CardHeader>
               <CardTitle>{t("register.tabAllocations")}</CardTitle>
               <CardDescription>
-                {filteredAllocations.length} allocation
-                {filteredAllocations.length === 1 ? "" : "s"} · click a row to
-                edit
+                {t("register.allocationCount", { count: filteredAllocations.length })}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -463,7 +457,7 @@ function V1ShareRegisterContent() {
                     {t("register.emptyAllocations")}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Create allocations from the Funding Round detail page.
+                    {t("register.emptyAllocationsHint")}
                   </p>
                 </div>
               ) : (
@@ -939,7 +933,7 @@ function RegisterWriteDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Effective Date *</Label>
+              <Label>{t("register.effectiveDateRequired")}</Label>
               <Input
                 type="date"
                 value={effectiveDate}
@@ -954,7 +948,7 @@ function RegisterWriteDialog({
                   <SelectValue placeholder={t("register.optional")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{t("register.none")}</SelectItem>
                   {rounds.map((r) => (
                     <SelectItem key={r.id} value={String(r.id)}>
                       {r.name}

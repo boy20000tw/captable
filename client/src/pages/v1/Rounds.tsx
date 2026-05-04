@@ -164,6 +164,20 @@ function V1RoundsContent() {
       toast.error(t("rounds.nameRequiredError"));
       return;
     }
+    // Validate financial fields are non-negative numbers when provided
+    const numericFields = [
+      { key: "preMoneyValuationNtd", label: t("rounds.preMoney") },
+      { key: "postMoneyValuationNtd", label: t("rounds.postMoney") },
+      { key: "pricePerShareNtd", label: t("rounds.pricePerShare") },
+      { key: "moneyRaisedNtd", label: t("rounds.raised") },
+    ] as const;
+    for (const { key, label } of numericFields) {
+      const val = form[key];
+      if (val && (isNaN(Number(val)) || Number(val) < 0)) {
+        toast.error(t("rounds.invalidNumber", { field: label }));
+        return;
+      }
+    }
     const payload = {
       name: form.name.trim(),
       roundDate: form.roundDate || undefined,

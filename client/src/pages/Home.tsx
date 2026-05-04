@@ -14,7 +14,7 @@ import {
   Building2, ChevronRight, Lightbulb, Upload,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import OnboardingWizard from "@/components/OnboardingWizard";
 
@@ -57,7 +57,9 @@ function DashboardContent() {
   // Show onboarding wizard for brand-new users (no company yet)
   const shouldShowWizard = !skippedOnboarding && !authLoading && !hasCompany;
   // Latch: once wizard appears, don't hide it mid-creation
-  if (shouldShowWizard && !wizardShown) setWizardShown(true);
+  useEffect(() => {
+    if (shouldShowWizard && !wizardShown) setWizardShown(true);
+  }, [shouldShowWizard, wizardShown]);
   const needsOnboarding = wizardShown && !skippedOnboarding;
 
   const capTable = trpc.v1.capTable.current.useQuery();

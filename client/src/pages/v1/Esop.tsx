@@ -596,12 +596,12 @@ function EsopV1Content() {
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
                             {canEdit && (
-                              <Button size="icon" variant="ghost" onClick={(e) => openPoolEdit(p, e)} title="Edit">
+                              <Button size="icon" variant="ghost" onClick={(e) => openPoolEdit(p, e)} title={t("esop.edit")}>
                                 <Edit2 className="h-3.5 w-3.5" />
                               </Button>
                             )}
                             {canDelete && (
-                              <Button size="icon" variant="ghost" onClick={(e) => handlePoolDelete(p, e)} title="Delete">
+                              <Button size="icon" variant="ghost" onClick={(e) => handlePoolDelete(p, e)} title={t("esop.delete")}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             )}
@@ -754,7 +754,7 @@ function EsopV1Content() {
                                     setSettleFmv((g as any).fairMarketValue ?? "");
                                     setSettleDialogGrant(g);
                                   }}
-                                  title="Settle"
+                                  title={t("esop.settle")}
                                   className="text-indigo-600 hover:text-indigo-700"
                                 >
                                   <Banknote className="h-3.5 w-3.5" />
@@ -769,7 +769,7 @@ function EsopV1Content() {
                                     setExerciseShares(String(exercisable));
                                   setExerciseDialogGrant(g);
                                 }}
-                                title="Exercise"
+                                title={t("esop.exercise")}
                                 className="text-green-600 hover:text-green-700"
                               >
                                 <Play className="h-3.5 w-3.5" />
@@ -781,13 +781,13 @@ function EsopV1Content() {
                               size="icon"
                               variant="ghost"
                               onClick={(e) => { e.stopPropagation(); openGrantEdit(g); }}
-                              title="Edit"
+                              title={t("esop.edit")}
                             >
                               <Edit2 className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           {canDelete && (
-                            <Button size="icon" variant="ghost" onClick={(e) => handleGrantDelete(g, e)} title="Delete">
+                            <Button size="icon" variant="ghost" onClick={(e) => handleGrantDelete(g, e)} title={t("esop.delete")}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           )}
