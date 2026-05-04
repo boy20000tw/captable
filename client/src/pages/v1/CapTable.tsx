@@ -103,7 +103,7 @@ function V1CapTableContent() {
             </label>
             <Switch id="esop-toggle" checked={includeEsop} onCheckedChange={setIncludeEsop} />
           </div>
-          {data && data.holdings.length > 0 && (
+          {!isLoading && data && data.holdings.length > 0 && (
             <div className="flex items-center gap-1.5">
               <Button
                 variant="outline" size="sm"
@@ -197,7 +197,7 @@ function V1CapTableContent() {
                     <TableCell className="font-medium">
                       {h.investorName}
                     </TableCell>
-                    <TableCell className="capitalize ">
+                    <TableCell className="capitalize">
                       {h.entityKind}
                     </TableCell>
                     <TableCell>

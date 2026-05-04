@@ -214,6 +214,11 @@ function EsopV1Content() {
     utils.v1.esop.poolSummary.invalidate();
   }
 
+  function invalidateWithRegister() {
+    invalidateAll();
+    utils.v1.register.list.invalidate();
+  }
+
   const createPoolMut = trpc.v1.esop.createPool.useMutation({
     onSuccess: () => { invalidateAll(); toast.success(t("esop.poolCreated")); closePoolDialog(); },
     onError: (e) => toast.error(e.message),
@@ -240,11 +245,11 @@ function EsopV1Content() {
     onError: (e) => toast.error(e.message),
   });
   const exerciseGrantMut = trpc.v1.esop.exerciseGrant.useMutation({
-    onSuccess: () => { invalidateAll(); setExerciseDialogGrant(null); toast.success(t("esop.grantExercisedFull")); },
+    onSuccess: () => { invalidateWithRegister(); setExerciseDialogGrant(null); toast.success(t("esop.grantExercisedFull")); },
     onError: (e) => toast.error(e.message),
   });
   const settleRsuMut = trpc.v1.esop.settleRsuVesting.useMutation({
-    onSuccess: () => { invalidateAll(); setSettleDialogGrant(null); toast.success(t("esop.rsuSettled")); },
+    onSuccess: () => { invalidateWithRegister(); setSettleDialogGrant(null); toast.success(t("esop.rsuSettled")); },
     onError: (e) => toast.error(e.message),
   });
 

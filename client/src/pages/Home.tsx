@@ -43,9 +43,16 @@ function DashboardContent() {
   const [, setLocation] = useLocation();
   const { formatAmount } = useCurrency();
   const { hasCompany, loading: authLoading } = useAuth();
-  const [skippedOnboarding, setSkippedOnboarding] = useState(false);
+  const [skippedOnboarding, setSkippedOnboarding] = useState(() => {
+    try { return localStorage.getItem("onboarding_skipped") === "1"; } catch { return false; }
+  });
   // Once wizard is shown, keep it visible to prevent flicker during refresh()
   const [wizardShown, setWizardShown] = useState(false);
+
+  const handleSkip = () => {
+    setSkippedOnboarding(true);
+    try { localStorage.setItem("onboarding_skipped", "1"); } catch { /* ignore */ }
+  };
 
   // Show onboarding wizard for brand-new users (no company yet)
   const shouldShowWizard = !skippedOnboarding && !authLoading && !hasCompany;
@@ -172,7 +179,7 @@ function DashboardContent() {
         <div className="p-8 max-w-7xl mx-auto">
           <div className="h-8 w-64 bg-muted animate-pulse rounded" />
         </div>
-        <OnboardingWizard onSkip={() => setSkippedOnboarding(true)} />
+        <OnboardingWizard onSkip={handleSkip} />
       </>
     );
   }

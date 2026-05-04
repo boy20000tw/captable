@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.22.1",
+    date: "2026-05-04",
+    type: "patch",
+    title: "QA Fixes — Low Priority",
+    description: "移除孤立檔案、NotFound 加 DashboardLayout、ESOP exercise/settle cache invalidation 修正、Export 按鈕 loading 閃現修復、Onboarding skip 持久化至 localStorage。",
+  },
+  {
     version: "2.22.0",
     date: "2026-05-04",
     type: "minor",
