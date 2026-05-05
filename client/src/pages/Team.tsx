@@ -436,6 +436,11 @@ function TeamContent() {
     onError: (e) => toast.error(e.message),
   });
 
+  const deleteInvite = trpc.invitations.delete.useMutation({
+    onSuccess: () => { utils.invitations.list.invalidate(); toast.success(t("team.deleteSuccess")); },
+    onError: (e) => toast.error(e.message),
+  });
+
   const currentUserRole = (members?.find(m => (m as any).id === user?.id) as any)?.appRole ?? "viewer";
   const isOwner = currentUserRole === "owner";
   const canManage = ["owner", "admin"].includes(currentUserRole);
@@ -694,27 +699,36 @@ function TeamContent() {
                       <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(inv.expiresAt)}</td>
                       {canManage && (
                         <td className="px-4 py-3 text-right">
-                          {inv.status === "pending" && !isExpired && (
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => {
-                                  const url = `${window.location.origin}/join?token=${inv.token}`;
-                                  navigator.clipboard.writeText(url);
-                                  toast.success("Link copied!");
-                                }}
-                                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                              >
-                                <Copy className="h-3 w-3" /> {t("team.copyLink")}
-                              </button>
-                              <button
-                                onClick={() => revokeInvite.mutate({ id: inv.id })}
-                                disabled={revokeInvite.isPending}
-                                className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
-                              >
-                                <Trash2 className="h-3 w-3" /> {t("team.revoke")}
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {inv.status === "pending" && !isExpired && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    const url = `${window.location.origin}/join?token=${inv.token}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast.success("Link copied!");
+                                  }}
+                                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                                >
+                                  <Copy className="h-3 w-3" /> {t("team.copyLink")}
+                                </button>
+                                <button
+                                  onClick={() => revokeInvite.mutate({ id: inv.id })}
+                                  disabled={revokeInvite.isPending}
+                                  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                  <Trash2 className="h-3 w-3" /> {t("team.revoke")}
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => { if (confirm(t("team.deleteConfirm"))) deleteInvite.mutate({ id: inv.id }); }}
+                              disabled={deleteInvite.isPending}
+                              className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                              <Trash2 className="h-3 w-3" /> {t("team.deleteInvite")}
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>

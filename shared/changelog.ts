@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.30.2",
+    date: "2026-05-05",
+    type: "patch",
+    title: "Team — Delete invitation records",
+    description: "Admins can now permanently delete any invitation record (pending, revoked, accepted, or expired) from the Team management page.",
+  },
+  {
     version: "2.30.1",
     date: "2026-05-05",
     type: "patch",

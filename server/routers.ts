@@ -16,7 +16,7 @@ import {
   // Import logs
   getAllImportLogs,
   // Invitations
-  getAllInvitations, createInvitation, getInvitationByToken, updateInvitationStatus,
+  getAllInvitations, createInvitation, getInvitationByToken, updateInvitationStatus, deleteInvitation,
   // Audit
   createAuditLog, getAuditLogs, getAuditLogsByResource,
   // Danger zone
@@ -558,6 +558,25 @@ const invitationsRouter = router({
       changesAfter: JSON.stringify({ status: "revoked" }),
     });
     return result;
+  }),
+  delete: companyOwnerAdminProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    const invitations = await getAllInvitations(ctx.companyId);
+    const inv = invitations.find(i => i.id === input.id);
+    if (!inv) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Invitation not found in this company." });
+    }
+    await deleteInvitation(input.id);
+    await createAuditLog({
+      companyId: ctx.companyId,
+      userId: ctx.user!.id,
+      userName: ctx.user!.name ?? undefined,
+      action: "delete",
+      resourceType: "invitation",
+      resourceId: input.id,
+      resourceName: inv.email ?? `Invitation #${input.id}`,
+      changesAfter: JSON.stringify({ deleted: true }),
+    });
+    return { success: true };
   }),
   // Public — token holders can view; mutation for actually accepting requires auth.
   accept: publicProcedure.input(z.object({ token: z.string() })).query(async ({ input }) => {

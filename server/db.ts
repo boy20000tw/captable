@@ -1105,6 +1105,12 @@ export async function updateInvitationStatus(id: number, status: "pending" | "ac
   return rows[0];
 }
 
+export async function deleteInvitation(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(userInvitations).where(eq(userInvitations.id, id));
+}
+
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
 export async function createAuditLog(data: InsertAuditLog) {
   const db = await getDb();
