@@ -92,6 +92,7 @@
   "allocation.sharesAllocated": "分配股數",
   "allocation.pricePerShare": "每股價格 (Price Per Share)",
   "allocation.termSheetUrl": "投資條件書 URL (Term Sheet)",
+  "allocation.skipTermSheet": "略過（無投資條件書）",
   "allocation.agreementUrl": "協議書 URL (Agreement)",
   "allocation.notes": "備註",
   "allocation.newInfo": "新分配初始狀態為<strong>規劃中 (Planned)</strong>。填入投資條件書 URL 與金額後可推進至已承諾 (Committed)。",

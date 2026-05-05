@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.31.0",
+    date: "2026-05-05",
+    type: "minor",
+    title: "Allocation — Skip Term Sheet option",
+    description: "Added 'Skip (no term sheet)' checkbox to the allocation edit dialog. When checked, the term sheet URL requirement is bypassed for advancing to Committed. Agreement URL remains mandatory.",
+  },
+  {
     version: "2.30.3",
     date: "2026-05-05",
     type: "patch",

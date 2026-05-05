@@ -942,6 +942,7 @@ const v1AllocationsRouter = router({
     sharesAllocated: z.number().optional(),
     pricePerShare: z.string().optional(),
     termSheetUrl: z.string().optional(),
+    skipTermSheet: z.boolean().optional(),
     agreementUrl: z.string().optional(),
     notes: z.string().optional(),
   })).mutation(async ({ ctx, input }) => {
@@ -967,6 +968,7 @@ const v1AllocationsRouter = router({
       sharesAllocated: z.number().optional(),
       pricePerShare: z.string().optional(),
       termSheetUrl: z.string().optional().nullable(),
+      skipTermSheet: z.boolean().optional(),
       agreementUrl: z.string().optional().nullable(),
       notes: z.string().optional().nullable(),
     }),
@@ -986,6 +988,7 @@ const v1AllocationsRouter = router({
     const result = advanceAllocation({
       status: existing.status as AllocationStatus,
       termSheetUrl: existing.termSheetUrl,
+      skipTermSheet: existing.skipTermSheet ?? false,
       agreementUrl: existing.agreementUrl,
       amount: existing.amount,
       sharesAllocated: existing.sharesAllocated,

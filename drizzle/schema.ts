@@ -692,6 +692,7 @@ export const allocations = pgTable("allocations", {
 
     // Documents
     termSheetUrl: text("termSheetUrl"),
+    skipTermSheet: boolean("skipTermSheet").default(false).notNull(),
     agreementUrl: text("agreementUrl"),
 
     // ── Encrypted financial fields (Phase 3 dual-write) ──

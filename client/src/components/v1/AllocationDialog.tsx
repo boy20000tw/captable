@@ -45,6 +45,7 @@ export type AllocationRow = {
   pricePerShare: string | null;
   status: AllocationStatus;
   termSheetUrl: string | null;
+  skipTermSheet: boolean;
   agreementUrl: string | null;
   notes: string | null;
 };
@@ -74,6 +75,7 @@ type FormState = {
   sharesAllocated: string;
   pricePerShare: string;
   termSheetUrl: string;
+  skipTermSheet: boolean;
   agreementUrl: string;
   notes: string;
 };
@@ -87,6 +89,7 @@ const EMPTY_FORM: FormState = {
   sharesAllocated: "",
   pricePerShare: "",
   termSheetUrl: "",
+  skipTermSheet: false,
   agreementUrl: "",
   notes: "",
 };
@@ -164,6 +167,7 @@ export default function AllocationDialog({
         sharesAllocated: allocation.sharesAllocated != null ? String(allocation.sharesAllocated) : "",
         pricePerShare: allocation.pricePerShare ?? "",
         termSheetUrl: allocation.termSheetUrl ?? "",
+        skipTermSheet: allocation.skipTermSheet ?? false,
         agreementUrl: allocation.agreementUrl ?? "",
         notes: allocation.notes ?? "",
       });
@@ -238,6 +242,7 @@ export default function AllocationDialog({
       sharesAllocated: form.sharesAllocated ? parseInt(form.sharesAllocated) : undefined,
       pricePerShare: form.pricePerShare || undefined,
       termSheetUrl: form.termSheetUrl || undefined,
+      skipTermSheet: form.skipTermSheet,
       agreementUrl: form.agreementUrl || undefined,
       notes: form.notes || undefined,
     });
@@ -254,6 +259,7 @@ export default function AllocationDialog({
         sharesAllocated: form.sharesAllocated ? parseInt(form.sharesAllocated) : undefined,
         pricePerShare: form.pricePerShare || undefined,
         termSheetUrl: form.termSheetUrl || null,
+        skipTermSheet: form.skipTermSheet,
         agreementUrl: form.agreementUrl || null,
         notes: form.notes || null,
       },
@@ -274,6 +280,7 @@ export default function AllocationDialog({
           sharesAllocated: form.sharesAllocated ? parseInt(form.sharesAllocated) : undefined,
           pricePerShare: form.pricePerShare || undefined,
           termSheetUrl: form.termSheetUrl || null,
+          skipTermSheet: form.skipTermSheet,
           agreementUrl: form.agreementUrl || null,
           notes: form.notes || null,
         },
@@ -465,7 +472,20 @@ export default function AllocationDialog({
 
           {/* Term sheet URL */}
           <div className="space-y-1.5 md:col-span-2">
-            <Label>{t("allocation.termSheetUrl")}</Label>
+            <div className="flex items-center justify-between">
+              <Label>{t("allocation.termSheetUrl")}</Label>
+              {!readOnly && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.skipTermSheet}
+                    onChange={(e) => setForm((f) => ({ ...f, skipTermSheet: e.target.checked }))}
+                    className="rounded border-border"
+                  />
+                  {t("allocation.skipTermSheet")}
+                </label>
+              )}
+            </div>
             <Input
               value={form.termSheetUrl}
               onChange={(e) =>
@@ -473,6 +493,8 @@ export default function AllocationDialog({
               }
               placeholder="https://..."
               readOnly={readOnly}
+              disabled={form.skipTermSheet}
+              className={form.skipTermSheet ? "opacity-50" : ""}
             />
           </div>
 

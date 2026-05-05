@@ -25,6 +25,7 @@ export type AllocationSnapshot = {
   status: AllocationStatus;
   // Required for transitions (from DB row)
   termSheetUrl?: string | null;
+  skipTermSheet?: boolean;
   agreementUrl?: string | null;
   amount?: string | number | null;          // in allocation currency
   sharesAllocated?: number | null;
@@ -81,8 +82,8 @@ export function advanceAllocation(a: AllocationSnapshot): TransitionResult {
   // Per-transition preconditions.
   switch (target) {
     case "committed": {
-      if (!a.termSheetUrl || !a.termSheetUrl.trim()) {
-        errors.push("Cannot move to Committed: term sheet URL is required.");
+      if (!a.skipTermSheet && (!a.termSheetUrl || !a.termSheetUrl.trim())) {
+        errors.push("Cannot move to Committed: term sheet URL is required (or check 'Skip Term Sheet').");
       }
       if (a.amount == null || Number(a.amount) <= 0) {
         errors.push("Cannot move to Committed: allocation amount must be set and greater than 0.");

@@ -92,6 +92,7 @@
   "allocation.sharesAllocated": "Shares Allocated",
   "allocation.pricePerShare": "Price Per Share",
   "allocation.termSheetUrl": "Term Sheet URL",
+  "allocation.skipTermSheet": "Skip (no term sheet)",
   "allocation.agreementUrl": "Agreement URL",
   "allocation.notes": "Notes",
   "allocation.newInfo": "New allocations start as <strong>planned</strong>. Fill in the term sheet URL and amount to advance to committed.",
