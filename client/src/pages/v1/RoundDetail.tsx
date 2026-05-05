@@ -162,21 +162,6 @@ function V1RoundDetailContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AllocationRow | null>(null);
 
-  const advanceMut = trpc.v1.allocations.advance.useMutation({
-    onSuccess: (result) => {
-      utils.v1.allocations.list.invalidate();
-      utils.v1.register.list.invalidate();
-      utils.v1.snapshots.list.invalidate();
-      utils.v1.capTable.current.invalidate();
-      let msg = `Advanced to ${result.newStatus}`;
-      if (result.registerEntryId) {
-        msg += ` · Register entry #${result.registerEntryId} written · Snapshot #${result.snapshotId} saved`;
-      }
-      toast.success(msg);
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
   const deleteMut = trpc.v1.allocations.delete.useMutation({
     onSuccess: () => {
       utils.v1.allocations.list.invalidate();
@@ -199,11 +184,6 @@ function V1RoundDetailContent() {
   function openEdit(a: AllocationRow) {
     setEditing(a);
     setDialogOpen(true);
-  }
-
-  function handleAdvance(a: AllocationRow, e: React.MouseEvent) {
-    e.stopPropagation();
-    advanceMut.mutate({ id: a.id });
   }
 
   function handleDelete(a: AllocationRow, e: React.MouseEvent) {
@@ -370,7 +350,7 @@ function V1RoundDetailContent() {
                 <TableBody>
                   {allocs.map((a) => {
                     const isIssued = a.status === "issued";
-                    const isTerminal = isIssued;
+
                     return (
                       <TableRow
                         key={a.id}
@@ -403,17 +383,6 @@ function V1RoundDetailContent() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
-                            {canEdit && !isTerminal && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => handleAdvance(a, e)}
-                                disabled={advanceMut.isPending}
-                                title={t("roundDetail.advanceTooltip")}
-                              >
-                                {t("roundDetail.advance")}
-                              </Button>
-                            )}
                             {canEdit && (
                               <Button
                                 size="icon"

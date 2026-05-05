@@ -262,7 +262,28 @@ export default function AllocationDialog({
 
   function handleAdvance() {
     if (!allocation) return;
-    advanceMut.mutate({ id: allocation.id });
+    // Save form first, then advance — so newly-filled fields (e.g. term sheet URL)
+    // are persisted before the lifecycle check runs.
+    updateMut.mutate(
+      {
+        id: allocation.id,
+        data: {
+          amount: form.amount || undefined,
+          currency: form.currency || undefined,
+          fxToNtd: form.fxToNtd || undefined,
+          sharesAllocated: form.sharesAllocated ? parseInt(form.sharesAllocated) : undefined,
+          pricePerShare: form.pricePerShare || undefined,
+          termSheetUrl: form.termSheetUrl || null,
+          agreementUrl: form.agreementUrl || null,
+          notes: form.notes || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          advanceMut.mutate({ id: allocation.id });
+        },
+      },
+    );
   }
 
   // Investor name lookup for header
@@ -295,7 +316,7 @@ export default function AllocationDialog({
                 <Button
                   size="sm"
                   onClick={handleAdvance}
-                  disabled={advanceMut.isPending}
+                  disabled={advanceMut.isPending || updateMut.isPending}
                 >
                   <ArrowRight className="h-3.5 w-3.5 mr-1" />
                   {t("allocation.advanceTo", { status: nextStatusLabel })}

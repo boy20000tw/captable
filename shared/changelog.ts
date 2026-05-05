@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.30.3",
+    date: "2026-05-05",
+    type: "patch",
+    title: "Allocation — Move Advance into Edit dialog",
+    description: "Removed the standalone Advance button from the allocation table. Advance is now only available inside the Edit dialog, where required fields (term sheet URL, etc.) can be filled first. Advance auto-saves the form before advancing.",
+  },
+  {
     version: "2.30.2",
     date: "2026-05-05",
     type: "patch",
