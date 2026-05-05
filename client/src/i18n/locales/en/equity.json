@@ -333,5 +333,17 @@
   "esign.connection.disconnectDesc": "Existing signing requests will not be affected, but you won't be able to send new ones.",
   "esign.connection.disconnect": "Disconnect",
   "esign.connection.cancel": "Cancel",
-  "esign.connection.keyRequired": "Please enter your API key."
+  "esign.connection.keyRequired": "Please enter your API key.",
+
+  "esign.toastCreated": "Signing request created",
+  "esign.toastDeleted": "Signing request deleted",
+  "esign.toastUploaded": "Document uploaded to DocuSeal",
+  "esign.toastSent": "Signing request sent!",
+
+  "allocation.amountPlaceholder": "e.g. 1000000",
+  "allocation.sharesAllocatedPlaceholder": "e.g. 100000",
+  "allocation.pricePerSharePlaceholder": "e.g. 10.00",
+  "allocation.urlPlaceholder": "https://...",
+  "allocation.fxToNtdPlaceholder": "1",
+  "allocation.notesPlaceholder": "Optional..."
 }

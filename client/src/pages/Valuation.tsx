@@ -14,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { EstimatedValuationContent } from "./EstimatedValuation";
+import { EstimatedValuationContent } from "@/components/v1/EstimatedValuation";
 
 export default function ValuationPage() {
   const { t: tPages } = useTranslation("pages");

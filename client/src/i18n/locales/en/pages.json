@@ -327,6 +327,8 @@
 
   "settings.company.title": "Company Settings",
   "settings.company.desc": "Manage your company profile, branding, and authorized signatory.",
+  "settings.company.saving": "Saving…",
+  "settings.company.saveChanges": "Save Changes",
 
   "settings.team.title": "Team",
   "settings.team.desc": "Manage team members, roles, and access permissions.",

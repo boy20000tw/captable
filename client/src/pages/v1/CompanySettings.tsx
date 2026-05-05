@@ -93,7 +93,7 @@ function CompanySettingsContent() {
       defaultCurrency: (companyQuery.data.defaultCurrency as "NTD" | "USD") ?? "NTD",
     });
     setHydrated(true);
-  }, [companyQuery.data?.id]);
+  }, [companyQuery.data?.id, companyQuery.data]);
 
   const updateMut = trpc.companies.update.useMutation({
     onSuccess: () => {
@@ -183,7 +183,7 @@ function CompanySettingsContent() {
         {canEdit && (
           <Button onClick={handleSave} disabled={updateMut.isPending || isLoading}>
             <Save className="h-4 w-4 mr-2" />
-            {updateMut.isPending ? "Saving…" : "Save Changes"}
+            {updateMut.isPending ? t("settings.company.saving") : t("settings.company.saveChanges")}
           </Button>
         )}
       </div>

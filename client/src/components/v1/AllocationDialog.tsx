@@ -197,6 +197,7 @@ export default function AllocationDialog({
   const createMut = trpc.v1.allocations.create.useMutation({
     onSuccess: () => {
       invalidateAll();
+      setForm(EMPTY_FORM);
       toast.success(t("allocation.created"));
       onOpenChange(false);
       onSaved?.();
@@ -425,7 +426,7 @@ export default function AllocationDialog({
               type="number"
               value={form.amount}
               onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              placeholder="e.g. 1000000"
+              placeholder={t("allocation.amountPlaceholder")}
               readOnly={readOnly}
             />
           </div>
@@ -437,7 +438,7 @@ export default function AllocationDialog({
               type="number"
               value={form.fxToNtd}
               onChange={(e) => setForm((f) => ({ ...f, fxToNtd: e.target.value }))}
-              placeholder="1"
+              placeholder={t("allocation.fxToNtdPlaceholder")}
               readOnly={readOnly}
             />
           </div>
@@ -451,7 +452,7 @@ export default function AllocationDialog({
               onChange={(e) =>
                 setForm((f) => ({ ...f, sharesAllocated: e.target.value }))
               }
-              placeholder="e.g. 100000"
+              placeholder={t("allocation.sharesAllocatedPlaceholder")}
               readOnly={readOnly}
             />
           </div>
@@ -465,7 +466,7 @@ export default function AllocationDialog({
               onChange={(e) =>
                 setForm((f) => ({ ...f, pricePerShare: e.target.value }))
               }
-              placeholder="e.g. 10.00"
+              placeholder={t("allocation.pricePerSharePlaceholder")}
               readOnly={readOnly}
             />
           </div>
@@ -491,7 +492,7 @@ export default function AllocationDialog({
               onChange={(e) =>
                 setForm((f) => ({ ...f, termSheetUrl: e.target.value }))
               }
-              placeholder="https://..."
+              placeholder={t("allocation.urlPlaceholder")}
               readOnly={readOnly}
               disabled={form.skipTermSheet}
               className={form.skipTermSheet ? "opacity-50" : ""}
@@ -506,7 +507,7 @@ export default function AllocationDialog({
               onChange={(e) =>
                 setForm((f) => ({ ...f, agreementUrl: e.target.value }))
               }
-              placeholder="https://..."
+              placeholder={t("allocation.urlPlaceholder")}
               readOnly={readOnly}
             />
           </div>
@@ -518,7 +519,7 @@ export default function AllocationDialog({
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               rows={3}
-              placeholder="Optional..."
+              placeholder={t("allocation.notesPlaceholder")}
               readOnly={readOnly}
             />
           </div>
@@ -539,16 +540,16 @@ export default function AllocationDialog({
             (isEdit ? (
               <Button
                 onClick={handleUpdate}
-                disabled={updateMut.isPending}
+                disabled={updateMut.isPending || advanceMut.isPending}
               >
-                {t("allocation.saveChanges")}
+                {updateMut.isPending ? t("label.loading") : t("allocation.saveChanges")}
               </Button>
             ) : (
               <Button
                 onClick={handleCreate}
-                disabled={createMut.isPending || !form.investorId}
+                disabled={createMut.isPending || !form.investorId || !form.amount || !form.sharesAllocated || !form.pricePerShare}
               >
-                {t("allocation.createAllocation")}
+                {createMut.isPending ? t("label.loading") : t("allocation.createAllocation")}
               </Button>
             ))}
         </div>

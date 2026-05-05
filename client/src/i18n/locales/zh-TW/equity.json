@@ -333,5 +333,17 @@
   "esign.connection.disconnectDesc": "已建立的簽署請求不受影響，但您將無法發送新的簽署請求。",
   "esign.connection.disconnect": "斷開連結",
   "esign.connection.cancel": "取消",
-  "esign.connection.keyRequired": "請輸入您的 API Key。"
+  "esign.connection.keyRequired": "請輸入您的 API Key。",
+
+  "esign.toastCreated": "簽署請求已建立",
+  "esign.toastDeleted": "簽署請求已刪除",
+  "esign.toastUploaded": "文件已上傳至 DocuSeal",
+  "esign.toastSent": "簽署請求已發送",
+
+  "allocation.amountPlaceholder": "例如 1000000",
+  "allocation.sharesAllocatedPlaceholder": "例如 100000",
+  "allocation.pricePerSharePlaceholder": "例如 10.00",
+  "allocation.urlPlaceholder": "https://...",
+  "allocation.fxToNtdPlaceholder": "1",
+  "allocation.notesPlaceholder": "選填..."
 }

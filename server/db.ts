@@ -293,7 +293,8 @@ export async function getAllShareholders(companyId: number) {
   if (!db) return [];
   return db.select().from(shareholders)
     .where(eq(shareholders.companyId, companyId))
-    .orderBy(asc(shareholders.id));
+    .orderBy(asc(shareholders.id))
+    .limit(1000);
 }
 
 export async function getShareholderById(companyId: number, id: number) {
@@ -326,6 +327,13 @@ export async function updateShareholder(companyId: number, id: number, data: Par
     .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)));
 }
 
+// TODO: Check for related records before deletion:
+// - shareHoldings (by shareholderId)
+// - shareTransactions (by shareholderId)
+// - antiDilutionProvisions (by shareholderId)
+// - shareholderDocuments (by shareholderId)
+// - valuations409a (by shareholderId)
+// May need to cascade delete or prevent deletion if related records exist.
 export async function deleteShareholder(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -431,6 +439,11 @@ export async function updateFundingRound(companyId: number, id: number, data: Pa
     .where(and(eq(fundingRounds.id, id), eq(fundingRounds.companyId, companyId)));
 }
 
+// TODO: Check for related records before deletion:
+// - allocations (by fundingRoundId)
+// - shareHoldings (by fundingRoundId)
+// - shareTransactions (by fundingRoundId)
+// Should prevent deletion if allocations or transactions exist.
 export async function deleteFundingRound(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -483,7 +496,8 @@ export async function getAllShareHoldings(companyId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(shareHoldings)
-    .where(eq(shareHoldings.companyId, companyId));
+    .where(eq(shareHoldings.companyId, companyId))
+    .limit(1000);
 }
 
 // ─── Share Transactions ───────────────────────────────────────────────────────
@@ -492,7 +506,8 @@ export async function getAllTransactions(companyId: number) {
   if (!db) return [];
   return db.select().from(shareTransactions)
     .where(eq(shareTransactions.companyId, companyId))
-    .orderBy(desc(shareTransactions.transactionDate));
+    .orderBy(desc(shareTransactions.transactionDate))
+    .limit(1000);
 }
 
 export async function getTransactionsByShareholder(companyId: number, shareholderId: number) {
@@ -520,6 +535,8 @@ export async function updateTransaction(companyId: number, id: number, data: Par
 }
 
 export async function deleteTransaction(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting a share transaction may affect related records or snapshots that depend on it.
+  // Verify transaction is not referenced by other records before deletion.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(shareTransactions)
@@ -532,7 +549,8 @@ export async function getAllEsopPools(companyId: number) {
   if (!db) return [];
   return db.select().from(esopPool)
     .where(eq(esopPool.companyId, companyId))
-    .orderBy(desc(esopPool.createdAt));
+    .orderBy(desc(esopPool.createdAt))
+    .limit(1000);
 }
 
 export async function createEsopPool(data: InsertEsopPool) {
@@ -564,7 +582,8 @@ export async function getAllGrants(companyId: number) {
   if (!db) return [];
   return db.select().from(esopGrants)
     .where(eq(esopGrants.companyId, companyId))
-    .orderBy(desc(esopGrants.grantDate));
+    .orderBy(desc(esopGrants.grantDate))
+    .limit(1000);
 }
 
 export async function createGrant(data: InsertEsopGrant) {
@@ -581,6 +600,8 @@ export async function updateGrant(companyId: number, id: number, data: Partial<I
 }
 
 export async function deleteGrant(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting an ESOP grant will orphan related vest schedule records if they reference this grant.
+  // Verify no vest schedules or other dependent records exist before deletion.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(esopGrants)
@@ -610,6 +631,8 @@ export async function updateProjection(companyId: number, id: number, data: Part
 }
 
 export async function deleteProjection(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting a valuation projection may affect any snapshots or analysis records that reference it.
+  // Consider adding cascade delete or checking dependent records.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(valuationProjections)
@@ -665,6 +688,8 @@ export async function createSnapshot(data: InsertCapTableSnapshot) {
 }
 
 export async function deleteSnapshot(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting a snapshot may orphan historical records or analyses that depend on it.
+  // Ensure snapshot is not referenced by any audit logs or analysis records before deletion.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(capTableSnapshots)
@@ -704,6 +729,8 @@ export async function updateAntiDilutionProvision(companyId: number, id: number,
 }
 
 export async function deleteAntiDilutionProvision(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting an anti-dilution provision may affect waterfall calculations and valuation analyses.
+  // Ensure this provision is not actively referenced in any computations or reports.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(antiDilutionProvisions)
@@ -744,6 +771,8 @@ export async function updateShareholderDocument(companyId: number, id: number, d
 }
 
 export async function deleteShareholderDocument(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting a shareholder document may affect audit trail and compliance records.
+  // Ensure this document is not required for regulatory or audit purposes before deletion.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(shareholderDocuments)
@@ -838,6 +867,8 @@ export async function update409aValuation(companyId: number, id: number, data: P
 }
 
 export async function delete409aValuation(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting a 409A valuation may affect tax compliance records and shareholder documentation.
+  // Ensure valuation is not required for historical tax records before deletion.
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.delete(valuations409a)
@@ -892,6 +923,8 @@ export async function update83bElection(companyId: number, id: number, data: Par
 }
 
 export async function delete83bElection(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting a 83(b) election may affect tax compliance records and shareholder documentation.
+  // Ensure election record is not required for IRS filing or audit purposes before deletion.
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const result = await db.delete(elections83b)
@@ -1244,6 +1277,8 @@ export async function updateInvestor(companyId: number, id: number, data: Partia
     .where(and(eq(investors.id, id), eq(investors.companyId, companyId)));
 }
 export async function deleteInvestor(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting an investor will orphan all allocations referencing this investor (investorId FK).
+  // Consider checking if allocations exist before deletion, or implement cascade delete in schema.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(investors).where(and(eq(investors.id, id), eq(investors.companyId, companyId)));
@@ -1256,13 +1291,17 @@ export async function getAllocationsByCompany(companyId: number, roundId?: numbe
   const whereClause = roundId != null
     ? and(eq(allocations.companyId, companyId), eq(allocations.fundingRoundId, roundId))
     : eq(allocations.companyId, companyId);
-  return db.select().from(allocations).where(whereClause).orderBy(asc(allocations.createdAt));
+  const rows = await db.select().from(allocations).where(whereClause).orderBy(asc(allocations.createdAt));
+  // Decrypt financial fields for each allocation
+  return Promise.all(rows.map(row => decryptFinancialFields(row, companyId, ALLOCATION_FIN_FIELDS)));
 }
 export async function getAllocationById(companyId: number, id: number) {
   const db = await getDb();
   if (!db) return undefined;
   const rows = await db.select().from(allocations).where(and(eq(allocations.id, id), eq(allocations.companyId, companyId))).limit(1);
-  return rows[0];
+  if (!rows[0]) return undefined;
+  // Decrypt financial fields
+  return decryptFinancialFields(rows[0], companyId, ALLOCATION_FIN_FIELDS);
 }
 export async function createAllocation(data: InsertAllocation) {
   const db = await getDb();
@@ -1281,6 +1320,8 @@ export async function updateAllocation(companyId: number, id: number, data: Part
     .where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
 }
 export async function deleteAllocation(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting an allocation will orphan related transaction, grant, and snapshot records if they reference this allocation.
+  // Verify no related records exist before deletion or implement cascade delete in schema.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(allocations).where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
@@ -1380,7 +1421,6 @@ export async function autoSeedAllocationsForRound(companyId: number, roundId: nu
 
     await db.insert(allocations).values(values as InsertAllocation);
   }
-  console.log(`[auto-seed] Created ${picked.length} demo allocations for round "${round.name}" (id=${roundId})`);
 }
 
 /**
@@ -1437,7 +1477,9 @@ export async function getAllRegisterEntries(companyId: number, opts?: { issuedOn
   if (opts?.investorId) where.push(eq(shareRegisterEntries.investorId, opts.investorId));
   // SPEC says Register default view is "Issued only" but our eventType has issuance/transfer/etc — all are "issued" facts.
   // For V1 we show all entries; future Phase 2+ can add eventType filter via opts.
-  return db.select().from(shareRegisterEntries).where(and(...where)).orderBy(desc(shareRegisterEntries.effectiveDate), desc(shareRegisterEntries.id));
+  const rows = await db.select().from(shareRegisterEntries).where(and(...where)).orderBy(desc(shareRegisterEntries.effectiveDate), desc(shareRegisterEntries.id));
+  // Decrypt financial fields for each register entry
+  return Promise.all(rows.map(row => decryptFinancialFields(row, companyId, REGISTER_FIN_FIELDS)));
 }
 export async function getAllSnapshotsV1(companyId: number) {
   const db = await getDb();
@@ -1470,6 +1512,8 @@ export async function updateEsopPoolV1(companyId: number, id: number, data: Part
     .where(and(eq(esopPoolsV1.id, id), eq(esopPoolsV1.companyId, companyId)));
 }
 export async function deleteEsopPoolV1(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting an ESOP pool will orphan all grants associated with this pool.
+  // Verify all grants are removed or migrated before deleting the pool.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(esopPoolsV1).where(and(eq(esopPoolsV1.id, id), eq(esopPoolsV1.companyId, companyId)));
@@ -1503,6 +1547,8 @@ export async function updateEsopGrantV1(companyId: number, id: number, data: Par
     .where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId)));
 }
 export async function deleteEsopGrantV1(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting an ESOP grant will orphan any vest schedules, exercises, or issued shares tied to this grant.
+  // Verify grant has no vested or exercised shares, and no dependent records before deletion.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(esopGrantsV1).where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId)));
@@ -1625,9 +1671,11 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
 export async function getAllInstruments(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(instruments)
+  const rows = await db.select().from(instruments)
     .where(eq(instruments.companyId, companyId))
     .orderBy(desc(instruments.createdAt));
+  // Decrypt financial fields for each instrument
+  return Promise.all(rows.map(row => decryptFinancialFields(row, companyId, INSTRUMENT_FIN_FIELDS)));
 }
 
 export async function getInstrumentById(companyId: number, id: number) {
@@ -1636,37 +1684,45 @@ export async function getInstrumentById(companyId: number, id: number) {
   const rows = await db.select().from(instruments)
     .where(and(eq(instruments.id, id), eq(instruments.companyId, companyId)))
     .limit(1);
-  return rows[0];
+  if (!rows[0]) return undefined;
+  // Decrypt financial fields
+  return decryptFinancialFields(rows[0], companyId, INSTRUMENT_FIN_FIELDS);
 }
 
 export async function getInstrumentsByInvestor(companyId: number, investorId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(instruments)
+  const rows = await db.select().from(instruments)
     .where(and(eq(instruments.companyId, companyId), eq(instruments.investorId, investorId)))
     .orderBy(desc(instruments.createdAt));
+  // Decrypt financial fields for each instrument
+  return Promise.all(rows.map(row => decryptFinancialFields(row, companyId, INSTRUMENT_FIN_FIELDS)));
 }
 
 export async function getInstrumentsByRound(companyId: number, fundingRoundId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(instruments)
+  const rows = await db.select().from(instruments)
     .where(and(eq(instruments.companyId, companyId), eq(instruments.fundingRoundId, fundingRoundId)))
     .orderBy(desc(instruments.createdAt));
+  // Decrypt financial fields for each instrument
+  return Promise.all(rows.map(row => decryptFinancialFields(row, companyId, INSTRUMENT_FIN_FIELDS)));
 }
 
 export async function getInstrumentsByType(companyId: number, type: "safe" | "convertible_note") {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(instruments)
+  const rows = await db.select().from(instruments)
     .where(and(eq(instruments.companyId, companyId), eq(instruments.type, type)))
     .orderBy(desc(instruments.createdAt));
+  // Decrypt financial fields for each instrument
+  return Promise.all(rows.map(row => decryptFinancialFields(row, companyId, INSTRUMENT_FIN_FIELDS)));
 }
 
 export async function getActiveConvertibles(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(instruments)
+  const rows = await db.select().from(instruments)
     .where(
       and(
         eq(instruments.companyId, companyId),
@@ -1675,6 +1731,8 @@ export async function getActiveConvertibles(companyId: number) {
       )
     )
     .orderBy(desc(instruments.createdAt));
+  // Decrypt financial fields for each instrument
+  return Promise.all(rows.map(row => decryptFinancialFields(row, companyId, INSTRUMENT_FIN_FIELDS)));
 }
 
 export async function createInstrument(data: InsertInstrument) {
@@ -1697,6 +1755,8 @@ export async function updateInstrument(companyId: number, id: number, data: Part
 }
 
 export async function deleteInstrument(companyId: number, id: number) {
+  // ⚠️ CASCADE RISK: Deleting an instrument (SAFE, convertible note, etc.) may affect cap table calculations and valuations.
+  // Verify no allocations or cap table entries reference this instrument before deletion.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(instruments)
@@ -1790,11 +1850,16 @@ export async function getPlatformSigningTemplates() {
     .orderBy(asc(signingTemplates.name));
 }
 
-export async function getSigningTemplateById(id: number) {
+export async function getSigningTemplateById(id: number, companyId?: number) {
   const db = await getDb();
   if (!db) return undefined;
+  const conditions = [eq(signingTemplates.id, id)];
+  if (companyId != null) {
+    // Company-scoped: only return if template belongs to this company OR is a platform template (companyId IS NULL)
+    conditions.push(sql`(${signingTemplates.companyId} = ${companyId} OR ${signingTemplates.companyId} IS NULL)`);
+  }
   const rows = await db.select().from(signingTemplates)
-    .where(eq(signingTemplates.id, id)).limit(1);
+    .where(and(...conditions)).limit(1);
   return rows[0];
 }
 
@@ -2189,6 +2254,37 @@ async function encryptFinancialFields(
   }
 }
 
+/**
+ * Generic financial field decryption helper.
+ * Decrypts {field}Enc columns back to original field names.
+ * Safe to call even when encryption is not configured (returns row as-is).
+ * @param row — database row with encrypted fields
+ * @param companyId — company ID to resolve DEK
+ * @param fields — field names to decrypt (without _Enc suffix)
+ * @returns row with decrypted fields
+ */
+async function decryptFinancialFields<T extends Record<string, any>>(
+  row: T,
+  companyId: number,
+  fields: string[],
+): Promise<T> {
+  if (!row) return row;
+  try {
+    const dek = await resolveCompanyDek(companyId);
+    const result = { ...row } as any;
+    for (const field of fields) {
+      const encKey = `${field}Enc`;
+      if (result[encKey] != null) {
+        result[field] = decryptField(result[encKey], dek);
+      }
+    }
+    return result;
+  } catch {
+    // Encryption not configured — return row as-is
+    return row;
+  }
+}
+
 // ── Allocation financial fields to encrypt ──
 const ALLOCATION_FIN_FIELDS = ["amount", "sharesAllocated", "pricePerShare", "fxToNtd"];
 // ── ShareRegisterEntry financial fields ──
@@ -2278,9 +2374,11 @@ export async function deleteNotification(companyId: number, id: number) {
 export async function getShareTransfers(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(shareTransfers)
+  const rows = await db.select().from(shareTransfers)
     .where(eq(shareTransfers.companyId, companyId))
     .orderBy(desc(shareTransfers.createdAt));
+  // Decrypt financial fields for each share transfer
+  return Promise.all(rows.map(row => decryptFinancialFields(row, companyId, TRANSFER_FIN_FIELDS)));
 }
 
 /** Get a single share transfer by id. */
@@ -2289,7 +2387,9 @@ export async function getShareTransferById(companyId: number, id: number) {
   if (!db) return null;
   const [row] = await db.select().from(shareTransfers)
     .where(and(eq(shareTransfers.id, id), eq(shareTransfers.companyId, companyId)));
-  return row ?? null;
+  if (!row) return null;
+  // Decrypt financial fields
+  return decryptFinancialFields(row, companyId, TRANSFER_FIN_FIELDS);
 }
 
 /** Create a share transfer. */

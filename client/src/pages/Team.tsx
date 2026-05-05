@@ -126,7 +126,10 @@ function TransferOwnerDialog({
         {/* Actions */}
         <div className="flex gap-3 pt-1">
           <button
-            onClick={() => selectedId && transferOwner.mutate({ newOwnerId: selectedId })}
+            onClick={() => {
+              if (!selectedId || !confirmed || transferOwner.isPending) return;
+              transferOwner.mutate({ newOwnerId: selectedId });
+            }}
             disabled={!selectedId || !confirmed || transferOwner.isPending}
             className="flex items-center gap-2 px-5 py-2 bg-amber-600 text-white text-sm font-medium rounded-sm hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
@@ -274,7 +277,7 @@ function InviteForm({ onClose, t, roles }: { onClose: () => void; t: (key: strin
           <Link2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           <span className="text-sm font-mono truncate flex-1">{generatedLink}</span>
           <button
-            onClick={() => { navigator.clipboard.writeText(generatedLink); toast.success("Copied!"); }}
+            onClick={() => { navigator.clipboard.writeText(generatedLink); toast.success(t("team.copied")); }}
             className="flex-shrink-0 text-muted-foreground hover:text-foreground"
           >
             <Copy className="h-4 w-4" />
@@ -427,12 +430,12 @@ function TeamContent() {
   ];
 
   const updateRole = trpc.team.updateRole.useMutation({
-    onSuccess: () => { utils.team.members.invalidate(); toast.success("Role updated"); },
+    onSuccess: () => { utils.team.members.invalidate(); toast.success(t("team.roleUpdated")); },
     onError: (e) => toast.error(e.message),
   });
 
   const revokeInvite = trpc.invitations.revoke.useMutation({
-    onSuccess: () => { utils.invitations.list.invalidate(); toast.success("Invitation revoked"); },
+    onSuccess: () => { utils.invitations.list.invalidate(); toast.success(t("team.invitationRevoked")); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -706,7 +709,7 @@ function TeamContent() {
                                   onClick={() => {
                                     const url = `${window.location.origin}/join?token=${inv.token}`;
                                     navigator.clipboard.writeText(url);
-                                    toast.success("Link copied!");
+                                    toast.success(t("team.copied"));
                                   }}
                                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
                                 >

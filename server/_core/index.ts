@@ -79,7 +79,8 @@ async function startServer() {
         return;
       }
       const { event_type, data } = req.body;
-      console.log(`DocuSeal webhook: ${event_type}`, data?.submission_id);
+      // Operational logging for webhook processing
+      if (process.env.DEBUG) console.log(`[DocuSeal] webhook ${event_type}:`, data?.submission_id);
 
       if (event_type === "form.completed" && data?.submission_id) {
         const signingReq = await getSigningRequestBySubmissionId(data.submission_id);

@@ -392,6 +392,7 @@ function V1RoundDetailContent() {
                                   openEdit(a);
                                 }}
                                 title={t("roundDetail.edit")}
+                                aria-label={t("roundDetail.edit")}
                               >
                                 <Edit2 className="h-3.5 w-3.5" />
                               </Button>
@@ -402,6 +403,7 @@ function V1RoundDetailContent() {
                                 variant="ghost"
                                 onClick={(e) => handleDelete(a, e)}
                                 title={t("roundDetail.delete")}
+                                aria-label={t("roundDetail.delete")}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>

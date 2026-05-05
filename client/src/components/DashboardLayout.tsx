@@ -173,7 +173,8 @@ function buildNavStructure(t: TFunction<"nav">, companyRole: CompanyRole | null)
         { icon: Upload,         label: t("settings.import"),    path: "/import" },
         { icon: Camera,         label: t("settings.snapshots"), path: "/snapshots" },
         { icon: ClipboardList,  label: t("settings.auditLog"),  path: "/audit-log" },
-        { icon: Gavel,          label: t("settings.legal"),    path: "/privacy",   section: t("settings.legal") },
+        { icon: Gavel,          label: t("settings.privacy"),  path: "/privacy",   section: t("settings.legal") },
+        { icon: Gavel,          label: t("settings.terms"),    path: "/terms",     section: t("settings.legal") },
       ],
     },
   ];

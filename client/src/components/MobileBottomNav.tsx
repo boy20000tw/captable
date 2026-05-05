@@ -32,6 +32,7 @@ import {
   LogOut,
   HelpCircle,
   CreditCard,
+  Gavel,
 } from "lucide-react";
 
 type TabItem = {
@@ -104,6 +105,8 @@ export default function MobileBottomNav() {
         { icon: ClipboardList, label: t("settings.auditLog"),  path: "/audit-log" },
         { icon: CreditCard,    label: t("settings.subscription") || "Subscription", path: "/subscription" },
         { icon: HelpCircle,    label: t("settings.help") || "Help", path: "/help" },
+        { icon: Gavel,         label: t("settings.privacy"),   path: "/privacy" },
+        { icon: Gavel,         label: t("settings.terms"),     path: "/terms" },
       ],
     },
   ], [t]);

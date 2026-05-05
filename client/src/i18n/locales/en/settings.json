@@ -158,6 +158,9 @@
   "team.dangerDesc": "Irreversible actions. Owner-only.",
   "team.clearDataTitle": "Clear all cap table data",
   "team.clearDataDesc": "Permanently delete all shareholders, funding rounds, transactions, holdings, ESOP, valuations, and audit logs. Team members and invitations are preserved.",
+  "team.copied": "Copied!",
+  "team.roleUpdated": "Role updated",
+  "team.invitationRevoked": "Invitation revoked",
 
   "snapshots.exportCsv": "Export CSV",
   "snapshots.compareSnapshots": "Compare Snapshots",

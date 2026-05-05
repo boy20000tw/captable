@@ -329,6 +329,8 @@
 
   "settings.company.title": "公司設定",
   "settings.company.desc": "管理公司基本資料、品牌設定與授權簽署人。",
+  "settings.company.saving": "儲存中…",
+  "settings.company.saveChanges": "保存更改",
 
   "settings.team.title": "團隊管理",
   "settings.team.desc": "管理團隊成員、角色與存取權限。",

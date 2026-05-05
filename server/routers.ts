@@ -1015,6 +1015,11 @@ const v1AllocationsRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: "Allocation has already been issued." });
       }
       await updateAllocation(ctx.companyId, input.id, updateFields as any);
+      // Verify the update succeeded with expected status
+      const verified = await getAllocationById(ctx.companyId, input.id);
+      if (verified?.status !== "issued") {
+        throw new TRPCError({ code: "CONFLICT", message: "Failed to advance allocation to issued status; possible race condition." });
+      }
       const written = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
         investorId: existing.investorId,
         eventType: "issuance",
@@ -1032,6 +1037,11 @@ const v1AllocationsRouter = router({
       snapshotId = written.snapshot.id;
     } else {
       await updateAllocation(ctx.companyId, input.id, updateFields as any);
+      // Verify the update succeeded with expected status
+      const verified = await getAllocationById(ctx.companyId, input.id);
+      if (verified?.status !== result.newStatus) {
+        throw new TRPCError({ code: "CONFLICT", message: `Failed to advance allocation to ${result.newStatus} status; possible race condition.` });
+      }
     }
     await createAuditLog({
       companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
@@ -1902,7 +1912,7 @@ const esignRouter = router({
   /** Get single template */
   getTemplate: companyProcedure
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => getSigningTemplateById(input.id)),
+    .query(async ({ ctx, input }) => getSigningTemplateById(input.id, ctx.companyId)),
 
   /** Upload a template (company-scope) */
   uploadTemplate: companyEditorProcedure
@@ -1991,6 +2001,7 @@ const esignRouter = router({
       });
 
       await createAuditLog({
+        companyId: 0,
         userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
         action: "create", resourceType: "signing_template",
         resourceName: `[Platform] ${input.name}`,
@@ -2018,6 +2029,7 @@ const esignRouter = router({
       }
       await updateSigningTemplate(input.id, input.data);
       await createAuditLog({
+        companyId: 0,
         userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
         action: "update", resourceType: "signing_template",
         resourceId: input.id, resourceName: `[Platform] ${input.data.name ?? tmpl.name}`,
@@ -2036,6 +2048,7 @@ const esignRouter = router({
       }
       await deleteSigningTemplate(input.id);
       await createAuditLog({
+        companyId: 0,
         userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
         action: "delete", resourceType: "signing_template",
         resourceId: input.id, resourceName: `[Platform] ${tmpl.name}`,

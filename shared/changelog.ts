@@ -20,6 +20,27 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.31.3",
+    date: "2026-05-06",
+    type: "patch",
+    title: "QA Round 4 — Medium & Low severity fixes",
+    description: "Medium: AllocationDialog placeholders i18n 化、ESign 表單重設時序修正、CompanySettings useEffect 依賴修正、ESign/RoundDetail icon-only 按鈕加 aria-label、DB list query 加 LIMIT、delete 函數加 cascade risk 註解。Low: EstimatedValuation 移至 components/、刪除 ComponentShowcase 孤立檔、移除 console.log 殘留。",
+  },
+  {
+    version: "2.31.2",
+    date: "2026-05-06",
+    type: "patch",
+    title: "QA Round 4 — High severity fixes",
+    description: "Nav: split single Legal item into Privacy + Terms (sidebar + mobile). Backend: allocation advance race condition fix with post-update verification for all state transitions. Audit: platform template operations now log companyId: 0. i18n: replaced hardcoded English toast messages in ESign (4), CompanySettings (1), Team (3) with react-i18next EN/zh-TW translations.",
+  },
+  {
+    version: "2.31.1",
+    date: "2026-05-06",
+    type: "patch",
+    title: "Security — QA Round 4 critical fixes",
+    description: "Fixed cross-tenant signing template access (getTemplate now filters by companyId). Strengthened allocation create form validation and double-submit prevention. Hardened transfer ownership confirmation guard.",
+  },
+  {
     version: "2.31.0",
     date: "2026-05-05",
     type: "minor",

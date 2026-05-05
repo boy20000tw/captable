@@ -416,19 +416,19 @@ function RequestsSection() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const createMut = trpc.esign.create.useMutation({
-    onSuccess: () => { utils.esign.list.invalidate(); toast.success("Signing request created"); },
+    onSuccess: () => { utils.esign.list.invalidate(); toast.success(t("esign.toastCreated")); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMut = trpc.esign.delete.useMutation({
-    onSuccess: () => { utils.esign.list.invalidate(); toast.success("Signing request deleted"); },
+    onSuccess: () => { utils.esign.list.invalidate(); toast.success(t("esign.toastDeleted")); },
     onError: (e) => toast.error(e.message),
   });
   const createTemplateMut = trpc.esign.createTemplate.useMutation({
-    onSuccess: () => { utils.esign.list.invalidate(); toast.success("Document uploaded to DocuSeal"); },
+    onSuccess: () => { utils.esign.list.invalidate(); toast.success(t("esign.toastUploaded")); },
     onError: (e) => toast.error(e.message),
   });
   const sendMut = trpc.esign.send.useMutation({
-    onSuccess: () => { utils.esign.list.invalidate(); setSendingId(null); toast.success("Signing request sent!"); },
+    onSuccess: () => { utils.esign.list.invalidate(); setSendingId(null); toast.success(t("esign.toastSent")); },
     onError: (e) => { setSendingId(null); toast.error(e.message); },
   });
   const updateMut = trpc.esign.update.useMutation({
@@ -484,11 +484,14 @@ function RequestsSection() {
             });
           } catch { /* toast already shown */ }
           setUploadingFile(false);
+          // Reset form after async upload completes to avoid race condition
+          setTimeout(() => resetForm(), 0);
         };
         reader.readAsDataURL(selectedFile);
+      } else {
+        // Reset form immediately if no file upload
+        resetForm();
       }
-
-      resetForm();
     } catch { /* toast already shown */ }
   }
 
@@ -525,7 +528,7 @@ function RequestsSection() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-4 w-4" />
-            New Request
+            {t("esign.newRequest")}
           </button>
         </div>
       )}
@@ -533,7 +536,7 @@ function RequestsSection() {
       {/* Create form */}
       {showForm && (
         <div className="border rounded-xl p-6 space-y-5 bg-card shadow-sm">
-          <h2 className="font-semibold text-lg">New Signing Request</h2>
+          <h2 className="font-semibold text-lg">{t("esign.newRequest")}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -636,7 +639,7 @@ function RequestsSection() {
                 </div>
                 <div>
                   {form.signers.length > 1 && (
-                    <button onClick={() => removeSigner(i)} className="text-destructive hover:text-destructive/80 p-1.5"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => removeSigner(i)} className="text-destructive hover:text-destructive/80 p-1.5" aria-label={t("esign.removeSigner")} title={t("esign.removeSigner")}><Trash2 className="h-4 w-4" /></button>
                   )}
                 </div>
               </div>
@@ -715,7 +718,7 @@ function RequestsSection() {
                         </a>
                       )}
                       {canEdit && req.status === "draft" && (
-                        <button onClick={() => { if (confirm("Delete this signing request?")) deleteMut.mutate({ id: req.id }); }} disabled={deleteMut.isPending} className="p-1.5 text-destructive hover:text-destructive/80 disabled:opacity-50 disabled:pointer-events-none" title="Delete">
+                        <button onClick={() => { if (confirm("Delete this signing request?")) deleteMut.mutate({ id: req.id }); }} disabled={deleteMut.isPending} className="p-1.5 text-destructive hover:text-destructive/80 disabled:opacity-50 disabled:pointer-events-none" aria-label="Delete request" title="Delete">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -954,7 +957,7 @@ function TemplateCard({ template, canDelete, onDelete }: { template: any; canDel
           )}
         </div>
         {canDelete && (
-          <button onClick={onDelete} className="p-1 text-destructive/60 hover:text-destructive shrink-0" title="Delete template">
+          <button onClick={onDelete} className="p-1 text-destructive/60 hover:text-destructive shrink-0" aria-label="Delete template" title="Delete template">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
