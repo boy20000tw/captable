@@ -122,7 +122,7 @@ function V1ShareRegisterContent() {
     return <ErrorState onRetry={refetch} />;
   }
 
-  const [investorFilter, setInvestorFilter] = useState<string>("all");
+  const [dateSort, setDateSort] = useState<"desc" | "asc">("desc");
   const [roundFilter, setRoundFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -180,14 +180,11 @@ function V1ShareRegisterContent() {
       id != null ? m.get(id) ?? `#${id}` : "—";
   }, [rounds]);
 
-  const filteredEntries = useMemo(() => {
-    const list = entries ?? [];
-    return list.filter((r) => {
-      if (investorFilter !== "all" && String(r.investorId) !== investorFilter)
-        return false;
-      return true;
-    });
-  }, [entries, investorFilter]);
+  const sortedEntries = useMemo(() => {
+    const list = [...(entries ?? [])];
+    const dir = dateSort === "desc" ? -1 : 1;
+    return list.sort((a, b) => dir * (new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime()));
+  }, [entries, dateSort]);
 
   const filteredAllocations = useMemo(() => {
     const list = (allocations ?? []) as unknown as AllocationRow[];
@@ -248,17 +245,13 @@ function V1ShareRegisterContent() {
         {/* ── Tab 1: Share Register ─────────────────────────────────────── */}
         <TabsContent value="register" className="space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
-            <Select value={investorFilter} onValueChange={setInvestorFilter}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder={t("register.filterByInvestor")} />
+            <Select value={dateSort} onValueChange={(v) => setDateSort(v as "desc" | "asc")}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("register.allInvestors")}</SelectItem>
-                {(investors ?? []).map((inv) => (
-                  <SelectItem key={inv.id} value={String(inv.id)}>
-                    {inv.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="desc">{t("register.newestFirst") || "Newest first"}</SelectItem>
+                <SelectItem value="asc">{t("register.oldestFirst") || "Oldest first"}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -267,7 +260,7 @@ function V1ShareRegisterContent() {
             <CardHeader>
               <CardTitle>{t("register.tabEntries")}</CardTitle>
               <CardDescription>
-                {t("register.entryCount", { count: filteredEntries.length })}
+                {t("register.entryCount", { count: sortedEntries.length })}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -275,7 +268,7 @@ function V1ShareRegisterContent() {
                 <div className="py-12 text-center text-muted-foreground text-sm">
                   {t("register.loading")}
                 </div>
-              ) : filteredEntries.length === 0 ? (
+              ) : sortedEntries.length === 0 ? (
                 <div className="py-12 text-center space-y-2">
                   <p className="text-muted-foreground text-sm">
                     {t("register.emptyEntries")}
@@ -301,7 +294,7 @@ function V1ShareRegisterContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredEntries.map((r) => {
+                      {sortedEntries.map((r) => {
                         const sharesNum = Number(r.shares ?? 0);
                         const signClass =
                           sharesNum > 0
@@ -500,9 +493,7 @@ function V1ShareRegisterContent() {
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
                               {a.amount
-                                ? `${a.currency} ${Number(
-                                    a.amount
-                                  ).toLocaleString()}`
+                                ? formatAmount(a.amount)
                                 : "—"}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
@@ -512,11 +503,7 @@ function V1ShareRegisterContent() {
                             </TableCell>
                             <TableCell className="text-right tabular-nums font-mono">
                               {a.pricePerShare
-                                ? `${a.currency} ${Number(
-                                    a.pricePerShare
-                                  ).toLocaleString(undefined, {
-                                    maximumFractionDigits: 4,
-                                  })}`
+                                ? formatPrice(a.pricePerShare)
                                 : "—"}
                             </TableCell>
                             <TableCell>

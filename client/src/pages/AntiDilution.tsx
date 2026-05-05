@@ -192,7 +192,7 @@ function AntiDilutionContent() {
     full_ratchet: t("antiDilution.fullRatchet"),
     broad_based_wa: t("antiDilution.bbwa"),
     narrow_based_wa: t("antiDilution.nbwa"),
-    none: "None (hardcoded - no i18n key)",
+    none: t("antiDilution.none"),
   };
 
   // When the user picks a funding round in the form, pre-fill the original
@@ -318,13 +318,13 @@ function AntiDilutionContent() {
         </div>
         <div className="border rounded-lg p-4 bg-card">
           <div className="text-sm text-muted-foreground flex items-center gap-1">
-            <Shield className="h-3.5 w-3.5 text-green-600" /> Active
+            <Shield className="h-3.5 w-3.5 text-green-600" /> {t("antiDilution.active")}
           </div>
           <div className="text-2xl font-bold mt-1 text-green-700">{activeCount}</div>
         </div>
         <div className="border rounded-lg p-4 bg-card">
           <div className="text-sm text-muted-foreground flex items-center gap-1">
-            <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> Triggered
+            <AlertTriangle className="h-3.5 w-3.5 text-red-600" /> {t("antiDilution.triggered")}
           </div>
           <div className="text-2xl font-bold mt-1 text-red-700">{triggeredCount}</div>
         </div>
@@ -345,7 +345,7 @@ function AntiDilutionContent() {
                   setForm({ ...form, shareholderId: e.target.value ? Number(e.target.value) : "" })
                 }
               >
-                <option value="">Select investor…</option>
+                <option value="">{t("antiDilution.selectInvestor")}</option>
                 {(investors ?? []).map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -363,7 +363,7 @@ function AntiDilutionContent() {
                   e.target.value ? handleRoundChange(Number(e.target.value)) : setForm((p) => ({ ...p, fundingRoundId: "" }))
                 }
               >
-                <option value="">Select round…</option>
+                <option value="">{t("antiDilution.selectRound")}</option>
                 {(rounds ?? []).map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -409,7 +409,7 @@ function AntiDilutionContent() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Notes (hardcoded - no i18n key)</label>
+              <label className="text-sm font-medium">{t("antiDilution.notes")}</label>
               <input
                 type="text"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -427,7 +427,7 @@ function AntiDilutionContent() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium disabled:opacity-50"
             >
               <Check className="h-4 w-4" />
-              {createProvision.isPending ? "Saving…" : t("antiDilution.createProvision")}
+              {createProvision.isPending ? t("antiDilution.saving") : t("antiDilution.createProvision")}
             </button>
             <button
               onClick={() => {
@@ -451,11 +451,11 @@ function AntiDilutionContent() {
               <th className="text-left px-4 py-3 font-medium">{t("antiDilution.investor")}</th>
               <th className="text-left px-4 py-3 font-medium">{t("antiDilution.round")}</th>
               <th className="text-left px-4 py-3 font-medium">{t("antiDilution.type")}</th>
-              <th className="text-right px-4 py-3 font-medium">Original Price</th>
-              <th className="text-right px-4 py-3 font-medium">Adjusted Price</th>
-              <th className="text-right px-4 py-3 font-medium">Original Shares</th>
-              <th className="text-right px-4 py-3 font-medium">Adjusted Shares</th>
-              <th className="text-center px-4 py-3 font-medium">Status</th>
+              <th className="text-right px-4 py-3 font-medium">{t("antiDilution.originalPrice")}</th>
+              <th className="text-right px-4 py-3 font-medium">{t("antiDilution.adjustedPrice")}</th>
+              <th className="text-right px-4 py-3 font-medium">{t("antiDilution.originalShares")}</th>
+              <th className="text-right px-4 py-3 font-medium">{t("antiDilution.adjustedShares")}</th>
+              <th className="text-center px-4 py-3 font-medium">{t("antiDilution.status")}</th>
               {canEdit && <th className="text-center px-4 py-3 font-medium w-16"></th>}
             </tr>
           </thead>
@@ -557,8 +557,7 @@ function AntiDilutionContent() {
               <TrendingDown className="h-5 w-5 text-amber-600" />
               <span className="font-semibold">{t("antiDilution.runSimulation")}</span>
               <span className="text-xs text-muted-foreground ml-2">
-                Test how a down round would affect {activeCount} active provision
-                {activeCount > 1 ? "s" : ""}
+                {t("antiDilution.downRoundSimulator", { count: activeCount, plural: activeCount > 1 ? "s" : "" })}
               </span>
             </div>
             {showSimulator ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -568,15 +567,12 @@ function AntiDilutionContent() {
             <div className="px-6 py-5 border-t space-y-5">
               <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 flex items-start gap-2">
                 <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>
-                  This simulator is read-only. Results preview the impact of a hypothetical down
-                  round. Nothing is written until you click <strong>Trigger</strong> below.
-                </span>
+                <span>{t("antiDilution.readOnlySimulator")}</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">New Round Price / Share (NTD) (hardcoded - no i18n key)</label>
+                  <label className="text-sm font-medium">{t("antiDilution.newRoundPrice")}</label>
                   <input
                     type="number"
                     step="0.000001"
@@ -587,7 +583,7 @@ function AntiDilutionContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Shares to be Issued (hardcoded - no i18n key)</label>
+                  <label className="text-sm font-medium">{t("antiDilution.sharesToBeIssued")}</label>
                   <input
                     type="number"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -599,7 +595,7 @@ function AntiDilutionContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Money Raised (NTD) (hardcoded - no i18n key)</label>
+                  <label className="text-sm font-medium">{t("antiDilution.moneyRaised")}</label>
                   <input
                     type="number"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
@@ -622,7 +618,7 @@ function AntiDilutionContent() {
                       })
                     }
                   >
-                    <option value="">Select round…</option>
+                    <option value="">{t("antiDilution.selectRound")}</option>
                     {(rounds ?? []).map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name}
@@ -639,7 +635,7 @@ function AntiDilutionContent() {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm font-medium disabled:opacity-50"
                 >
                   <Play className="h-4 w-4" />
-                  {simulating ? "Calculating…" : t("antiDilution.runSimulation")}
+                  {simulating ? t("antiDilution.calculating") : t("antiDilution.runSimulation")}
                 </button>
                 {canEdit && simResults && simResults.totalNewShares > 0 && (
                   <button
@@ -648,12 +644,12 @@ function AntiDilutionContent() {
                     className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium disabled:opacity-50"
                     title={
                       !simInput.triggerRoundId
-                        ? "Select the triggering round first"
-                        : "Commit the adjustment to the database"
+                        ? t("antiDilution.selectTriggeringRound")
+                        : t("antiDilution.commitAdjustment")
                     }
                   >
                     <Zap className="h-4 w-4" />
-                    {triggering ? "Committing…" : "Commit Trigger"}
+                    {triggering ? t("antiDilution.committing") : t("antiDilution.commitTrigger")}
                   </button>
                 )}
               </div>
@@ -662,20 +658,20 @@ function AntiDilutionContent() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="border rounded-lg p-4 bg-muted/30">
-                      <div className="text-xs text-muted-foreground">Fully Diluted (Before) (hardcoded - no i18n key)</div>
+                      <div className="text-xs text-muted-foreground">{t("antiDilution.fullyDilutedBefore")}</div>
                       <div className="text-lg font-bold mt-1">
                         {fmtNumber(simResults.fullyDilutedBefore)}
                       </div>
                     </div>
                     <div className="border rounded-lg p-4 bg-muted/30">
-                      <div className="text-xs text-muted-foreground">Fully Diluted (After)</div>
+                      <div className="text-xs text-muted-foreground">{t("antiDilution.fullyDilutedAfter")}</div>
                       <div className="text-lg font-bold mt-1 text-red-600">
                         {fmtNumber(simResults.fullyDilutedAfter)}
                       </div>
                     </div>
                     <div className="border rounded-lg p-4 bg-muted/30">
                       <div className="text-xs text-muted-foreground">
-                        Additional Shares from Anti-Dilution
+                        {t("antiDilution.additionalSharesFromAntiDilution")}
                       </div>
                       <div className="text-lg font-bold mt-1 text-amber-600">
                         {simResults.totalNewShares > 0
@@ -692,12 +688,12 @@ function AntiDilutionContent() {
                         <th className="text-left px-4 py-2 font-medium">{t("antiDilution.investor")}</th>
                         <th className="text-left px-4 py-2 font-medium">{t("antiDilution.round")}</th>
                         <th className="text-left px-4 py-2 font-medium">{t("antiDilution.type")}</th>
-                        <th className="text-right px-4 py-2 font-medium">Price Before</th>
-                        <th className="text-right px-4 py-2 font-medium">Price After</th>
-                        <th className="text-right px-4 py-2 font-medium">Shares Before</th>
-                        <th className="text-right px-4 py-2 font-medium">Shares After</th>
-                        <th className="text-right px-4 py-2 font-medium">Additional</th>
-                        <th className="text-center px-4 py-2 font-medium">Triggered</th>
+                        <th className="text-right px-4 py-2 font-medium">{t("antiDilution.priceBefore")}</th>
+                        <th className="text-right px-4 py-2 font-medium">{t("antiDilution.priceAfter")}</th>
+                        <th className="text-right px-4 py-2 font-medium">{t("antiDilution.sharesBefore")}</th>
+                        <th className="text-right px-4 py-2 font-medium">{t("antiDilution.sharesAfter")}</th>
+                        <th className="text-right px-4 py-2 font-medium">{t("antiDilution.additional")}</th>
+                        <th className="text-center px-4 py-2 font-medium">{t("antiDilution.triggered")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -739,7 +735,7 @@ function AntiDilutionContent() {
                             {r.triggered ? (
                               <AlertTriangle className="h-4 w-4 text-red-500 inline" />
                             ) : (
-                              <span className="text-green-600 text-xs">No impact</span>
+                              <span className="text-green-600 text-xs">{t("antiDilution.noImpact")}</span>
                             )}
                           </td>
                         </tr>
@@ -758,23 +754,21 @@ function AntiDilutionContent() {
       <div className="border rounded-lg p-5 bg-muted/20 space-y-3">
         <h3 className="font-semibold flex items-center gap-2">
           <Info className="h-4 w-4" />
-          Formula Reference (hardcoded - no i18n key)
+          {t("antiDilution.formulaReference")}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
           <div>
             <p className="font-medium text-foreground mb-1">{t("antiDilution.fullRatchet")}</p>
-            <p>Adjusted Price = New Round Price</p>
+            <p>{t("antiDilution.fullRatchetDesc")}</p>
             <p className="text-xs mt-1">
-              Most favorable to investor. Conversion price drops to the new lower price regardless
-              of round size.
+              {t("antiDilution.fullRatchetExplain")}
             </p>
           </div>
           <div>
             <p className="font-medium text-foreground mb-1">{t("antiDilution.bbwa")}</p>
-            <p>New CP = Old CP × (A + B) / (A + C)</p>
+            <p>{t("antiDilution.bbwaFormula")}</p>
             <p className="text-xs mt-1">
-              A = fully diluted shares before • B = new money / old price • C = new shares issued.
-              Industry standard — balances investor protection with founder dilution.
+              {t("antiDilution.bbwaExplain")}
             </p>
           </div>
         </div>

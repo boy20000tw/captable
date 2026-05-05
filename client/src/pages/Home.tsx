@@ -6,12 +6,11 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import {
   TrendingUp, Users, PieChart as PieIcon, Sparkles, ArrowRight,
-  Briefcase, Shield, Camera, Calculator, FileText, Rocket, BookOpen,
-  Building2, ChevronRight, Lightbulb, Upload,
+  Briefcase, Shield, Camera, Calculator, Rocket, BookOpen,
+  Building2, ChevronRight, Lightbulb, Upload, Target,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect, useMemo, useState } from "react";
@@ -41,7 +40,7 @@ export default function Home() {
 function DashboardContent() {
   const { t } = useTranslation("pages");
   const [, setLocation] = useLocation();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, formatPrice } = useCurrency();
   const { hasCompany, loading: authLoading } = useAuth();
   const [skippedOnboarding, setSkippedOnboarding] = useState(() => {
     try { return localStorage.getItem("onboarding_skipped") === "1"; } catch { return false; }
@@ -107,8 +106,6 @@ function DashboardContent() {
   const registerEntryCount = (register.data ?? []).length;
 
   // Ownership pie (top 8 by shares + a synthetic "Others" if more)
-  // Note: keep the values as plain Number (not BigInt) — Recharts breaks on
-  // huge numbers if represented oddly.
   const pieData = useMemo(() => {
     const sorted = holdings
       .filter(h => h.totalShares > 0 && !h.investorName?.includes('ESOP'))
@@ -127,37 +124,33 @@ function DashboardContent() {
     return out;
   }, [holdings]);
 
-  // Valuation by round (post-money in NT$M)
-  // Falls back to: postMoneyValuationNtd → postMoneyCalc → preMoney + moneyRaised → 0
-  const roundsChartData = useMemo(() => {
-    return (rounds.data ?? [])
-      .map(r => {
-        const stored = parseFloat(r.postMoneyValuationNtd || "0");
-        const calc = (r as any).postMoneyCalc ?? null;
-        const preMoney = parseFloat(r.preMoneyValuationNtd || "0");
-        const raised = parseFloat(r.moneyRaisedNtd || "0");
-        const fallback = preMoney > 0 && raised > 0 ? preMoney + raised : 0;
-        const post = calc || stored || fallback;
-        return { name: r.name, valuation: post / 1_000_000 };
-      })
-      .filter(r => r.valuation > 0);
-  }, [rounds.data]);
+  // Fundraising summary metrics
+  const closedRounds = sortedRounds.filter(r => r.status === "completed");
+  const totalRaised = closedRounds.reduce((s, r) => s + parseFloat(r.moneyRaisedNtd || "0"), 0);
+  const latestClosedRound = closedRounds[0];
+  const latestValuation = latestClosedRound
+    ? parseFloat((latestClosedRound as any).postMoneyCalc ?? latestClosedRound.postMoneyValuationNtd ?? "0")
+      || (parseFloat(latestClosedRound.preMoneyValuationNtd || "0") + parseFloat(latestClosedRound.moneyRaisedNtd || "0"))
+    : 0;
+  const uniqueInvestorsAcrossRounds = new Set(
+    (allocations.data ?? []).map(a => a.investorId)
+  ).size;
 
-  // Recent allocations (latest 6 by updated/created)
-  const recentAllocations = useMemo(() => {
-    const list = (allocations.data ?? []).slice();
-    list.sort((a, b) => {
-      const da = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
-      const db = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
-      return db - da;
-    });
-    return list.slice(0, 6);
-  }, [allocations.data]);
-
-  const investorName = (id: number) =>
-    investors.data?.find(i => i.id === id)?.name ?? `Investor #${id}`;
-  const roundName = (id: number) =>
-    rounds.data?.find(r => r.id === id)?.name ?? `Round #${id}`;
+  // Current fundraising goal: the active non-completed round
+  const goalRound = sortedRounds.find(r => r.status !== "completed");
+  const goalAllocations = useMemo(() => {
+    if (!goalRound) return [];
+    return (allocations.data ?? []).filter(a => a.fundingRoundId === goalRound.id);
+  }, [allocations.data, goalRound]);
+  const goalRaised = goalAllocations.reduce((s, a) => s + parseFloat(a.amount || "0"), 0);
+  const goalTarget = goalRound ? parseFloat(goalRound.moneyRaisedNtd || "0") : 0;
+  const goalSharesAllocated = goalAllocations.reduce((s, a) => s + (a.sharesAllocated ?? 0), 0);
+  const goalPct = goalTarget > 0 ? Math.round((goalRaised / goalTarget) * 100) : 0;
+  const goalFunnel = useMemo(() => {
+    const base = { planned: 0, committed: 0, signed: 0, funded: 0, issued: 0 };
+    for (const a of goalAllocations) base[a.status as keyof typeof base]++;
+    return base;
+  }, [goalAllocations]);
 
   if (isLoading) {
     return (
@@ -248,7 +241,7 @@ function DashboardContent() {
             />
           </div>
 
-          {/* ─── Charts + active round pipeline ──────────────────────── */}
+          {/* ─── Zone 2: Ownership Pie + Fundraising Summary ──────── */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Ownership pie */}
             <div className="lg:col-span-2 bg-card border border-border rounded-sm p-6 space-y-4">
@@ -269,74 +262,78 @@ function DashboardContent() {
                 </button>
               </div>
               {pieData.length === 0 ? (
-                <div className="h-52 flex items-center justify-center text-xs text-muted-foreground">
+                <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">
                   {t("home.noSharesIssued")}
                 </div>
               ) : (
-                <>
-                  <div className="h-52 w-full" style={{ minHeight: 208 }}>
-                    <ResponsiveContainer width="100%" height={208}>
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={48}
-                          outerRadius={84}
-                          paddingAngle={2}
-                          dataKey="value"
-                          isAnimationActive={true}
-                          animationBegin={0}
-                          animationDuration={800}
-                          animationEasing="ease-out"
-                        >
-                          {pieData.map((_, i) => (
-                            <Cell key={i} fill={ROUND_CHART_COLORS[i % ROUND_CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(v: number) => [`${formatShares(v)} shares`, ""]}
-                          contentStyle={{
-                            fontSize: "12px",
-                            border: "1px solid var(--border)",
-                            borderRadius: "2px",
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-0 pt-2">
+                  {/* Pie chart — left half, vertically centered */}
+                  <div className="flex items-center justify-center">
+                    <div style={{ width: 180, height: 180 }}>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={46}
+                            outerRadius={82}
+                            paddingAngle={2}
+                            dataKey="value"
+                            isAnimationActive={true}
+                            animationBegin={0}
+                            animationDuration={800}
+                            animationEasing="ease-out"
+                          >
+                            {pieData.map((_, i) => (
+                              <Cell key={i} fill={ROUND_CHART_COLORS[i % ROUND_CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(v: number) => [`${formatShares(v)} shares`, ""]}
+                            contentStyle={{
+                              fontSize: "12px",
+                              border: "1px solid var(--border)",
+                              borderRadius: "2px",
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    {pieData.slice(0, 5).map((entry, i) => (
-                      <div key={entry.id} className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2 min-w-0">
+                  {/* Legend — right half, vertically centered */}
+                  <div className="flex items-center">
+                    <div className="w-full space-y-3">
+                      {pieData.slice(0, 5).map((entry, i) => (
+                        <div key={entry.id} className="flex items-center gap-2.5 text-sm">
                           <div
-                            className="w-2 h-2 rounded-full shrink-0"
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
                             style={{ background: ROUND_CHART_COLORS[i % ROUND_CHART_COLORS.length] }}
                           />
-                          <span className="text-foreground truncate">{entry.name}</span>
+                          <span className="text-foreground truncate min-w-0">{entry.name}</span>
+                          <span className="text-muted-foreground tabular-nums shrink-0 ml-auto font-medium">
+                            {totalShares > 0 ? ((entry.value / totalShares) * 100).toFixed(1) + "%" : "—"}
+                          </span>
                         </div>
-                        <span className="text-muted-foreground tabular-nums shrink-0">
-                          {totalShares > 0 ? ((entry.value / totalShares) * 100).toFixed(1) + "%" : "—"}
-                        </span>
-                      </div>
-                    ))}
-                    {pieData.length > 5 && (
-                      <p className="text-xs text-muted-foreground">{t("home.more", {count: pieData.length - 5})}</p>
-                    )}
+                      ))}
+                      {pieData.length > 5 && (
+                        <p className="text-sm text-muted-foreground">{t("home.more", {count: pieData.length - 5})}</p>
+                      )}
+                    </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
 
-            {/* Valuation by round */}
-            <div className="lg:col-span-3 bg-card border border-border rounded-sm p-6 space-y-4">
+            {/* Fundraising Summary — 4 metric cards */}
+            <div className="lg:col-span-3 bg-card border border-border rounded-sm p-6 flex flex-col">
               <div className="flex items-start justify-between">
                 <div className="space-y-0.5">
                   <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-                    {t("home.valuationHistory")}
+                    {t("home.fundraisingSummary")}
                   </p>
                   <h3 className="text-lg font-semibold tracking-tight">
-                    {t("home.postMoneyByRound")}
+                    {t("home.fundraisingOverview")}
                   </h3>
                 </div>
                 <button
@@ -346,121 +343,167 @@ function DashboardContent() {
                   {t("home.rounds")} <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
-              {roundsChartData.length === 0 ? (
-                <div className="h-56 flex items-center justify-center text-xs text-muted-foreground">
-                  {t("home.noValuations")}
+              <div className="grid grid-cols-2 gap-4 mt-4 flex-1">
+                <div className="bg-muted/40 rounded-sm p-5 flex flex-col justify-center space-y-1">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    {t("home.totalRaised")}
+                  </p>
+                  <p className="text-2xl font-bold tabular-nums tracking-tight">
+                    {formatAmount(totalRaised)}
+                  </p>
                 </div>
-              ) : (
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={roundsChartData} barSize={28}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                        axisLine={false}
-                        tickLine={false}
-                        tickFormatter={v => `${v}M`}
-                      />
-                      <Tooltip
-                        formatter={(v: number) => [`NT$ ${v.toFixed(1)}M`, ""]}
-                        contentStyle={{
-                          fontSize: "12px",
-                          border: "1px solid var(--border)",
-                          borderRadius: "2px",
-                        }}
-                      />
-                      <Bar dataKey="valuation" fill="var(--primary)" radius={[2, 2, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="bg-muted/40 rounded-sm p-5 flex flex-col justify-center space-y-1">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    {t("home.latestValuation")}
+                  </p>
+                  <p className="text-2xl font-bold tabular-nums tracking-tight">
+                    {latestValuation > 0 ? formatAmount(latestValuation) : "—"}
+                  </p>
+                  {latestClosedRound && (
+                    <p className="text-[11px] text-muted-foreground">{latestClosedRound.name}</p>
+                  )}
                 </div>
-              )}
+                <div className="bg-muted/40 rounded-sm p-5 flex flex-col justify-center space-y-1">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    {t("home.roundsClosed")}
+                  </p>
+                  <p className="text-2xl font-bold tabular-nums tracking-tight">
+                    {closedRounds.length}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("home.roundsClosedOf", { total: sortedRounds.length })}
+                  </p>
+                </div>
+                <div className="bg-muted/40 rounded-sm p-5 flex flex-col justify-center space-y-1">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    {t("home.totalInvestors")}
+                  </p>
+                  <p className="text-2xl font-bold tabular-nums tracking-tight">
+                    {uniqueInvestorsAcrossRounds}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("home.acrossAllRounds")}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* ─── Allocation funnel + recent allocations ──────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-2">
-              <AllocationFunnel
-                funnel={funnel}
-                onClick={() => setLocation("/register")}
-              />
-            </div>
-            <div className="lg:col-span-3 bg-card border border-border rounded-sm">
-              <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-                    {t("home.recentActivity")}
-                  </p>
-                  <h3 className="text-base font-semibold tracking-tight">{t("home.allocations")}</h3>
+          {/* ─── Zone 3: Current Fundraising Goal ──────────────────── */}
+          {goalRound && (
+            <div className="bg-card border border-border rounded-sm p-6 space-y-5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Target className="h-4.5 w-4.5 text-primary" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                      {t("home.fundraisingGoal")}
+                    </p>
+                    <h3 className="text-lg font-semibold tracking-tight">
+                      {goalRound.name}
+                    </h3>
+                  </div>
                 </div>
                 <button
-                  onClick={() => setLocation("/register")}
+                  onClick={() => setLocation(`/funding-rounds/${goalRound.id}`)}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                 >
-                  {t("home.register")} <ArrowRight className="h-3 w-3" />
+                  {t("home.viewRound")} <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
-              {recentAllocations.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  {t("home.noAllocations")}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                <table className="cap-table w-full min-w-[640px]">
-                  <thead>
-                    <tr>
-                      <th>{t("home.colInvestor")}</th>
-                      <th>{t("home.colRound")}</th>
-                      <th className="text-right">{t("home.colShares")}</th>
-                      <th className="text-right">{t("home.colAmount")}</th>
-                      <th>{t("home.colStatus")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentAllocations.map(a => (
-                      <tr
-                        key={a.id}
-                        className="cursor-pointer"
-                        onClick={() => setLocation(`/funding-rounds/${a.fundingRoundId}`)}
-                      >
-                        <td className="font-medium truncate max-w-[180px]">
-                          {investorName(a.investorId)}
-                        </td>
-                        <td className="text-muted-foreground truncate max-w-[120px]">
-                          {roundName(a.fundingRoundId)}
-                        </td>
-                        <td className="text-right tabular-nums">
-                          {a.sharesAllocated ? a.sharesAllocated.toLocaleString() : "—"}
-                        </td>
-                        <td className="text-right tabular-nums">
-                          {a.amount ? `${a.currency || "NTD"} ${parseFloat(a.amount).toLocaleString()}` : "—"}
-                        </td>
-                        <td>
-                          <AllocationStatusPill status={a.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* ─── Funding rounds table ────────────────────────────────── */}
+              {/* Progress bar */}
+              <div className="space-y-2">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <span className="text-2xl font-bold tabular-nums tracking-tight">
+                      {formatAmount(goalRaised)}
+                    </span>
+                    {goalTarget > 0 && (
+                      <span className="text-sm text-muted-foreground ml-2">
+                        / {formatAmount(goalTarget)}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums text-primary">
+                    {goalPct}%
+                  </span>
+                </div>
+                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(goalPct, 100)}%` }}
+                  />
+                </div>
+                {goalTarget > 0 && goalTarget - goalRaised > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("home.remaining", { amount: formatAmount(goalTarget - goalRaised) })}
+                  </p>
+                )}
+              </div>
+
+              {/* Milestone dots — allocation status counts */}
+              <div className="flex flex-wrap gap-2">
+                {(["issued", "signed", "committed", "planned"] as const).map(s => {
+                  const count = goalFunnel[s] ?? 0;
+                  if (count === 0) return null;
+                  const dotColors: Record<string, string> = {
+                    issued: "bg-emerald-100 text-emerald-700",
+                    signed: "bg-indigo-100 text-indigo-700",
+                    committed: "bg-blue-100 text-blue-700",
+                    planned: "bg-slate-100 text-slate-700",
+                  };
+                  return (
+                    <span
+                      key={s}
+                      className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${dotColors[s]}`}
+                    >
+                      {t(`home.${s}`)} {count}
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Bottom stats row */}
+              <div className="grid grid-cols-3 gap-4 pt-2 border-t border-border">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    {t("home.totalInvestors")}
+                  </p>
+                  <p className="text-base font-semibold tabular-nums">
+                    {goalAllocations.length}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    {t("home.sharesAllocated")}
+                  </p>
+                  <p className="text-base font-semibold tabular-nums">
+                    {formatShares(goalSharesAllocated)}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
+                    {t("home.colPricePerShare")}
+                  </p>
+                  <p className="text-base font-semibold tabular-nums">
+                    {goalRound.pricePerShareNtd ? formatPrice(goalRound.pricePerShareNtd) : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Zone 4: All Rounds table (simplified) ────────────── */}
           <div className="bg-card border border-border rounded-sm">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
                   {t("home.history")}
                 </p>
-                <h3 className="text-base font-semibold tracking-tight">{t("home.fundingRounds")}</h3>
+                <h3 className="text-base font-semibold tracking-tight">{t("home.allRounds")}</h3>
               </div>
               <button
                 onClick={() => setLocation("/funding-rounds")}
@@ -487,49 +530,52 @@ function DashboardContent() {
                   <tr>
                     <th>{t("home.colRound")}</th>
                     <th>{t("home.colDate")}</th>
-                    <th className="text-right">{t("home.colPricePerShare")}</th>
+                    <th>{t("home.colStatus")}</th>
                     <th className="text-right">{t("home.colRaised")}</th>
                     <th className="text-right">{t("home.colPostMoney")}</th>
-                    <th>{t("home.colStatus")}</th>
+                    <th className="text-right">{t("home.colInvestors")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedRounds.slice(0, 6).map(r => (
-                    <tr
-                      key={r.id}
-                      className="cursor-pointer"
-                      onClick={() => setLocation(`/funding-rounds/${r.id}`)}
-                    >
-                      <td className="font-medium">{r.name}</td>
-                      <td className="text-muted-foreground">{formatDate(r.roundDate)}</td>
-                      <td className="text-right tabular-nums">
-                        {r.pricePerShareNtd
-                          ? `NT$ ${parseFloat(r.pricePerShareNtd).toLocaleString()}`
-                          : "—"}
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {formatAmount(r.moneyRaisedNtd)}
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {formatAmount(
-                          String((r as any).postMoneyCalc ?? r.postMoneyValuationNtd ?? "")
-                        )}
-                      </td>
-                      <td>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            r.status === "completed"
-                              ? "bg-green-100 text-green-700"
-                              : r.status === "bridge"
-                              ? "bg-orange-100 text-orange-700"
-                              : "bg-blue-100 text-blue-700"
-                          }`}
-                        >
-                          {r.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {sortedRounds.map(r => {
+                    const roundInvestors = new Set(
+                      (allocations.data ?? [])
+                        .filter(a => a.fundingRoundId === r.id)
+                        .map(a => a.investorId)
+                    ).size;
+                    return (
+                      <tr
+                        key={r.id}
+                        className="cursor-pointer"
+                        onClick={() => setLocation(`/funding-rounds/${r.id}`)}
+                      >
+                        <td className="font-medium">{r.name}</td>
+                        <td className="text-muted-foreground">{formatDate(r.roundDate)}</td>
+                        <td>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              r.status === "completed"
+                                ? "bg-green-100 text-green-700"
+                                : r.status === "bridge"
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="text-right tabular-nums">
+                          {formatAmount(r.moneyRaisedNtd)}
+                        </td>
+                        <td className="text-right tabular-nums">
+                          {formatAmount(
+                            String((r as any).postMoneyCalc ?? r.postMoneyValuationNtd ?? "")
+                          )}
+                        </td>
+                        <td className="text-right tabular-nums">{roundInvestors}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               </div>
@@ -658,90 +704,6 @@ function EmptyState({ setLocation }: { setLocation: (url: string) => void }) {
         </div>
       </div>
     </>
-  );
-}
-
-// ─── Allocation Funnel ────────────────────────────────────────────────────
-function AllocationFunnel({
-  funnel,
-  onClick,
-}: {
-  funnel: { planned: number; committed: number; signed: number; funded: number; issued: number };
-  onClick: () => void;
-}) {
-  const { t } = useTranslation("pages");
-
-  const steps: Array<[keyof typeof funnel, string, string]> = useMemo(() => [
-    ["planned",   t("home.planned"),   "bg-slate-200 text-slate-700"],
-    ["committed", t("home.committed"), "bg-blue-100 text-blue-700"],
-    ["signed",    t("home.signed"),    "bg-indigo-100 text-indigo-700"],
-    ["funded",    t("home.funded"),    "bg-amber-100 text-amber-700"],
-    ["issued",    t("home.issued"),    "bg-emerald-100 text-emerald-700"],
-  ], [t]);
-
-  const total = Object.values(funnel).reduce((s, v) => s + v, 0);
-
-  return (
-    <div className="bg-card border border-border rounded-sm p-6 space-y-4 h-full">
-      <div className="flex items-start justify-between">
-        <div className="space-y-0.5">
-          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-            {t("home.pipeline")}
-          </p>
-          <h3 className="text-lg font-semibold tracking-tight">{t("home.allocationFunnel")}</h3>
-        </div>
-        <button
-          onClick={onClick}
-          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-        >
-          {t("home.all")} <ArrowRight className="h-3 w-3" />
-        </button>
-      </div>
-      {total === 0 ? (
-        <div className="py-8 text-center text-xs text-muted-foreground">
-          {t("home.noAllocationsShort")}
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {steps.map(([key, label, color]) => {
-            const count = funnel[key];
-            const pct = total > 0 ? (count / total) * 100 : 0;
-            return (
-              <div key={key} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className={`px-2 py-0.5 rounded-full font-medium ${color}`}>{label}</span>
-                  <span className="tabular-nums text-muted-foreground">{count}</span>
-                </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary/60 transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Allocation Status Pill ───────────────────────────────────────────────
-function AllocationStatusPill({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    planned:   "bg-slate-100 text-slate-700",
-    committed: "bg-blue-100 text-blue-700",
-    signed:    "bg-indigo-100 text-indigo-700",
-    funded:    "bg-amber-100 text-amber-700",
-    issued:    "bg-emerald-100 text-emerald-700",
-  };
-  return (
-    <span
-      className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors[status] ?? "bg-muted text-muted-foreground"}`}
-    >
-      {status}
-    </span>
   );
 }
 

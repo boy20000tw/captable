@@ -100,7 +100,7 @@ function ProjectionsContent() {
       <Tabs defaultValue="projection" className="space-y-6">
         <TabsList>
           <TabsTrigger value="projection" className="gap-2">
-            <BarChart3 className="h-4 w-4" /> 5-Year Projection (hardcoded - no i18n key)
+            <BarChart3 className="h-4 w-4" /> {t("projections.fiveYearProjection")}
           </TabsTrigger>
           <TabsTrigger value="dcf" className="gap-2">
             <DollarSign className="h-4 w-4" /> {t("projections.dcfValuation")}
@@ -248,7 +248,7 @@ function ProjectionDetail({ projection, canEdit, onUpdate, onDelete, isPending }
     a.download = `projection-${projName}-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("CSV exported");
+    toast.success(t("projections.csvExported"));
   }
 
   return (
@@ -308,7 +308,7 @@ function ProjectionDetail({ projection, canEdit, onUpdate, onDelete, isPending }
       {/* Projection Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">5-Year P&L Projection (hardcoded - no i18n key)</CardTitle>
+          <CardTitle className="text-sm">{t("projections.pnlProjection")}</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <ProjectionTable rows={rows} />
@@ -331,6 +331,7 @@ function AssumptionsPanel({
   onChange: (a: ProjectionAssumptions) => void;
   disabled: boolean;
 }) {
+  const { t } = useTranslation("analysis");
   function set<K extends keyof ProjectionAssumptions>(key: K, value: ProjectionAssumptions[K]) {
     onChange({ ...assumptions, [key]: value });
   }
@@ -370,14 +371,14 @@ function AssumptionsPanel({
       {/* Margins & OpEx */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {([
-          ["grossMargin", "Gross Margin (%) (hardcoded - no i18n key)"],
-          ["salesMarketing", "S&M (% Rev) (hardcoded - no i18n key)"],
-          ["rnd", "R&D (% Rev) (hardcoded - no i18n key)"],
-          ["gAndA", "G&A (% Rev) (hardcoded - no i18n key)"],
-          ["depreciation", "D&A (% Rev) (hardcoded - no i18n key)"],
-          ["capex", "CapEx (% Rev) (hardcoded - no i18n key)"],
-          ["workingCapital", "NWC (% Rev) (hardcoded - no i18n key)"],
-          ["taxRate", "Tax Rate (%) (hardcoded - no i18n key)"],
+          ["grossMargin", t("projections.grossMargin")],
+          ["salesMarketing", t("projections.salesMarketing")],
+          ["rnd", t("projections.rnd")],
+          ["gAndA", t("projections.gAndA")],
+          ["depreciation", t("projections.depreciation")],
+          ["capex", t("projections.capex")],
+          ["workingCapital", t("projections.workingCapital")],
+          ["taxRate", t("projections.taxRate")],
         ] as const).map(([key, label]) => (
           <div key={key}>
             <Label className="text-xs">{label}</Label>
@@ -406,13 +407,13 @@ function getRowDefs(t: any): { key: keyof YearlyPnL; label: string; bold?: boole
     { key: "rnd", label: t("projections.rd") },
     { key: "gAndA", label: t("projections.ga") },
     { key: "ebitda", label: t("projections.ebitda"), bold: true },
-    { key: "depreciation", label: "D&A (hardcoded - no i18n key)" },
-    { key: "ebit", label: "EBIT (hardcoded - no i18n key)", bold: true },
+    { key: "depreciation", label: t("projections.da") },
+    { key: "ebit", label: t("projections.ebit"), bold: true },
     { key: "tax", label: t("projections.tax") },
     { key: "netIncome", label: t("projections.netIncome"), bold: true },
-    { key: "capex", label: "CapEx (hardcoded - no i18n key)" },
-    { key: "changeInNWC", label: "\u0394NWC (hardcoded - no i18n key)" },
-    { key: "freeCashFlow", label: "Free Cash Flow (hardcoded - no i18n key)", bold: true },
+    { key: "capex", label: t("projections.capexLabel") },
+    { key: "changeInNWC", label: t("projections.changeNWC") },
+    { key: "freeCashFlow", label: t("projections.freeCashFlow"), bold: true },
   ];
 }
 
@@ -425,7 +426,7 @@ function ProjectionTable({ rows }: { rows: YearlyPnL[] }) {
         <thead>
           <tr className="border-b border-border">
             <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide">
-              Line Item (hardcoded - no i18n key)
+              {t("projections.lineItem")}
             </th>
             {rows.map((r) => (
               <th
@@ -508,7 +509,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
     onSuccess: (created) => {
       utils.dcf.listByProjection.invalidate({ projectionId: activeProjId! });
       setSelectedScenarioId((created as any).id);
-      toast.success("DCF scenario created (hardcoded - no i18n key)");
+      toast.success(t("projections.dcfScenarioCreated"));
     },
     onError: (e) => toast.error(e.message),
   });
@@ -516,7 +517,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
   const updateScenario = trpc.dcf.update.useMutation({
     onSuccess: () => {
       utils.dcf.listByProjection.invalidate({ projectionId: activeProjId! });
-      toast.success("DCF scenario saved (hardcoded - no i18n key)");
+      toast.success(t("projections.dcfScenarioSaved"));
     },
     onError: (e) => toast.error(e.message),
   });
@@ -525,7 +526,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
     onSuccess: () => {
       utils.dcf.listByProjection.invalidate({ projectionId: activeProjId! });
       setSelectedScenarioId(null);
-      toast.success("DCF scenario deleted (hardcoded - no i18n key)");
+      toast.success(t("projections.dcfScenarioDeleted"));
     },
     onError: (e) => toast.error(e.message),
   });
@@ -589,7 +590,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
         <CardContent className="py-16 text-center">
           <DollarSign className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
           <p className="text-muted-foreground">
-            Create a 5-year projection first to run a DCF valuation. (hardcoded - no i18n key)
+            {t("projections.createProjectionFirst")}
           </p>
         </CardContent>
       </Card>
@@ -601,7 +602,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
       {/* Source projection selector */}
       <div className="flex items-center gap-4 flex-wrap">
         <div>
-          <Label className="text-xs mb-1 block">Source Projection (hardcoded - no i18n key)</Label>
+          <Label className="text-xs mb-1 block">{t("projections.sourceProjection")}</Label>
           <Select
             value={activeProjId != null ? String(activeProjId) : ""}
             onValueChange={(v) => {
@@ -624,7 +625,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
 
         {scenarios.length > 0 && (
           <div>
-            <Label className="text-xs mb-1 block">DCF Scenario (hardcoded - no i18n key)</Label>
+            <Label className="text-xs mb-1 block">{t("projections.dcfScenario")}</Label>
             <Select
               value={activeScenario ? String(activeScenario.id) : ""}
               onValueChange={(v) => setSelectedScenarioId(Number(v))}
@@ -650,7 +651,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
               disabled={createScenario.isPending || !activeProjId}
               className="gap-2"
             >
-              <Plus className="h-4 w-4" /> New Scenario (hardcoded - no i18n key)
+              <Plus className="h-4 w-4" /> {t("projections.newScenario")}
             </Button>
             {activeScenario && (
               <>
@@ -680,7 +681,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
       {/* DCF Inputs */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">DCF Inputs (hardcoded - no i18n key)</CardTitle>
+          <CardTitle className="text-sm">{t("projections.dcfInputs")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -693,7 +694,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
               />
             </div>
             <div>
-              <Label className="text-xs">Terminal Growth (%) (hardcoded - no i18n key)</Label>
+              <Label className="text-xs">{t("projections.terminalGrowth")}</Label>
               <Input
                 type="number"
                 value={(terminalGrowth * 100).toFixed(1)}
@@ -701,7 +702,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
               />
             </div>
             <div>
-              <Label className="text-xs">Net Debt ($) (hardcoded - no i18n key)</Label>
+              <Label className="text-xs">{t("projections.netDebt")}</Label>
               <Input
                 type="number"
                 value={netDebt}
@@ -709,7 +710,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
               />
             </div>
             <div>
-              <Label className="text-xs">Cash ($)</Label>
+              <Label className="text-xs">{t("projections.cash")}</Label>
               <Input
                 type="number"
                 value={cash}
@@ -717,7 +718,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
               />
             </div>
             <div>
-              <Label className="text-xs">Target Raise ($)</Label>
+              <Label className="text-xs">{t("projections.targetRaise")}</Label>
               <Input
                 type="number"
                 value={targetRaise}
@@ -726,7 +727,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
               />
             </div>
             <div>
-              <Label className="text-xs">Target Pre-Money ($)</Label>
+              <Label className="text-xs">{t("projections.targetPreMoney")}</Label>
               <Input
                 type="number"
                 value={targetPreMoney}
@@ -777,20 +778,20 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
               {dcfResult.valuationGap !== null ? (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-1">
-                    <span className="text-sm text-muted-foreground">Implied Pre-money</span>
+                    <span className="text-sm text-muted-foreground">{t("projections.impliedPreMoney")}</span>
                     <span className="text-sm font-semibold tabular-nums">
                       {fmtCurrency(dcfResult.impliedPreMoney)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center py-1">
-                    <span className="text-sm text-muted-foreground">Target Pre-money</span>
+                    <span className="text-sm text-muted-foreground">{t("projections.targetPreMoneyLabel")}</span>
                     <span className="text-sm font-semibold tabular-nums">
                       {fmtCurrency(Number(targetPreMoney) || 0)}
                     </span>
                   </div>
                   <div className="border-t border-border pt-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold">Gap</span>
+                      <span className="text-sm font-semibold">{t("projections.gap")}</span>
                       <span
                         className={`text-lg font-bold tabular-nums ${
                           dcfResult.valuationGap >= 0 ? "text-green-600" : "text-red-600"
@@ -802,14 +803,14 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {dcfResult.valuationGap >= 0
-                        ? "Implied value exceeds target - favorable"
-                        : "Implied value below target - unfavorable"}
+                        ? t("projections.impliedValueExceeds")
+                        : t("projections.impliedValueBelow")}
                     </p>
                   </div>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  Enter a Target Pre-Money to see the valuation gap analysis.
+                  {t("projections.enterTargetPreMoney")}
                 </p>
               )}
             </CardContent>

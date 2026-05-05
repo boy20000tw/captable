@@ -52,6 +52,8 @@
   "pricing.upgradeToStandard": "升級至標準版",
   "pricing.upgradeToPlus": "升級至進階版",
   "pricing.contactSalesBtn": "聯繫銷售",
+  "pricing.contactAdmin": "聯繫管理員",
+  "pricing.contactSubject": "方案升級洽詢：{{plan}}",
 
   "pricing.includes": "包含功能",
   "pricing.everythingInStarter": "入門版所有功能，加上",
@@ -161,6 +163,8 @@
   "gate.description": "此功能需要{{plan}}或以上方案。",
   "gate.upgrade": "立即升級",
   "gate.comparePlans": "比較方案",
+  "gate.contactAdmin": "聯繫管理員",
+  "gate.contactSubject": "方案升級洽詢：{{plan}}",
   "gate.limitReached": "已達上限",
   "gate.limitDescription": "您已達到目前方案的{{resource}}上限（{{used}}/{{max}}）。",
   "gate.limitWarning": "您即將達到{{resource}}上限（{{used}}/{{max}}）。"

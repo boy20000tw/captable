@@ -74,7 +74,7 @@ function TransferOwnerDialog({
         {/* Warning */}
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-sm p-3">
           <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-amber-800" dangerouslySetInnerHTML={{ __html: t("team.transferWarning") }} />
+          <p className="text-xs text-amber-800">{t("team.transferWarning")}</p>
         </div>
 
         {/* Select new owner */}
@@ -117,7 +117,9 @@ function TransferOwnerDialog({
               onChange={e => setConfirmed(e.target.checked)}
               className="mt-0.5"
             />
-            <span className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: t("team.transferConfirm").replace("{{name}}", selectedMember.name ?? selectedMember.email) }} />
+            <span className="text-sm text-muted-foreground">
+              {t("team.transferConfirmBefore")}<strong>{selectedMember.name ?? selectedMember.email}</strong>{t("team.transferConfirmAfter")}
+            </span>
           </label>
         )}
 
@@ -205,12 +207,14 @@ function ClearAllDataDialog({ onClose, t }: { onClose: () => void; t: (key: stri
             onChange={e => setAcknowledged(e.target.checked)}
             className="mt-0.5"
           />
-          <span className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: t("team.clearAcknowledge") }} />
+          <span className="text-sm text-muted-foreground">{t("team.clearAcknowledge")}</span>
         </label>
 
         {/* Step 2: Type exact phrase */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground" dangerouslySetInnerHTML={{ __html: t("team.clearTypeConfirm").replace("{{phrase}}", `<span class="font-mono text-foreground">${REQUIRED_PHRASE}</span>`) }} />
+          <label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+            {t("team.clearTypeConfirmBefore")}<span className="font-mono text-foreground">{REQUIRED_PHRASE}</span>{t("team.clearTypeConfirmAfter")}
+          </label>
 
           <input
             type="text"
@@ -345,7 +349,7 @@ function RemoveMemberDialog({
   const removeMember = trpc.team.removeMember.useMutation({
     onSuccess: () => {
       utils.team.members.invalidate();
-      toast.success(`${member.name ?? member.email} has been removed.`);
+      toast.success((t as any)("team.memberRemoved", { name: member.name ?? member.email }));
       onClose();
     },
     onError: (e) => toast.error(e.message),
@@ -372,7 +376,9 @@ function RemoveMemberDialog({
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-sm p-3">
           <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
           <div className="text-xs text-red-800 space-y-1">
-            <p dangerouslySetInnerHTML={{ __html: t("team.removeConfirm").replace("{{name}}", `<strong>${member.name ?? member.email}</strong>`).replace("{{email}}", member.email).replace("{{role}}", `<strong>${member.appRole}</strong>`) }} />
+            <p>
+              {(t as any)("team.removeConfirmText", { name: member.name ?? member.email, email: member.email, role: member.appRole })}
+            </p>
             <p className="pt-0.5">{t("team.removeDesc")}</p>
           </div>
         </div>

@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { Check, HelpCircle } from "lucide-react";
+import { Check, HelpCircle, Mail } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { normalizePlan, type PlanKey } from "../../../shared/plans";
+
+const ADMIN_EMAIL = "boy20000tw@gmail.com";
 
 type TierColor = "gray" | "blue" | "indigo" | "purple";
 
@@ -210,8 +212,12 @@ export default function PricingPage() {
                     {t("pricing.currentPlan")}
                   </Button>
                 ) : (
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                    {t("pricing.upgradeToStandard")}
+                  <Button
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+                    onClick={() => window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t("pricing.contactSubject", { plan: t("pricing.standard") }))}`}
+                  >
+                    <Mail className="h-4 w-4" />
+                    {t("pricing.contactAdmin")}
                   </Button>
                 )}
               </div>
@@ -261,8 +267,12 @@ export default function PricingPage() {
                     {t("pricing.currentPlan")}
                   </Button>
                 ) : (
-                  <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-                    {t("pricing.upgradeToPlus")}
+                  <Button
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                    onClick={() => window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t("pricing.contactSubject", { plan: t("pricing.plus") }))}`}
+                  >
+                    <Mail className="h-4 w-4" />
+                    {t("pricing.contactAdmin")}
                   </Button>
                 )}
               </div>
@@ -298,8 +308,13 @@ export default function PricingPage() {
                     {t("pricing.currentPlan")}
                   </Button>
                 ) : (
-                  <Button variant="outline" className="w-full">
-                    {t("pricing.contactSalesBtn")}
+                  <Button
+                    variant="outline"
+                    className="w-full gap-1.5"
+                    onClick={() => window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t("pricing.contactSubject", { plan: t("pricing.enterprise") }))}`}
+                  >
+                    <Mail className="h-4 w-4" />
+                    {t("pricing.contactAdmin")}
                   </Button>
                 )}
               </div>
@@ -312,9 +327,9 @@ export default function PricingPage() {
           <HelpCircle className="h-4 w-4 text-muted-foreground shrink-0" />
           <p className="text-sm text-muted-foreground">
             {t("pricing.footer")}{" "}
-            <button className="text-blue-600 hover:underline">
+            <a href={`mailto:${ADMIN_EMAIL}`} className="text-blue-600 hover:underline">
               {t("pricing.talkToUs")}
-            </button>
+            </a>
           </p>
         </div>
 

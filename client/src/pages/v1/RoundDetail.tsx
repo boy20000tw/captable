@@ -15,7 +15,9 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
 import ErrorState from "@/components/ErrorState";
 import { trpc } from "@/lib/trpc";
-import { formatDate, formatValuation } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   Card,
@@ -128,6 +130,7 @@ function V1RoundDetailContent() {
   const params = matchNew ? paramsNew : paramsLegacy;
   const [, setLocation] = useLocation();
   const { canEdit, canDelete } = usePermissions();
+  const { formatAmount, formatPrice } = useCurrency();
   const utils = trpc.useUtils();
 
   const roundId = params ? parseInt(params.id) : NaN;
@@ -213,7 +216,7 @@ function V1RoundDetailContent() {
   if (!hasId) {
     return (
       <div className="p-8 max-w-6xl mx-auto">
-        <p className="text-muted-foreground">{t("roundDetail.invalidId") || "Invalid round id."}</p>
+        <p className="text-muted-foreground">{t("roundDetail.invalidId")}</p>
       </div>
     );
   }
@@ -221,7 +224,7 @@ function V1RoundDetailContent() {
   if (roundLoading) {
     return (
       <div className="p-8 max-w-6xl mx-auto">
-        <p className="text-muted-foreground">{t("roundDetail.loading") || "Loading round..."}</p>
+        <p className="text-muted-foreground">{t("roundDetail.loading")}</p>
       </div>
     );
   }
@@ -236,13 +239,23 @@ function V1RoundDetailContent() {
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> {t("roundDetail.backToRounds")}
         </Button>
-        <p className="text-muted-foreground">{t("roundDetail.notFound") || "Round not found."}</p>
+        <p className="text-muted-foreground">{t("roundDetail.notFound")}</p>
       </div>
     );
   }
 
   const allocs = (allocations ?? []) as unknown as AllocationRow[];
   const isEmpty = !allocLoading && allocs.length === 0;
+
+  // Compute unallocated amount & shares
+  const totalRaised = round ? Number(round.moneyRaisedNtd ?? 0) : 0;
+  const allocatedAmount = allocs.reduce((sum, a) => sum + Number(a.amount ?? 0), 0);
+  const unallocatedAmount = Math.max(0, totalRaised - allocatedAmount);
+
+  const pricePerShare = round?.pricePerShareNtd ? Number(round.pricePerShareNtd) : 0;
+  const totalShares = pricePerShare > 0 ? Math.floor(totalRaised / pricePerShare) : 0;
+  const allocatedShares = allocs.reduce((sum, a) => sum + Number(a.sharesAllocated ?? 0), 0);
+  const unallocatedShares = Math.max(0, totalShares - allocatedShares);
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
@@ -266,7 +279,10 @@ function V1RoundDetailContent() {
             {formatDate(round.roundDate)}
           </p>
         </div>
-        <div>{statusBadge(round.status as RoundStatus, t)}</div>
+        <div className="flex items-center gap-3">
+          <CurrencyToggle />
+          {statusBadge(round.status as RoundStatus, t)}
+        </div>
       </div>
 
       {/* Round Info Card */}
@@ -276,18 +292,25 @@ function V1RoundDetailContent() {
           <CardDescription>{t("roundDetail.summaryDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <InfoItem label={t("roundDetail.preMoney")} value={formatValuation(round.preMoneyValuationNtd)} />
-            <InfoItem label={t("roundDetail.postMoney")} value={formatValuation(round.postMoneyValuationNtd)} />
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+            <InfoItem label={t("roundDetail.preMoney")} value={formatAmount(round.preMoneyValuationNtd)} />
+            <InfoItem label={t("roundDetail.postMoney")} value={formatAmount(round.postMoneyValuationNtd)} />
             <InfoItem
               label={t("roundDetail.pricePerShare")}
-              value={
-                round.pricePerShareNtd
-                  ? `NT$ ${Number(round.pricePerShareNtd).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
-                  : "—"
-              }
+              value={round.pricePerShareNtd ? formatPrice(round.pricePerShareNtd) : "—"}
             />
-            <InfoItem label={t("roundDetail.moneyRaised")} value={formatValuation(round.moneyRaisedNtd)} />
+            <InfoItem label={t("roundDetail.moneyRaised")} value={formatAmount(round.moneyRaisedNtd)} />
+            <InfoItem
+              label={t("roundDetail.allocatedAmount")}
+              value={formatAmount(allocatedAmount)}
+              sub={allocatedShares > 0 ? `${allocatedShares.toLocaleString()} ${t("roundDetail.sharesUnit")}` : undefined}
+            />
+            <InfoItem
+              label={t("roundDetail.unallocatedAmount")}
+              value={formatAmount(unallocatedAmount)}
+              sub={unallocatedShares > 0 ? `${unallocatedShares.toLocaleString()} ${t("roundDetail.sharesUnit")}` : undefined}
+              highlight={unallocatedAmount > 0}
+            />
           </div>
           {round.notes && (
             <div className="mt-4 pt-4 border-t text-sm text-muted-foreground">
@@ -309,7 +332,7 @@ function V1RoundDetailContent() {
             </div>
             {canEdit && (
               <Button onClick={openCreate} size="sm">
-                <Plus className="h-4 w-4 mr-1" /> {t("roundDetail.addAllocation") || "Add Allocation"}
+                <Plus className="h-4 w-4 mr-1" /> {t("roundDetail.addAllocation")}
               </Button>
             )}
           </div>
@@ -317,7 +340,7 @@ function V1RoundDetailContent() {
         <CardContent>
           {allocLoading ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              {t("roundDetail.loadingAllocations") || "Loading allocations..."}
+              {t("roundDetail.loadingAllocations")}
             </div>
           ) : isEmpty ? (
             <div className="py-12 text-center space-y-3">
@@ -326,7 +349,7 @@ function V1RoundDetailContent() {
               </p>
               {canEdit && (
                 <Button onClick={openCreate}>
-                  <Plus className="h-4 w-4 mr-1" /> {t("roundDetail.addAllocation") || "Add Allocation"}
+                  <Plus className="h-4 w-4 mr-1" /> {t("roundDetail.addAllocation")}
                 </Button>
               )}
             </div>
@@ -336,12 +359,12 @@ function V1RoundDetailContent() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("roundDetail.investor")}</TableHead>
-                    <TableHead>{t("roundDetail.shareClass") || "Share Class"}</TableHead>
+                    <TableHead>{t("roundDetail.shareClass")}</TableHead>
                     <TableHead className="text-right">{t("roundDetail.shares")}</TableHead>
                     <TableHead className="text-right">{t("roundDetail.pricePerShare")}</TableHead>
-                    <TableHead className="text-right">{t("roundDetail.amount") || "Amount"}</TableHead>
+                    <TableHead className="text-right">{t("roundDetail.amount")}</TableHead>
                     <TableHead>{t("roundDetail.status")}</TableHead>
-                    <TableHead className="w-[180px] text-right">{t("roundDetail.actions") || "Actions"}</TableHead>
+                    <TableHead className="w-[180px] text-right">{t("roundDetail.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -367,12 +390,12 @@ function V1RoundDetailContent() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-xs font-mono">
                           {a.pricePerShare
-                            ? `${a.currency} ${Number(a.pricePerShare).toLocaleString(undefined, { maximumFractionDigits: 4 })}`
+                            ? formatPrice(a.pricePerShare)
                             : "—"}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {a.amount
-                            ? `${a.currency} ${Number(a.amount).toLocaleString()}`
+                            ? formatAmount(a.amount)
                             : "—"}
                         </TableCell>
                         <TableCell>
@@ -386,9 +409,9 @@ function V1RoundDetailContent() {
                                 variant="outline"
                                 onClick={(e) => handleAdvance(a, e)}
                                 disabled={advanceMut.isPending}
-                                title={t("roundDetail.advanceTooltip") || "Advance to next status"}
+                                title={t("roundDetail.advanceTooltip")}
                               >
-                                {t("roundDetail.advance") || "Advance"}
+                                {t("roundDetail.advance")}
                               </Button>
                             )}
                             {canEdit && (
@@ -437,13 +460,20 @@ function V1RoundDetailContent() {
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+function InfoItem({ label, value, sub, highlight }: { label: string; value: string; sub?: string; highlight?: boolean }) {
   return (
     <div>
       <div className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
         {label}
       </div>
-      <div className="text-lg font-semibold tabular-nums mt-1">{value}</div>
+      <div className={"text-lg font-semibold tabular-nums mt-1" + (highlight ? " text-orange-600" : "")}>
+        {value}
+      </div>
+      {sub && (
+        <div className={"text-xs tabular-nums mt-0.5" + (highlight ? " text-orange-500" : " text-muted-foreground")}>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }

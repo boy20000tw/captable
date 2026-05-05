@@ -213,7 +213,7 @@ export default function Waterfall() {
         )}
 
         {isLoading && (
-          <div className="text-center py-20 text-stone-400">Computing waterfall</div>
+          <div className="text-center py-20 text-stone-400">{t("waterfall.computing")}</div>
         )}
 
         {waterfallData && !isLoading && (
@@ -229,7 +229,7 @@ export default function Waterfall() {
               </Card>
               <Card className="border-stone-200">
                 <CardContent className="pt-6">
-                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">Preference Tranches (hardcoded - no i18n key)</p>
+                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">{t("waterfall.preferenceTranches")}</p>
                   <p className="text-2xl font-bold text-stone-900">{waterfallData.tranches.length}</p>
                   <p className="text-xs text-stone-400 mt-1">
                     {formatNTD(waterfallData.tranches.reduce((s, t) => s + t.distributed, 0))} total
@@ -238,7 +238,7 @@ export default function Waterfall() {
               </Card>
               <Card className="border-stone-200">
                 <CardContent className="pt-6">
-                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">Remaining for Common (hardcoded - no i18n key)</p>
+                  <p className="text-xs tracking-widest uppercase text-stone-400 mb-1">{t("waterfall.remainingForCommon")}</p>
                   <p className="text-2xl font-bold text-stone-900">{formatNTD((waterfallData.remainingForCommon ?? 0))}</p>
                   <p className="text-xs text-stone-400 mt-1">
                     {formatPercent((waterfallData.remainingForCommon ?? 0) / exitValueNtd)} of exit
@@ -251,7 +251,7 @@ export default function Waterfall() {
             <Card className="mb-8 border-stone-200">
               <CardHeader>
                 <CardTitle className="text-sm font-semibold tracking-widest uppercase text-stone-600">
-                  Distribution by Tranche (hardcoded - no i18n key)
+                  {t("waterfall.distributionByTranche")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -286,7 +286,7 @@ export default function Waterfall() {
               <Card className="mb-8 border-stone-200">
                 <CardHeader>
                   <CardTitle className="text-sm font-semibold tracking-widest uppercase text-stone-600">
-                    Preference Tranche Details (hardcoded - no i18n key)
+                    {t("waterfall.preferenceTrancheDetails")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -346,14 +346,14 @@ export default function Waterfall() {
             <Card className="border-stone-200">
               <CardHeader>
                 <CardTitle className="text-sm font-semibold tracking-widest uppercase text-stone-600">
-                  Total Distribution per Shareholder (hardcoded - no i18n key)
+                  {t("waterfall.totalDistributionPerShareholder")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {shareholderTotals.length === 0 ? (
                   <div className="flex items-center gap-2 text-stone-400 text-sm py-8 justify-center">
                     <AlertCircle className="w-4 h-4" />
-                    No shareholder data available. Import cap table data first. (hardcoded - no i18n key)
+                    {t("waterfall.noShareholderData")}
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -405,7 +405,7 @@ export default function Waterfall() {
         {!waterfallData && !isLoading && (
           <div className="text-center py-20">
             <Droplets className="w-12 h-12 text-stone-300 mx-auto mb-4" />
-            <p className="text-stone-400">Enter an exit value and click Run Analysis to compute the waterfall distribution. (hardcoded - no i18n key)</p>
+            <p className="text-stone-400">{t("waterfall.enterExitValue")}</p>
           </div>
         )}
         </div>

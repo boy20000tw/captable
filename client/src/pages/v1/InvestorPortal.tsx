@@ -5,7 +5,7 @@
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { PieChart, FileText, Award, Briefcase, Download, CheckCircle2, Clock, Eye } from "lucide-react";
+import { PieChart, FileText, Award, Briefcase, Download, CheckCircle2, Clock, Eye, Mail } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
@@ -63,16 +63,26 @@ function InvestorPortalContent() {
     );
   }
 
+  const ADMIN_EMAIL = "boy20000tw@gmail.com";
+
   if (!profile) {
     return (
       <div className="p-8 max-w-5xl mx-auto">
         <div className="text-center py-20">
           <PieChart className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-          <h2 className="text-lg font-semibold mb-2">Investor Portal</h2>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Your account email is not linked to an investor record in this company.
-            Please contact the company administrator to set up your access.
+          <h2 className="text-lg font-semibold mb-2">{t("investorPortal.noAccess")}</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
+            {t("investorPortal.noAccessDesc")}
           </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t("investorPortal.contactSubject"))}`}
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {t("investorPortal.contactAdmin")}
+          </Button>
         </div>
       </div>
     );
@@ -94,19 +104,19 @@ function InvestorPortalContent() {
       {/* Holdings Summary */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Your Holdings</CardTitle>
-          <CardDescription>Current shares by class</CardDescription>
+          <CardTitle className="text-base">{t("investorPortal.holdingsTitle")}</CardTitle>
+          <CardDescription>{t("investorPortal.holdingsDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           {holdingsLoading ? (
             <div className="h-16 bg-muted rounded animate-pulse" />
           ) : !holdingsData || holdingsData.holdings.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">No shares held yet.</p>
+            <p className="text-sm text-muted-foreground py-4">{t("investorPortal.noShares")}</p>
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="rounded-lg bg-primary/5 p-3">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Shares</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t("investorPortal.totalShares")}</p>
                   <p className="text-2xl font-bold mt-1">{formatNumber(holdingsData.totalShares)}</p>
                 </div>
                 {holdingsData.holdings.map((h: any) => (
@@ -129,9 +139,9 @@ function InvestorPortalContent() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Briefcase className="h-4 w-4" />
-              ESOP Grants
+              {t("investorPortal.grantsTitle")}
             </CardTitle>
-            <CardDescription>Your stock option grants and vesting progress</CardDescription>
+            <CardDescription>{t("investorPortal.grantsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {grants.map((g: any) => (
@@ -139,10 +149,10 @@ function InvestorPortalContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="font-medium text-sm">
-                      {formatNumber(g.sharesGranted)} shares granted
+                      {t("investorPortal.sharesGranted", { count: formatNumber(g.sharesGranted) })}
                     </span>
                     <span className="text-xs text-muted-foreground ml-2">
-                      on {g.grantDate ? formatDate(g.grantDate) : "—"}
+                      {g.grantDate ? t("investorPortal.grantedOn", { date: formatDate(g.grantDate) }) : "—"}
                     </span>
                   </div>
                   <Badge className={
@@ -156,7 +166,7 @@ function InvestorPortalContent() {
                 </div>
                 {g.exercisePrice && (
                   <p className="text-xs text-muted-foreground">
-                    Exercise price: {g.currency ?? "NTD"} {g.exercisePrice} / share
+                    {t("investorPortal.exercisePrice", { currency: g.currency ?? "NTD", price: g.exercisePrice })}
                   </p>
                 )}
                 <VestingTimeline grant={g} />
@@ -172,9 +182,9 @@ function InvestorPortalContent() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Award className="h-4 w-4" />
-              Share Certificates
+              {t("investorPortal.certsTitle")}
             </CardTitle>
-            <CardDescription>Download certificates for your issued shares</CardDescription>
+            <CardDescription>{t("investorPortal.certsDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -185,7 +195,7 @@ function InvestorPortalContent() {
                       {formatNumber(Math.abs(Number(e.shares)))} shares — {String(e.shareClass).replace(/_/g, " ")}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {e.eventType === "esop_exercise" ? "ESOP Exercise" : "Issuance"} on {formatDate(e.effectiveDate)}
+                      {e.eventType === "esop_exercise" ? t("investorPortal.esopExercise") : t("investorPortal.issuance")} — {formatDate(e.effectiveDate)}
                     </p>
                   </div>
                   <Button
@@ -206,7 +216,7 @@ function InvestorPortalContent() {
                       window.open(`/api/export/certificate.pdf?${params}`, "_blank");
                     }}
                   >
-                    <Download className="h-3 w-3" /> Certificate
+                    <Download className="h-3 w-3" /> {t("investorPortal.certificate")}
                   </Button>
                 </div>
               ))}
@@ -221,9 +231,9 @@ function InvestorPortalContent() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Documents
+              {t("investorPortal.docsTitle")}
             </CardTitle>
-            <CardDescription>Signing requests and agreements</CardDescription>
+            <CardDescription>{t("investorPortal.docsDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -245,7 +255,7 @@ function InvestorPortalContent() {
                       className="gap-1.5 text-xs"
                       onClick={() => window.open(d.signedDocumentUrl, "_blank")}
                     >
-                      <Download className="h-3 w-3" /> Download
+                      <Download className="h-3 w-3" /> {t("investorPortal.download")}
                     </Button>
                   )}
                 </div>

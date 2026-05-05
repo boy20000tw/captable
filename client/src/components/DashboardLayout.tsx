@@ -90,8 +90,8 @@ type NavItem = {
 };
 
 type NavGroup =
-  | { type: "single"; key: NavGroupKey; icon: typeof LayoutDashboard; label: string; path: string }
-  | { type: "group"; key: NavGroupKey; icon: typeof LayoutDashboard; label: string; items: NavItem[] };
+  | { type: "single"; key: NavGroupKey; icon: typeof LayoutDashboard; label: string; path: string; badge?: string }
+  | { type: "group"; key: NavGroupKey; icon: typeof LayoutDashboard; label: string; items: NavItem[]; badge?: string };
 
 function buildNavStructure(t: TFunction<"nav">, companyRole: CompanyRole | null): NavGroup[] {
   const role = companyRole ?? "viewer";
@@ -134,6 +134,7 @@ function buildNavStructure(t: TFunction<"nav">, companyRole: CompanyRole | null)
       key: "analysis",
       icon: BarChart3,
       label: t("analysis"),
+      badge: "beta",
       items: [
         { icon: Droplets,   label: t("analysis.waterfall"),      path: "/waterfall" },
         { icon: Calculator, label: t("analysis.valuation"),      path: "/valuation" },
@@ -495,6 +496,9 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                         >
                           <nav.icon className="h-4 w-4 shrink-0" />
                           <span>{nav.label}</span>
+                          {nav.badge && (
+                            <span className="ml-1 text-[10px] font-medium text-muted-foreground/70 bg-muted px-1.5 py-0.5 rounded-full uppercase tracking-wider">{nav.badge}</span>
+                          )}
                           <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
                       </CollapsibleTrigger>

@@ -75,6 +75,8 @@
   "register.loading": "Loading...",
   "register.filterByInvestor": "Filter by investor",
   "register.allInvestors": "All investors",
+  "register.newestFirst": "Newest first",
+  "register.oldestFirst": "Oldest first",
   "register.filterByRound": "Filter by round",
   "register.allRounds": "All rounds",
   "register.filterByStatus": "Filter by status",

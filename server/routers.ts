@@ -51,7 +51,7 @@ import {
   getShareClasses, getShareClassById, getShareClassBySlug,
   createShareClass, updateShareClass, deleteShareClass, seedDefaultShareClasses,
   // Admin
-  adminListCompanies, adminGetCompanyDetail, adminUpdateCompanyPlan,
+  adminListCompanies, adminGetCompanyDetail, adminUpdateCompanyPlan, adminDeleteCompany,
   adminGetCompanyAuditLogs, createAdminAuditLog, getAdminAuditLogs,
   adminGetPlatformStats, rotateCompanyKey, rotatePlatformKey,
   adminListTeamMembers, adminUpdateAdminRole, adminPromoteUser,
@@ -104,7 +104,9 @@ async function checkUsageLimit(
 
 // ─── Funding Rounds Router ────────────────────────────────────────────────────
 const fundingRoundsRouter = router({
-  list: companyProcedure.use(requireFeature("fundraising.rounds")).query(({ ctx }) => getAllFundingRounds(ctx.companyId)),
+  list: companyProcedure.use(requireFeature("fundraising.rounds")).query(async ({ ctx }) => {
+    return getAllFundingRounds(ctx.companyId);
+  }),
   get: companyProcedure.use(requireFeature("fundraising.rounds")).input(z.object({ id: z.number() })).query(({ input, ctx }) => getFundingRoundById(ctx.companyId, input.id)),
   create: companyEditorProcedure.input(z.object({
     name: z.string().min(1),
@@ -907,7 +909,9 @@ const v1InvestorsRouter = router({
 
 // ─── V1 Allocations Router ──────────────────────────────────────────────────
 const v1AllocationsRouter = router({
-  list: companyProcedure.input(z.object({ roundId: z.number().optional() })).query(({ ctx, input }) => getAllocationsByCompany(ctx.companyId, input.roundId)),
+  list: companyProcedure.input(z.object({ roundId: z.number().optional() })).query(async ({ ctx, input }) => {
+    return getAllocationsByCompany(ctx.companyId, input.roundId);
+  }),
   get: companyProcedure.input(z.object({ id: z.number() })).query(({ ctx, input }) => getAllocationById(ctx.companyId, input.id)),
   create: companyEditorProcedure.input(z.object({
     fundingRoundId: z.number(),
@@ -974,15 +978,21 @@ const v1AllocationsRouter = router({
       status: result.newStatus,
       [result.timestampField]: new Date(),
     };
-    await updateAllocation(ctx.companyId, input.id, updateFields as any);
 
-    // If reaching "issued", write the register entry
+    // If reaching "issued", wrap status update + register entry in a single operation
+    // to prevent inconsistent state (status=issued but no register entry)
     let registerEntryId: number | null = null;
     let snapshotId: number | null = null;
     if (result.newStatus === "issued") {
       if (!existing.sharesAllocated || !existing.pricePerShare) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot issue without sharesAllocated and pricePerShare." });
       }
+      // Re-check status to prevent concurrent double-advance
+      const fresh = await getAllocationById(ctx.companyId, input.id);
+      if (fresh?.status === "issued") {
+        throw new TRPCError({ code: "CONFLICT", message: "Allocation has already been issued." });
+      }
+      await updateAllocation(ctx.companyId, input.id, updateFields as any);
       const written = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
         investorId: existing.investorId,
         eventType: "issuance",
@@ -998,6 +1008,8 @@ const v1AllocationsRouter = router({
       });
       registerEntryId = written.entry.id;
       snapshotId = written.snapshot.id;
+    } else {
+      await updateAllocation(ctx.companyId, input.id, updateFields as any);
     }
     await createAuditLog({
       companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
@@ -1023,7 +1035,9 @@ const v1AllocationsRouter = router({
 // ─── V1 Register Router ────────────────────────────────────────────────────
 const v1RegisterRouter = router({
   list: companyProcedure.input(z.object({ investorId: z.number().optional() }).optional()).query(
-    ({ ctx, input }) => getAllRegisterEntries(ctx.companyId, input)
+    async ({ ctx, input }) => {
+      return getAllRegisterEntries(ctx.companyId, input);
+    }
   ),
   // Direct register write — for manual issuances, transfers, cancellations
   write: companyEditorProcedure.input(z.object({
@@ -2863,6 +2877,36 @@ export const appRouter = router({
           }),
         });
         return { success: true };
+      }),
+
+    // ─── Platform Admin: Delete company permanently ───────────────────────
+    deleteCompany: adminCompanyProcedure
+      .input(z.object({
+        companyId: z.number(),
+        confirmCompanyName: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const detail = await adminGetCompanyDetail(input.companyId);
+        if (!detail) throw new TRPCError({ code: "NOT_FOUND", message: "Company not found" });
+
+        // Safety: must type the exact company name to confirm
+        if (input.confirmCompanyName !== detail.company.name) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Company name does not match." });
+        }
+
+        const counts = await adminDeleteCompany(input.companyId);
+
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "delete_company",
+          targetCompanyId: input.companyId,
+          targetCompanyName: detail.company.name,
+          details: JSON.stringify(counts),
+        });
+
+        return { success: true, deleted: counts };
       }),
 
     // ─── Platform Admin: Admin activity log ───────────────────────────────

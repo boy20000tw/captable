@@ -52,6 +52,8 @@
   "pricing.upgradeToStandard": "Upgrade to Standard",
   "pricing.upgradeToPlus": "Upgrade to Plus",
   "pricing.contactSalesBtn": "Contact sales",
+  "pricing.contactAdmin": "Contact Admin",
+  "pricing.contactSubject": "Inquiry: Upgrade to {{plan}}",
 
   "pricing.includes": "Includes",
   "pricing.everythingInStarter": "Everything in Starter, plus",
@@ -161,6 +163,8 @@
   "gate.description": "This feature requires a {{plan}} plan or above.",
   "gate.upgrade": "Upgrade now",
   "gate.comparePlans": "Compare plans",
+  "gate.contactAdmin": "Contact Admin",
+  "gate.contactSubject": "Inquiry: Upgrade to {{plan}}",
   "gate.limitReached": "Limit reached",
   "gate.limitDescription": "You've reached the {{resource}} limit on your current plan ({{used}}/{{max}}).",
   "gate.limitWarning": "You're approaching the {{resource}} limit ({{used}}/{{max}})."

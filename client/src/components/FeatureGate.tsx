@@ -1,9 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { Lock } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { planHasFeature, minimumPlanFor, normalizePlan, type Feature, type PlanKey } from "../../../shared/plans";
+
+const ADMIN_EMAIL = "boy20000tw@gmail.com";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
   starter: "badge.starter",
@@ -64,8 +66,13 @@ export function FeatureGate({ feature, children }: FeatureGateProps) {
             <Button variant="outline" size="sm" onClick={() => setLocation("/compare-plans")}>
               {t("gate.comparePlans")}
             </Button>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setLocation("/pricing")}>
-              {t("gate.upgrade")}
+            <Button
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+              onClick={() => window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t("gate.contactSubject", { plan: requiredLabel }))}`}
+            >
+              <Mail className="h-3.5 w-3.5" />
+              {t("gate.contactAdmin")}
             </Button>
           </div>
         </div>

@@ -991,8 +991,9 @@ export async function computeWaterfall(companyId: number, exitValueNtd: number) 
     const pref = prefMap.get(round.id)!;
     const roundHoldings = allHoldings.filter(h => h.fundingRoundId === round.id);
     const paidIn = roundHoldings.reduce((s, h) => s + h.paidInNtd, 0);
-    const multiple = parseFloat(String(pref.liquidationMultiple));
-    const preferenceAmount = paidIn * multiple;
+    const multiple = pref.liquidationMultiple != null ? parseFloat(String(pref.liquidationMultiple)) : 1;
+    const safeMultiple = Number.isFinite(multiple) ? multiple : 1;
+    const preferenceAmount = paidIn * safeMultiple;
     const distributed = Math.min(preferenceAmount, remaining);
     remaining -= distributed;
 
@@ -1005,7 +1006,7 @@ export async function computeWaterfall(companyId: number, exitValueNtd: number) 
     tranches.push({
       roundId: round.id, roundName: round.name,
       preferenceType: pref.preferenceType,
-      liquidationMultiple: multiple,
+      liquidationMultiple: safeMultiple,
       paidIn, preferenceAmount, distributed,
       shareholders: shDetails,
     });
@@ -1277,6 +1278,149 @@ export async function deleteAllocation(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(allocations).where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
+}
+
+// ─── V1: Auto-seed demo allocations for empty completed rounds ────────────
+/**
+ * If a completed round has no allocations, auto-create demo allocations
+ * using existing investors. This handles the case where rounds were created
+ * but allocations were never seeded.
+ */
+export async function autoSeedAllocationsForRound(companyId: number, roundId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  // Check if round exists and is completed
+  const [round] = await db.select().from(fundingRounds)
+    .where(and(eq(fundingRounds.id, roundId), eq(fundingRounds.companyId, companyId)))
+    .limit(1);
+  if (!round || round.status !== "completed") return;
+
+  // Check if allocations already exist
+  const existing = await db.select({ id: allocations.id }).from(allocations)
+    .where(and(eq(allocations.companyId, companyId), eq(allocations.fundingRoundId, roundId)))
+    .limit(1);
+  if (existing.length > 0) return;
+
+  const roundTarget = Number(round.moneyRaisedNtd ?? 0);
+  const pricePerShare = Number(round.pricePerShareNtd ?? 0);
+  if (roundTarget <= 0 || pricePerShare <= 0) return;
+
+  // Get investors to use
+  const invList = await db.select().from(investors)
+    .where(eq(investors.companyId, companyId))
+    .orderBy(asc(investors.id));
+  if (invList.length === 0) return;
+
+  // Pick 3-5 investors, rotating by roundId
+  const numInv = roundTarget >= 50_000_000 ? 5 : roundTarget >= 20_000_000 ? 4 : 3;
+  const offset = (roundId * 3) % invList.length;
+  const picked: typeof invList = [];
+  for (let i = 0; i < numInv && i < invList.length; i++) {
+    picked.push(invList[(offset + i) % invList.length]);
+  }
+
+  // Distribute amount with realistic uneven splits
+  const weights = [35, 25, 20, 12, 8].slice(0, picked.length);
+  const weightSum = weights.reduce((s, w) => s + w, 0);
+  const amounts = weights.map(w => Math.round((roundTarget * w) / weightSum / 100_000) * 100_000);
+  const currentSum = amounts.reduce((s, a) => s + a, 0);
+  amounts[amounts.length - 1] += roundTarget - currentSum;
+
+  const roundDate = round.roundDate ? new Date(round.roundDate) : new Date();
+
+  // Map round name to appropriate share class enum value
+  const nameLC = round.name.toLowerCase();
+  const shareClass: string =
+    nameLC.includes("series c") || nameLC.includes("c 輪") || nameLC.includes("c轮") ? "series_c" :
+    nameLC.includes("pre-c") || nameLC.includes("pre c") ? "pre_c" :
+    nameLC.includes("series b") || nameLC.includes("b 輪") || nameLC.includes("b轮") ? "series_b" :
+    nameLC.includes("pre-b") || nameLC.includes("pre b") ? "pre_b" :
+    nameLC.includes("series a") || nameLC.includes("a 輪") || nameLC.includes("a轮") || nameLC.includes("a round") ? "series_a" :
+    nameLC.includes("pre-a") || nameLC.includes("pre a") ? "pre_a" :
+    nameLC.includes("bridge") ? "bridge" :
+    nameLC.includes("seed+") || nameLC.includes("seed plus") ? "seed_plus" :
+    nameLC.includes("seed") ? "seed" :
+    "common";
+
+  for (let i = 0; i < picked.length; i++) {
+    const inv = picked[i];
+    const amount = amounts[i];
+    const shares = Math.floor(amount / pricePerShare);
+    const issuedDate = new Date(roundDate);
+    issuedDate.setDate(issuedDate.getDate() - 7 + i);
+
+    const values: Record<string, any> = {
+      companyId,
+      fundingRoundId: roundId,
+      investorId: inv.id,
+      shareClass,
+      amount: String(amount),
+      currency: "NTD",
+      fxToNtd: "1",
+      sharesAllocated: shares,
+      pricePerShare: String(pricePerShare),
+      status: "issued",
+      plannedAt: new Date(issuedDate),
+      committedAt: new Date(issuedDate),
+      signedAt: new Date(issuedDate),
+      fundedAt: new Date(issuedDate),
+      issuedAt: new Date(issuedDate),
+      notes: `Auto-seeded for ${round.name}`,
+    };
+
+    // Encrypt financial fields
+    try { await encryptFinancialFields(values, companyId, ALLOCATION_FIN_FIELDS); } catch { /* skip */ }
+
+    await db.insert(allocations).values(values as InsertAllocation);
+  }
+  console.log(`[auto-seed] Created ${picked.length} demo allocations for round "${round.name}" (id=${roundId})`);
+}
+
+/**
+ * Auto-seed demo allocations for ALL completed rounds that have none.
+ * Called once when the funding rounds list page loads.
+ */
+export async function autoSeedAllRoundsAllocations(companyId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  // Find completed rounds with 0 allocations
+  const rounds = await db.select().from(fundingRounds)
+    .where(and(eq(fundingRounds.companyId, companyId), eq(fundingRounds.status, "completed" as any)));
+
+  for (const round of rounds) {
+    const existing = await db.select({ id: allocations.id }).from(allocations)
+      .where(and(eq(allocations.companyId, companyId), eq(allocations.fundingRoundId, round.id)))
+      .limit(1);
+    if (existing.length > 0) continue;
+    // Delegate to per-round seeder
+    await autoSeedAllocationsForRound(companyId, round.id);
+  }
+}
+
+// ─── V1: Auto-sync issued allocations → register entries ──────────────────
+/**
+ * Find issued allocations that don't have a corresponding register entry.
+ * Returns the allocation rows that need backfilling.
+ */
+export async function findOrphanedIssuedAllocations(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  // LEFT JOIN to find allocations with status=issued but no matching register entry
+  const rows = await db.execute(sql`
+    SELECT a.id, a."companyId", a."investorId", a."fundingRoundId",
+           a."shareClass", a."sharesAllocated", a."pricePerShare",
+           a.currency, a."fxToNtd", a.amount, a."issuedAt"
+    FROM allocations a
+    WHERE a."companyId" = ${companyId}
+      AND a.status = 'issued'
+      AND NOT EXISTS (
+        SELECT 1 FROM share_register_entries sre
+        WHERE sre."allocationId" = a.id
+      )
+  `);
+  return rows.rows ?? rows;
 }
 
 // ─── V1: Register + Snapshots ──────────────────────────────────────────────
@@ -1805,6 +1949,30 @@ export async function adminUpdateCompanyPlan(
   if (data.isSuspended !== undefined) setData.isSuspended = data.isSuspended;
 
   await db.update(companies).set(setData).where(eq(companies.id, companyId));
+}
+
+/** Admin: permanently delete a company and ALL its data. */
+export async function adminDeleteCompany(companyId: number): Promise<Record<string, number>> {
+  // First, clear all business data (reuses the existing logic)
+  const counts = await truncateAllBusinessData(companyId);
+
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Delete company-level records that truncateAllBusinessData doesn't touch
+  const memberRows = await db.delete(companyMembers).where(eq(companyMembers.companyId, companyId)).returning();
+  counts["company_members"] = memberRows.length;
+
+  try {
+    const keyRows = await db.delete(companyKeys).where(eq(companyKeys.companyId, companyId)).returning();
+    counts["company_keys"] = keyRows.length;
+  } catch { counts["company_keys"] = 0; }
+
+  // Finally, delete the company record itself
+  await db.delete(companies).where(eq(companies.id, companyId));
+  counts["company"] = 1;
+
+  return counts;
 }
 
 /** Admin: view audit logs for a specific company. */

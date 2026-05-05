@@ -75,7 +75,7 @@ export const adminAuditActionEnum = pgEnum("admin_audit_action", [
     "view_company", "update_plan", "update_permissions",
     "view_audit_log", "suspend_company", "reactivate_company",
     "update_admin_role", "add_admin", "remove_admin", "transfer_super_admin",
-    "rotate_company_dek", "rotate_platform_dek",
+    "rotate_company_dek", "rotate_platform_dek", "delete_company",
 ]);
 
 // ─── Companies ──────────────────────────────────────────────────────────────

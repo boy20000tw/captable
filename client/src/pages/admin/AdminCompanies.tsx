@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatNumber } from "@/lib/utils";
-import { Building2, Search, Users, Eye, ChevronLeft } from "lucide-react";
+import { Building2, Search, Users, Eye, ChevronLeft, Trash2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -181,6 +181,9 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
   const [editNote, setEditNote] = useState("");
   const [editSuspended, setEditSuspended] = useState(false);
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+
   const updateMut = trpc.admin.updatePlan.useMutation({
     onSuccess: () => {
       toast.success(t("companies.planUpdated") || "Plan updated");
@@ -190,6 +193,18 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
     },
     onError: (err) => {
       toast.error(err.message || "Failed to update plan");
+    },
+  });
+
+  const deleteMut = trpc.admin.deleteCompany.useMutation({
+    onSuccess: () => {
+      toast.success(t("companies.deleteSuccess"));
+      utils.admin.listCompanies.invalidate();
+      setDeleteOpen(false);
+      onBack();
+    },
+    onError: (err) => {
+      toast.error(`${t("companies.deleteFailed")}: ${err.message}`);
     },
   });
 
@@ -236,7 +251,18 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
               <p className="text-sm text-muted-foreground">{company.nameEn}</p>
             )}
           </div>
-          <Button onClick={openEdit} size="sm">{t("companies.editPlan")}</Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={openEdit} size="sm">{t("companies.editPlan")}</Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1"
+              onClick={() => { setDeleteConfirm(""); setDeleteOpen(true); }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {t("companies.deleteCompany")}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -355,6 +381,45 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Company Dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              {t("companies.deleteTitle")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-2">
+              <p className="text-sm font-medium text-destructive">{t("companies.deleteWarning")}</p>
+              <p className="text-sm text-muted-foreground">{t("companies.deleteDesc")}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+                {t("companies.deleteTypeBefore")}<span className="font-mono text-foreground">{company.name}</span>{t("companies.deleteTypeAfter")}
+              </Label>
+              <Input
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder={company.name}
+                className="font-mono"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>{t("companies.cancel")}</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirm !== company.name || deleteMut.isPending}
+              onClick={() => deleteMut.mutate({ companyId, confirmCompanyName: deleteConfirm })}
+            >
+              {deleteMut.isPending ? t("companies.deleting") : t("companies.deleteConfirmBtn")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Plan Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

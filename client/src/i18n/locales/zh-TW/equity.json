@@ -75,6 +75,8 @@
   "register.loading": "載入中...",
   "register.filterByInvestor": "依投資人篩選",
   "register.allInvestors": "全部投資人",
+  "register.newestFirst": "日期由新到舊",
+  "register.oldestFirst": "日期由舊到新",
   "register.filterByRound": "依輪次篩選",
   "register.allRounds": "全部輪次",
   "register.filterByStatus": "依狀態篩選",

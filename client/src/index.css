@@ -205,13 +205,15 @@
 }
 .cap-table thead th {
   padding: 0.625rem 1rem;
-  text-align: left;
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted-foreground);
   white-space: nowrap;
+}
+.cap-table thead th:not(.text-right):not(.text-center) {
+  text-align: left;
 }
 .cap-table tbody tr {
   border-bottom: 1px solid var(--border);
