@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.30.1",
+    date: "2026-05-05",
+    type: "patch",
+    title: "修復團隊邀請 — 登入後自動回到 Join 頁完成 accept",
+    description: "修正邀請連結登入後導向首頁、未回到 /join?token= 導致 acceptInvitation 未觸發的問題。改用 Clerk openSignIn 搭配 afterSignInUrl 確保登入後回到 Join 頁自動完成接受流程。",
+  },
+  {
     version: "2.30.0",
     date: "2026-05-05",
     type: "minor",
