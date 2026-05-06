@@ -23,6 +23,7 @@ import {
   auditLogs, InsertAuditLog,
   financialProjections, InsertFinancialProjection,
   dcfScenarios, InsertDcfScenario,
+  compsPeers, InsertCompsPeer,
   investors, InsertInvestor,
   allocations, InsertAllocation,
   shareRegisterEntries, InsertShareRegisterEntry,
@@ -1248,6 +1249,38 @@ export async function deleteDcfScenario(companyId: number, id: number) {
     .where(and(eq(dcfScenarios.id, id), eq(dcfScenarios.companyId, companyId)));
 }
 
+// ─── Comps Peers ────────────────────────────────────────────────────────────
+export async function getCompsPeers(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(compsPeers)
+    .where(eq(compsPeers.companyId, companyId))
+    .orderBy(asc(compsPeers.groupName), asc(compsPeers.name))
+    .limit(1000);
+}
+
+export async function createCompsPeer(data: InsertCompsPeer) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(compsPeers).values(data).returning();
+  return result[0];
+}
+
+export async function updateCompsPeer(companyId: number, id: number, data: Partial<InsertCompsPeer>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(compsPeers).set(data)
+    .where(and(eq(compsPeers.id, id), eq(compsPeers.companyId, companyId)));
+}
+
+// CASCADE RISK: comps_peers has no child tables
+export async function deleteCompsPeer(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(compsPeers)
+    .where(and(eq(compsPeers.id, id), eq(compsPeers.companyId, companyId)));
+}
+
 // ─── V1: Investors ──────────────────────────────────────────────────────────
 export async function getAllInvestors(companyId: number) {
   const db = await getDb();
@@ -1610,6 +1643,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
     ["audit_logs", auditLogs, auditLogs.companyId],
     ["financial_projections", financialProjections, financialProjections.companyId],
     ["dcf_scenarios", dcfScenarios, dcfScenarios.companyId],
+    ["comps_peers", compsPeers, compsPeers.companyId],
     ["user_invitations", userInvitations, userInvitations.companyId],
     ["snapshots", snapshotsV1, snapshotsV1.companyId],
     ["share_register_entries", shareRegisterEntries, shareRegisterEntries.companyId],
@@ -1646,6 +1680,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   await db.delete(capTableSnapshots).where(eq(capTableSnapshots.companyId, companyId));
   await db.delete(importLogs).where(eq(importLogs.companyId, companyId));
   await db.delete(dcfScenarios).where(eq(dcfScenarios.companyId, companyId));
+  await db.delete(compsPeers).where(eq(compsPeers.companyId, companyId));
   await db.delete(financialProjections).where(eq(financialProjections.companyId, companyId));
   // V1 tables — delete in FK-safe order: snapshots → register entries → allocations → investors.
   await db.delete(snapshotsV1).where(eq(snapshotsV1.companyId, companyId));

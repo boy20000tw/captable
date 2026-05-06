@@ -24,6 +24,8 @@ import {
   // Financial projections + DCF
   getAllFinancialProjections, getFinancialProjectionById, createFinancialProjection, updateFinancialProjection, deleteFinancialProjection,
   getDcfScenariosByProjection, createDcfScenario, updateDcfScenario, deleteDcfScenario,
+  // Comps Peers
+  getCompsPeers, createCompsPeer, updateCompsPeer, deleteCompsPeer,
   // Companies
   getCompanyById, createCompany, updateCompany,
   getUserCompanyMemberships, listCompanyMembers,
@@ -717,6 +719,67 @@ const dcfRouter = router({
   delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
     await deleteDcfScenario(ctx.companyId, input.id);
     await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "dcf_scenario", resourceId: input.id });
+  }),
+});
+
+// ─── Comps Peers Router ─────────────────────────────────────────────────────
+const compsRouter = router({
+  list: companyProcedure.use(requireFeature("analysis.projections"))
+    .query(({ ctx }) => getCompsPeers(ctx.companyId)),
+  create: companyEditorProcedure.input(z.object({
+    groupName: z.string().min(1).default("Default"),
+    name: z.string().min(1),
+    ticker: z.string().optional(),
+    revenue: z.number().default(0),
+    ebitda: z.number().default(0),
+    netIncome: z.number().default(0),
+    marketCap: z.number().default(0),
+    netDebt: z.number().default(0),
+    sharesOutstanding: z.number().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await createCompsPeer({
+      ...input,
+      companyId: ctx.companyId,
+      revenue: String(input.revenue),
+      ebitda: String(input.ebitda),
+      netIncome: String(input.netIncome),
+      marketCap: String(input.marketCap),
+      netDebt: String(input.netDebt),
+      sharesOutstanding: input.sharesOutstanding != null ? String(input.sharesOutstanding) : null,
+    });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "comps_peer", resourceName: input.name });
+    return result;
+  }),
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      groupName: z.string().optional(),
+      name: z.string().optional(),
+      ticker: z.string().nullable().optional(),
+      revenue: z.number().optional(),
+      ebitda: z.number().optional(),
+      netIncome: z.number().optional(),
+      marketCap: z.number().optional(),
+      netDebt: z.number().optional(),
+      sharesOutstanding: z.number().nullable().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    const updateData: Record<string, unknown> = {};
+    if (input.data.groupName !== undefined) updateData.groupName = input.data.groupName;
+    if (input.data.name !== undefined) updateData.name = input.data.name;
+    if (input.data.ticker !== undefined) updateData.ticker = input.data.ticker;
+    if (input.data.revenue !== undefined) updateData.revenue = String(input.data.revenue);
+    if (input.data.ebitda !== undefined) updateData.ebitda = String(input.data.ebitda);
+    if (input.data.netIncome !== undefined) updateData.netIncome = String(input.data.netIncome);
+    if (input.data.marketCap !== undefined) updateData.marketCap = String(input.data.marketCap);
+    if (input.data.netDebt !== undefined) updateData.netDebt = String(input.data.netDebt);
+    if (input.data.sharesOutstanding !== undefined) updateData.sharesOutstanding = input.data.sharesOutstanding != null ? String(input.data.sharesOutstanding) : null;
+    await updateCompsPeer(ctx.companyId, input.id, updateData as any);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "comps_peer", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+  }),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteCompsPeer(ctx.companyId, input.id);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "comps_peer", resourceId: input.id });
   }),
 });
 
@@ -2793,6 +2856,7 @@ export const appRouter = router({
   auditLog: auditLogRouter,
   financialProjections: financialProjectionsRouter,
   dcf: dcfRouter,
+  comps: compsRouter,
   valuation409a: valuation409aRouter,
   election83b: election83bRouter,
   notifications: notificationsRouter,

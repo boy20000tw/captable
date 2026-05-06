@@ -285,6 +285,9 @@
   "projections.title": "財務預測 & DCF",
   "projections.desc": "建立 5 年財務預測並執行 DCF 估值",
 
+  "comps.title": "可比公司分析 (Comparable Companies)",
+  "comps.desc": "透過 EV/Revenue、EV/EBITDA、P/E 倍數進行同業比較估值",
+
   "antiDilution.title": "反稀釋保護 (Anti-Dilution)",
   "antiDilution.desc": "管理反稀釋條款，並模擬低價輪對轉換價格的影響。",
 

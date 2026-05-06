@@ -14,8 +14,12 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { buildProjection, type YearlyPnL } from "@shared/projectionCalc";
 import { runDCF, type DCFResult } from "@shared/dcfCalc";
 import { DEFAULT_ASSUMPTIONS, type ProjectionAssumptions } from "@shared/projectionTypes";
-import { BarChart3, Calculator, DollarSign, Download, Plus, TrendingUp } from "lucide-react";
+import { BarChart3, Calculator, CheckCircle2, DollarSign, Download, FileSpreadsheet, Plus, TrendingUp, XCircle } from "lucide-react";
 import { calculateWACC, DEFAULT_WACC_INPUTS, type WACCInputs } from "@shared/waccCalc";
+import {
+  buildThreeStatements, DEFAULT_BS_ASSUMPTIONS, type BSAssumptions,
+  type YearlyBalanceSheet, type YearlyCashFlow,
+} from "@shared/threeStatementCalc";
 import {
   type DCFInputs, type TerminalValueMethod,
   defaultSensitivityTable, exitMultipleSensitivityTable,
@@ -111,6 +115,9 @@ function ProjectionsContent() {
           <TabsTrigger value="dcf" className="gap-2">
             <DollarSign className="h-4 w-4" /> {t("projections.dcfValuation")}
           </TabsTrigger>
+          <TabsTrigger value="three-statement" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" /> {t("projections.threeStatement")}
+          </TabsTrigger>
         </TabsList>
 
         {/* ══════════════════════════════════════════════════════════════════
@@ -184,6 +191,13 @@ function ProjectionsContent() {
            ══════════════════════════════════════════════════════════════════ */}
         <TabsContent value="dcf" className="space-y-6">
           <DCFTab projections={projections} canEdit={canEdit} />
+        </TabsContent>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            TAB 3: Three-Statement Model
+           ══════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="three-statement" className="space-y-6">
+          <ThreeStatementTab projections={projections} />
         </TabsContent>
       </Tabs>
     </div>
@@ -1107,6 +1121,259 @@ function SensitivityHeatMap({ data, baseEV }: { data: SensitivityTable; baseEV: 
               </td>
             ))}
           </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ─── Three-Statement Tab ──────────────────────────────────────────────────────
+
+type ThreeStatementTabProps = {
+  projections: { id: number; name: string; startYear: number; years: number; assumptions: unknown }[];
+};
+
+function ThreeStatementTab({ projections }: ThreeStatementTabProps) {
+  const { t } = useTranslation("analysis");
+  const [selectedProjId, setSelectedProjId] = useState<number | null>(null);
+  const activeProjId = selectedProjId ?? projections[0]?.id ?? null;
+  const activeProj = projections.find((p) => p.id === activeProjId) ?? null;
+
+  // BS assumptions (local state, not persisted)
+  const [bsAssumptions, setBsAssumptions] = useState<BSAssumptions>(DEFAULT_BS_ASSUMPTIONS);
+
+  // Build three statements
+  const result = useMemo(() => {
+    if (!activeProj) return null;
+    const a: ProjectionAssumptions =
+      typeof activeProj.assumptions === "string"
+        ? JSON.parse(activeProj.assumptions as string)
+        : (activeProj.assumptions as ProjectionAssumptions) ?? DEFAULT_ASSUMPTIONS;
+    return buildThreeStatements(activeProj.startYear, activeProj.years, a, bsAssumptions);
+  }, [activeProj, bsAssumptions]);
+
+  if (projections.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-16 text-center">
+          <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
+          <p className="text-muted-foreground">{t("projections.createProjectionFirst")}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Projection selector */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div>
+          <Label className="text-xs mb-1 block">{t("projections.sourceProjection")}</Label>
+          <Select
+            value={activeProjId != null ? String(activeProjId) : ""}
+            onValueChange={(v) => setSelectedProjId(Number(v))}
+          >
+            <SelectTrigger className="w-60">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {projections.map((p) => (
+                <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Balance check indicator */}
+        {result && (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${result.isBalanced ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+            {result.isBalanced ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+            {result.isBalanced ? t("threeStatement.balanced") : t("threeStatement.unbalanced")}
+          </div>
+        )}
+      </div>
+
+      {/* BS Assumptions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">{t("threeStatement.bsAssumptions")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div>
+              <Label className="text-xs">{t("threeStatement.arDays")}</Label>
+              <Input type="number" value={bsAssumptions.arDays} onChange={(e) => setBsAssumptions({ ...bsAssumptions, arDays: Number(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <Label className="text-xs">{t("threeStatement.inventoryDays")}</Label>
+              <Input type="number" value={bsAssumptions.inventoryDays} onChange={(e) => setBsAssumptions({ ...bsAssumptions, inventoryDays: Number(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <Label className="text-xs">{t("threeStatement.apDays")}</Label>
+              <Input type="number" value={bsAssumptions.apDays} onChange={(e) => setBsAssumptions({ ...bsAssumptions, apDays: Number(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <Label className="text-xs">{t("threeStatement.initialCash")}</Label>
+              <Input type="number" value={bsAssumptions.initialCash} onChange={(e) => setBsAssumptions({ ...bsAssumptions, initialCash: Number(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <Label className="text-xs">{t("threeStatement.initialDebt")}</Label>
+              <Input type="number" value={bsAssumptions.initialDebt} onChange={(e) => setBsAssumptions({ ...bsAssumptions, initialDebt: Number(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <Label className="text-xs">{t("threeStatement.debtRepayment")} (%)</Label>
+              <Input type="number" value={(bsAssumptions.debtRepaymentPct * 100).toFixed(0)} onChange={(e) => setBsAssumptions({ ...bsAssumptions, debtRepaymentPct: (Number(e.target.value) || 0) / 100 })} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {result && (
+        <>
+          {/* Balance Sheet Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t("threeStatement.balanceSheet")}</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <StatementTable
+                years={result.balanceSheet.map(r => r.year)}
+                sections={[
+                  {
+                    title: t("threeStatement.assets"),
+                    rows: [
+                      { label: t("threeStatement.cashBS"), key: "cash" },
+                      { label: t("threeStatement.ar"), key: "accountsReceivable" },
+                      { label: t("threeStatement.inventory"), key: "inventory" },
+                      { label: t("threeStatement.totalCurrentAssets"), key: "totalCurrentAssets", bold: true },
+                      { label: t("threeStatement.netPPE"), key: "netPPE" },
+                      { label: t("threeStatement.totalAssets"), key: "totalAssets", bold: true },
+                    ],
+                    data: result.balanceSheet,
+                  },
+                  {
+                    title: t("threeStatement.liabilities"),
+                    rows: [
+                      { label: t("threeStatement.ap"), key: "accountsPayable" },
+                      { label: t("threeStatement.totalCurrentLiab"), key: "totalCurrentLiabilities", bold: true },
+                      { label: t("threeStatement.longTermDebt"), key: "longTermDebt" },
+                      { label: t("threeStatement.totalLiabilities"), key: "totalLiabilities", bold: true },
+                    ],
+                    data: result.balanceSheet,
+                  },
+                  {
+                    title: t("threeStatement.equity"),
+                    rows: [
+                      { label: t("threeStatement.retainedEarnings"), key: "retainedEarnings" },
+                      { label: t("threeStatement.totalEquity"), key: "totalEquity", bold: true },
+                    ],
+                    data: result.balanceSheet,
+                  },
+                ]}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Cash Flow Statement Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t("threeStatement.cashFlowStatement")}</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <StatementTable
+                years={result.cashFlow.map(r => r.year)}
+                sections={[
+                  {
+                    title: t("threeStatement.operating"),
+                    rows: [
+                      { label: t("projections.netIncome"), key: "netIncome" },
+                      { label: t("threeStatement.addDepreciation"), key: "depreciation" },
+                      { label: t("threeStatement.changeAR"), key: "changeInAR" },
+                      { label: t("threeStatement.changeInventory"), key: "changeInInventory" },
+                      { label: t("threeStatement.changeAP"), key: "changeInAP" },
+                      { label: t("threeStatement.cashFromOps"), key: "cashFromOperations", bold: true },
+                    ],
+                    data: result.cashFlow,
+                  },
+                  {
+                    title: t("threeStatement.investing"),
+                    rows: [
+                      { label: t("projections.capexLabel"), key: "capex" },
+                      { label: t("threeStatement.cashFromInvesting"), key: "cashFromInvesting", bold: true },
+                    ],
+                    data: result.cashFlow,
+                  },
+                  {
+                    title: t("threeStatement.financing"),
+                    rows: [
+                      { label: t("threeStatement.debtRepaymentLabel"), key: "debtRepayment" },
+                      { label: t("threeStatement.cashFromFinancing"), key: "cashFromFinancing", bold: true },
+                    ],
+                    data: result.cashFlow,
+                  },
+                  {
+                    title: "",
+                    rows: [
+                      { label: t("threeStatement.netCashChange"), key: "netCashChange", bold: true },
+                      { label: t("threeStatement.endingCash"), key: "endingCash", bold: true },
+                    ],
+                    data: result.cashFlow,
+                  },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Generic Statement Table ────────────────────────────────────────────────
+
+type StatementSection = {
+  title: string;
+  rows: { label: string; key: string; bold?: boolean }[];
+  data: Record<string, number>[];
+};
+
+function StatementTable({ years, sections }: { years: number[]; sections: StatementSection[] }) {
+  const { t } = useTranslation("analysis");
+  return (
+    <table className="w-full text-sm min-w-[700px]">
+      <thead>
+        <tr className="border-b border-border">
+          <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide">
+            {t("projections.lineItem")}
+          </th>
+          {years.map((y) => (
+            <th key={y} className="text-right px-3 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide">
+              {y}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {sections.map((section, si) => (
+          <>
+            {section.title && (
+              <tr key={`section-${si}`} className="bg-muted/20">
+                <td colSpan={years.length + 1} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {section.title}
+                </td>
+              </tr>
+            )}
+            {section.rows.map((row) => (
+              <tr key={row.key} className={`border-b border-border/30 ${row.bold ? "bg-secondary/20" : ""}`}>
+                <td className={`px-3 py-1.5 ${row.bold ? "font-semibold" : ""}`}>{row.label}</td>
+                {section.data.map((d, i) => (
+                  <td key={i} className={`text-right px-3 py-1.5 tabular-nums ${row.bold ? "font-semibold" : ""}`}>
+                    {fmtCurrency((d as any)[row.key] as number)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </>
         ))}
       </tbody>
     </table>

@@ -21,6 +21,7 @@ import ESignPage from "./pages/ESign";
 import ValuationPage from "./pages/Valuation";
 import ProjectionsPage from "./pages/Projections";
 import WaterfallPage from "./pages/Waterfall";
+import CompsAnalysisPage from "./pages/CompsAnalysis";
 import SnapshotsPage from "./pages/Snapshots";
 import AuditLogPage from "./pages/AuditLog";
 import ImportPage from "./pages/Import";
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/valuation" component={ValuationPage} />
       <Route path="/projections" component={ProjectionsPage} />
       <Route path="/waterfall" component={WaterfallPage} />
+      <Route path="/comps" component={CompsAnalysisPage} />
       <Route path="/snapshots" component={SnapshotsPage} />
       <Route path="/audit-log" component={AuditLogPage} />
       <Route path="/import" component={ImportPage} />

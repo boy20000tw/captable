@@ -283,6 +283,9 @@
   "projections.title": "Projections & DCF",
   "projections.desc": "Build 5-year financial projections and run DCF valuations",
 
+  "comps.title": "Comparable Companies Analysis",
+  "comps.desc": "Peer comparison valuation using EV/Revenue, EV/EBITDA, and P/E multiples",
+
   "antiDilution.title": "Anti-Dilution Protection",
   "antiDilution.desc": "Manage anti-dilution provisions and simulate down-round impact on conversion prices.",
 

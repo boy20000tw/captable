@@ -588,6 +588,24 @@ export const dcfScenarios = pgTable("dcf_scenarios", {
 export type DcfScenario = typeof dcfScenarios.$inferSelect;
 export type InsertDcfScenario = typeof dcfScenarios.$inferInsert;
 
+// ─── Comps Peers ────────────────────────────────────────────────────────────
+export const compsPeers = pgTable("comps_peers", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId"),
+    groupName: varchar("groupName", { length: 255 }).notNull().default("Default"),
+    name: varchar("name", { length: 255 }).notNull(),
+    ticker: varchar("ticker", { length: 20 }),
+    revenue: decimal("revenue", { precision: 20, scale: 2 }).notNull().default("0"),
+    ebitda: decimal("ebitda", { precision: 20, scale: 2 }).notNull().default("0"),
+    netIncome: decimal("netIncome", { precision: 20, scale: 2 }).notNull().default("0"),
+    marketCap: decimal("marketCap", { precision: 20, scale: 2 }).notNull().default("0"),
+    netDebt: decimal("netDebt", { precision: 20, scale: 2 }).notNull().default("0"),
+    sharesOutstanding: decimal("sharesOutstanding", { precision: 20, scale: 0 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CompsPeer = typeof compsPeers.$inferSelect;
+export type InsertCompsPeer = typeof compsPeers.$inferInsert;
+
 // ════════════════════════════════════════════════════════════════════════════
 // MVP V1 DATA LAYER (per SPEC-mvp-split.md Phase 1)
 // ────────────────────────────────────────────────────────────────────────────

@@ -140,6 +140,7 @@ function buildNavStructure(t: TFunction<"nav">, companyRole: CompanyRole | null)
         { icon: Calculator, label: t("analysis.valuation"),      path: "/valuation" },
         { icon: TrendingUp, label: t("analysis.projections"),    path: "/projections" },
         { icon: Shield,     label: t("analysis.antiDilution"),   path: "/anti-dilution" },
+        { icon: BarChart3,  label: t("analysis.comps"),          path: "/comps" },
       ],
     },
     {

@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.33.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "Comps Analysis + Three-Statement Model",
+    description: "新增可比公司分析 (Comparable Companies Analysis)：同業 EV/Revenue、EV/EBITDA、P/E 倍數比較，含統計摘要 (min/Q1/median/mean/Q3/max) 與隱含估值。新增三表聯動模型 (Three-Statement Model)：損益表 → 資產負債表 → 現金流量表，A/R Days、Inventory Days、A/P Days 驅動，自動交叉驗證 Assets = Liabilities + Equity。含 DB schema (compsPeers)、tRPC 路由、完整 i18n 支援。",
+  },
+  {
     version: "2.32.0",
     date: "2026-05-06",
     type: "minor",
