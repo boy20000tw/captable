@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.32.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "DCF Professional Upgrade — WACC via CAPM, Dual TV, Sensitivity Table",
+    description: "新增 WACC 計算引擎 (CAPM: Rf + β×ERP)、終端價值雙方法 (Gordon Growth + Exit Multiple)、年中折現慣例、EV→Equity 橋接明細（含少數股權/特別股）、5×5 敏感度分析熱力圖。DCF Tab UI 全面升級。i18n EN + zh-TW 完整支援。",
+  },
+  {
     version: "2.31.3",
     date: "2026-05-06",
     type: "patch",

@@ -14,7 +14,13 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { buildProjection, type YearlyPnL } from "@shared/projectionCalc";
 import { runDCF, type DCFResult } from "@shared/dcfCalc";
 import { DEFAULT_ASSUMPTIONS, type ProjectionAssumptions } from "@shared/projectionTypes";
-import { BarChart3, DollarSign, Download, Plus, TrendingUp } from "lucide-react";
+import { BarChart3, Calculator, DollarSign, Download, Plus, TrendingUp } from "lucide-react";
+import { calculateWACC, DEFAULT_WACC_INPUTS, type WACCInputs } from "@shared/waccCalc";
+import {
+  type DCFInputs, type TerminalValueMethod,
+  defaultSensitivityTable, exitMultipleSensitivityTable,
+  type SensitivityTable,
+} from "@shared/dcfCalc";
 
 export default function ProjectionsPage() {
   return (
@@ -463,7 +469,7 @@ function ProjectionTable({ rows }: { rows: YearlyPnL[] }) {
   );
 }
 
-// ─── DCF Tab ────────────────────────────────────────────────────────────────
+// ─── DCF Tab (Professional) ─────────────────────────────────────────────────
 
 type DCFTabProps = {
   projections: { id: number; name: string; startYear: number; years: number; assumptions: unknown }[];
@@ -485,18 +491,31 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
   const [selectedScenarioId, setSelectedScenarioId] = useState<number | null>(null);
   const activeScenario = scenarios.find((s) => s.id === selectedScenarioId) ?? scenarios[0] ?? null;
 
-  // Local form state for DCF inputs
-  const [discountRate, setDiscountRate] = useState(0.12);
+  // ── WACC inputs ──
+  const [waccInputs, setWaccInputs] = useState<WACCInputs>(DEFAULT_WACC_INPUTS);
+  const [useManualWACC, setUseManualWACC] = useState(false);
+  const [manualWACC, setManualWACC] = useState(0.12);
+
+  const waccResult = useMemo(() => calculateWACC(waccInputs), [waccInputs]);
+  const effectiveWACC = useManualWACC ? manualWACC : waccResult.wacc;
+
+  // ── DCF inputs ──
   const [terminalGrowth, setTerminalGrowth] = useState(0.03);
+  const [tvMethod, setTvMethod] = useState<TerminalValueMethod>("gordon");
+  const [exitMultiple, setExitMultiple] = useState(10);
+  const [midYearConvention, setMidYearConvention] = useState(true);
   const [netDebt, setNetDebt] = useState(0);
   const [cash, setCash] = useState(0);
+  const [minorityInterest, setMinorityInterest] = useState(0);
+  const [preferredEquity, setPreferredEquity] = useState(0);
   const [targetRaise, setTargetRaise] = useState<string>("");
   const [targetPreMoney, setTargetPreMoney] = useState<string>("");
 
   // Load scenario values when selection changes
   useMemo(() => {
     if (activeScenario) {
-      setDiscountRate(parseFloat(activeScenario.discountRate ?? "0.12") || 0.12);
+      const dr = parseFloat(activeScenario.discountRate ?? "0.12") || 0.12;
+      setManualWACC(dr);
       setTerminalGrowth(parseFloat(activeScenario.terminalGrowth ?? "0.03") || 0.03);
       setNetDebt(parseFloat(activeScenario.netDebt ?? "0") || 0);
       setCash(parseFloat(activeScenario.cash ?? "0") || 0);
@@ -541,26 +560,46 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
     return buildProjection(activeProj.startYear, activeProj.years, a);
   }, [activeProj]);
 
-  // Run DCF
-  const dcfResult: DCFResult | null = useMemo(() => {
+  // Build DCF inputs object
+  const dcfInputs: DCFInputs | null = useMemo(() => {
     if (projectionRows.length === 0) return null;
-    return runDCF({
+    return {
       fcfs: projectionRows.map((r) => r.freeCashFlow),
-      discountRate,
+      discountRate: effectiveWACC,
       terminalGrowth,
+      exitMultiple,
+      lastYearEBITDA: projectionRows[projectionRows.length - 1]?.ebitda ?? 0,
+      terminalValueMethod: tvMethod,
+      midYearConvention,
       netDebt,
       cash,
+      minorityInterest,
+      preferredEquity,
       targetRaise: targetRaise ? Number(targetRaise) : null,
       targetPreMoney: targetPreMoney ? Number(targetPreMoney) : null,
-    });
-  }, [projectionRows, discountRate, terminalGrowth, netDebt, cash, targetRaise, targetPreMoney]);
+    };
+  }, [projectionRows, effectiveWACC, terminalGrowth, exitMultiple, tvMethod, midYearConvention, netDebt, cash, minorityInterest, preferredEquity, targetRaise, targetPreMoney]);
+
+  // Run DCF
+  const dcfResult = useMemo(() => {
+    if (!dcfInputs) return null;
+    return runDCF(dcfInputs);
+  }, [dcfInputs]);
+
+  // Sensitivity table
+  const sensitivityData: SensitivityTable | null = useMemo(() => {
+    if (!dcfInputs) return null;
+    return tvMethod === "exitMultiple"
+      ? exitMultipleSensitivityTable(dcfInputs, "enterpriseValue")
+      : defaultSensitivityTable(dcfInputs, "enterpriseValue");
+  }, [dcfInputs, tvMethod]);
 
   function handleCreateScenario() {
     if (!activeProjId) return;
     createScenario.mutate({
       projectionId: activeProjId,
       name: "Base DCF",
-      discountRate,
+      discountRate: effectiveWACC,
       terminalGrowth,
       netDebt,
       cash,
@@ -574,7 +613,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
     updateScenario.mutate({
       id: activeScenario.id,
       data: {
-        discountRate,
+        discountRate: effectiveWACC,
         terminalGrowth,
         netDebt,
         cash,
@@ -599,7 +638,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Source projection selector */}
+      {/* Source projection + scenario selector */}
       <div className="flex items-center gap-4 flex-wrap">
         <div>
           <Label className="text-xs mb-1 block">{t("projections.sourceProjection")}</Label>
@@ -660,7 +699,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
                   onClick={handleSaveScenario}
                   disabled={updateScenario.isPending}
                 >
-                  Save
+                  {t("projections.saveChanges")}
                 </Button>
                 <Button
                   variant="destructive"
@@ -670,7 +709,7 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
                       deleteScenario.mutate({ id: activeScenario.id });
                   }}
                 >
-                  Delete
+                  {t("projections.deleteProjection")}
                 </Button>
               </>
             )}
@@ -678,29 +717,175 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
         )}
       </div>
 
-      {/* DCF Inputs */}
+      {/* ── WACC Calculator Panel ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Calculator className="h-4 w-4" /> {t("projections.waccCalculator")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Manual vs CAPM toggle */}
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                checked={!useManualWACC}
+                onChange={() => setUseManualWACC(false)}
+                className="accent-primary"
+              />
+              {t("projections.waccCAPM")}
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                checked={useManualWACC}
+                onChange={() => setUseManualWACC(true)}
+                className="accent-primary"
+              />
+              {t("projections.waccManual")}
+            </label>
+          </div>
+
+          {useManualWACC ? (
+            <div className="max-w-xs">
+              <Label className="text-xs">{t("projections.discountRate")} (%)</Label>
+              <Input
+                type="number"
+                value={(manualWACC * 100).toFixed(1)}
+                onChange={(e) => setManualWACC((Number(e.target.value) || 0) / 100)}
+              />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div>
+                  <Label className="text-xs">{t("projections.riskFreeRate")} (%)</Label>
+                  <Input
+                    type="number"
+                    value={(waccInputs.riskFreeRate * 100).toFixed(2)}
+                    onChange={(e) => setWaccInputs({ ...waccInputs, riskFreeRate: (Number(e.target.value) || 0) / 100 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("projections.beta")}</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={waccInputs.beta.toFixed(2)}
+                    onChange={(e) => setWaccInputs({ ...waccInputs, beta: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("projections.equityRiskPremium")} (%)</Label>
+                  <Input
+                    type="number"
+                    value={(waccInputs.equityRiskPremium * 100).toFixed(2)}
+                    onChange={(e) => setWaccInputs({ ...waccInputs, equityRiskPremium: (Number(e.target.value) || 0) / 100 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("projections.costOfDebt")} (%)</Label>
+                  <Input
+                    type="number"
+                    value={(waccInputs.costOfDebt * 100).toFixed(2)}
+                    onChange={(e) => setWaccInputs({ ...waccInputs, costOfDebt: (Number(e.target.value) || 0) / 100 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("projections.debtWeight")} (%)</Label>
+                  <Input
+                    type="number"
+                    value={(waccInputs.debtWeight * 100).toFixed(1)}
+                    onChange={(e) => setWaccInputs({ ...waccInputs, debtWeight: (Number(e.target.value) || 0) / 100 })}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">{t("projections.taxRateWACC")} (%)</Label>
+                  <Input
+                    type="number"
+                    value={(waccInputs.taxRate * 100).toFixed(1)}
+                    onChange={(e) => setWaccInputs({ ...waccInputs, taxRate: (Number(e.target.value) || 0) / 100 })}
+                  />
+                </div>
+              </div>
+
+              {/* WACC breakdown */}
+              <div className="bg-secondary/30 rounded-lg p-3 text-sm grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <span className="text-muted-foreground">{t("projections.costOfEquity")}: </span>
+                  <span className="font-semibold">{(waccResult.costOfEquity * 100).toFixed(2)}%</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">{t("projections.afterTaxCostOfDebt")}: </span>
+                  <span className="font-semibold">{(waccResult.afterTaxCostOfDebt * 100).toFixed(2)}%</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">{t("projections.equityWeight")}: </span>
+                  <span className="font-semibold">{(waccResult.equityWeight * 100).toFixed(1)}%</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground font-semibold">WACC: </span>
+                  <span className="font-bold text-primary">{(waccResult.wacc * 100).toFixed(2)}%</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{t("projections.capmFormula")}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── DCF Parameters ── */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">{t("projections.dcfInputs")}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <CardContent className="space-y-4">
+          {/* Terminal Value method + Convention */}
+          <div className="flex items-center gap-6 flex-wrap">
             <div>
-              <Label className="text-xs">{t("projections.discountRate")} (%)</Label>
-              <Input
-                type="number"
-                value={(discountRate * 100).toFixed(1)}
-                onChange={(e) => setDiscountRate((Number(e.target.value) || 0) / 100)}
-              />
+              <Label className="text-xs mb-1 block">{t("projections.tvMethod")}</Label>
+              <Select value={tvMethod} onValueChange={(v) => setTvMethod(v as TerminalValueMethod)}>
+                <SelectTrigger className="w-52">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gordon">{t("projections.gordonGrowth")}</SelectItem>
+                  <SelectItem value="exitMultiple">{t("projections.exitMultipleMethod")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label className="text-xs">{t("projections.terminalGrowth")}</Label>
-              <Input
-                type="number"
-                value={(terminalGrowth * 100).toFixed(1)}
-                onChange={(e) => setTerminalGrowth((Number(e.target.value) || 0) / 100)}
+            <label className="flex items-center gap-2 text-sm cursor-pointer mt-4">
+              <input
+                type="checkbox"
+                checked={midYearConvention}
+                onChange={(e) => setMidYearConvention(e.target.checked)}
+                className="accent-primary"
               />
-            </div>
+              {t("projections.midYearConvention")}
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {tvMethod === "gordon" ? (
+              <div>
+                <Label className="text-xs">{t("projections.terminalGrowth")}</Label>
+                <Input
+                  type="number"
+                  value={(terminalGrowth * 100).toFixed(1)}
+                  onChange={(e) => setTerminalGrowth((Number(e.target.value) || 0) / 100)}
+                />
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs">{t("projections.exitMultipleLabel")} (EV/EBITDA)</Label>
+                <Input
+                  type="number"
+                  value={exitMultiple}
+                  onChange={(e) => setExitMultiple(Number(e.target.value) || 0)}
+                />
+              </div>
+            )}
             <div>
               <Label className="text-xs">{t("projections.netDebt")}</Label>
               <Input
@@ -715,6 +900,22 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
                 type="number"
                 value={cash}
                 onChange={(e) => setCash(Number(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">{t("projections.minorityInterest")}</Label>
+              <Input
+                type="number"
+                value={minorityInterest}
+                onChange={(e) => setMinorityInterest(Number(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">{t("projections.preferredEquity")}</Label>
+              <Input
+                type="number"
+                value={preferredEquity}
+                onChange={(e) => setPreferredEquity(Number(e.target.value) || 0)}
               />
             </div>
             <div>
@@ -739,84 +940,175 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
         </CardContent>
       </Card>
 
-      {/* DCF Results */}
+      {/* ── DCF Results ── */}
       {dcfResult && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Valuation Results Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" /> Valuation Results
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {([
-                  ["Sum PV(FCF)", dcfResult.sumPVFCF],
-                  ["Terminal Value", dcfResult.terminalValue],
-                  ["PV of Terminal", dcfResult.pvOfTerminal],
-                  ["Enterprise Value", dcfResult.enterpriseValue],
-                  ["Equity Value = Implied Pre-money", dcfResult.equityValue],
-                ] as const).map(([label, val]) => (
-                  <div key={label} className="flex justify-between items-center py-1 border-b border-border/50 last:border-0">
-                    <span className="text-sm text-muted-foreground">{label}</span>
-                    <span className="text-sm font-semibold tabular-nums">{fmtCurrency(val)}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* EV → Equity Bridge */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" /> {t("projections.evEquityBridge")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {([
+                    [t("projections.sumPVFCF"), dcfResult.sumPVFCF, false],
+                    [t("projections.pvOfTerminal"), dcfResult.pvOfTerminal, false],
+                    [t("projections.enterpriseValue"), dcfResult.enterpriseValue, true],
+                    [t("projections.lessNetDebt"), -dcfResult.lessNetDebt, false],
+                    [t("projections.plusCash"), dcfResult.lessCash, false],
+                    ...(dcfResult.lessMinorityInterest ? [[t("projections.lessMinority"), -dcfResult.lessMinorityInterest, false] as const] : []),
+                    ...(dcfResult.lessPreferredEquity ? [[t("projections.lessPreferred"), -dcfResult.lessPreferredEquity, false] as const] : []),
+                    [t("projections.equityValueLabel"), dcfResult.equityValue, true],
+                  ] as [string, number, boolean][]).map(([label, val, bold], idx) => (
+                    <div key={idx} className={`flex justify-between items-center py-1 ${bold ? "border-t border-border font-semibold pt-2" : "border-b border-border/30"}`}>
+                      <span className={`text-sm ${bold ? "" : "text-muted-foreground"}`}>{label}</span>
+                      <span className={`text-sm tabular-nums ${bold ? "font-bold" : "font-semibold"}`}>{fmtCurrency(val)}</span>
+                    </div>
+                  ))}
+                </div>
 
-          {/* Valuation Gap Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <DollarSign className="h-4 w-4" /> Valuation Gap
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {dcfResult.valuationGap !== null ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-sm text-muted-foreground">{t("projections.impliedPreMoney")}</span>
-                    <span className="text-sm font-semibold tabular-nums">
-                      {fmtCurrency(dcfResult.impliedPreMoney)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-sm text-muted-foreground">{t("projections.targetPreMoneyLabel")}</span>
-                    <span className="text-sm font-semibold tabular-nums">
-                      {fmtCurrency(Number(targetPreMoney) || 0)}
-                    </span>
-                  </div>
-                  <div className="border-t border-border pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold">{t("projections.gap")}</span>
-                      <span
-                        className={`text-lg font-bold tabular-nums ${
-                          dcfResult.valuationGap >= 0 ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {dcfResult.valuationGap >= 0 ? "+" : ""}
-                        {fmtCurrency(dcfResult.valuationGap)}
+                {/* TV composition note */}
+                <div className="mt-3 text-xs text-muted-foreground bg-secondary/30 p-2 rounded">
+                  {t("projections.tvContribution")}: {(dcfResult.tvAsPercentOfEV * 100).toFixed(1)}% &bull;{" "}
+                  {t("projections.tvMethodUsed")}: {tvMethod === "gordon" ? t("projections.gordonGrowth") : t("projections.exitMultipleMethod")}
+                  {midYearConvention && ` • ${t("projections.midYearApplied")}`}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Valuation Gap Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" /> {t("projections.valuationGap")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dcfResult.valuationGap !== null ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-sm text-muted-foreground">{t("projections.impliedPreMoney")}</span>
+                      <span className="text-sm font-semibold tabular-nums">
+                        {fmtCurrency(dcfResult.impliedPreMoney)}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {dcfResult.valuationGap >= 0
-                        ? t("projections.impliedValueExceeds")
-                        : t("projections.impliedValueBelow")}
-                    </p>
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-sm text-muted-foreground">{t("projections.targetPreMoneyLabel")}</span>
+                      <span className="text-sm font-semibold tabular-nums">
+                        {fmtCurrency(Number(targetPreMoney) || 0)}
+                      </span>
+                    </div>
+                    {dcfResult.impliedDilution > 0 && (
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-sm text-muted-foreground">{t("projections.impliedDilution")}</span>
+                        <span className="text-sm font-semibold tabular-nums">
+                          {(dcfResult.impliedDilution * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
+                    <div className="border-t border-border pt-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold">{t("projections.gap")}</span>
+                        <span
+                          className={`text-lg font-bold tabular-nums ${
+                            dcfResult.valuationGap >= 0 ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {dcfResult.valuationGap >= 0 ? "+" : ""}
+                          {fmtCurrency(dcfResult.valuationGap)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {dcfResult.valuationGap >= 0
+                          ? t("projections.impliedValueExceeds")
+                          : t("projections.impliedValueBelow")}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  {t("projections.enterTargetPreMoney")}
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    {t("projections.enterTargetPreMoney")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── Sensitivity Table ── */}
+          {sensitivityData && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">{t("projections.sensitivityAnalysis")}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {t("projections.sensitivityDesc")}
                 </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <SensitivityHeatMap data={sensitivityData} baseEV={dcfResult.enterpriseValue} />
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+// ─── Sensitivity Heat Map ─────────────────────────────────────────────────────
+
+function SensitivityHeatMap({ data, baseEV }: { data: SensitivityTable; baseEV: number }) {
+  const { t } = useTranslation("analysis");
+
+  function getCellColor(value: number): string {
+    if (baseEV === 0) return "";
+    const pctDiff = (value - baseEV) / Math.abs(baseEV);
+    if (pctDiff > 0.15) return "bg-green-100 dark:bg-green-900/30";
+    if (pctDiff > 0.05) return "bg-green-50 dark:bg-green-900/20";
+    if (pctDiff < -0.15) return "bg-red-100 dark:bg-red-900/30";
+    if (pctDiff < -0.05) return "bg-red-50 dark:bg-red-900/20";
+    return "bg-yellow-50 dark:bg-yellow-900/20";
+  }
+
+  const midRow = Math.floor(data.rowLabels.length / 2);
+  const midCol = Math.floor(data.colLabels.length / 2);
+
+  return (
+    <table className="w-full text-xs min-w-[600px]">
+      <thead>
+        <tr>
+          <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
+            {data.rowHeader} ↓ / {data.colHeader} →
+          </th>
+          {data.colLabels.map((cl, ci) => (
+            <th
+              key={ci}
+              className={`px-2 py-1.5 text-right font-medium ${ci === midCol ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+            >
+              {cl}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {data.rowLabels.map((rl, ri) => (
+          <tr key={ri}>
+            <td className={`px-2 py-1.5 font-medium ${ri === midRow ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+              {rl}
+            </td>
+            {data.values[ri].map((val, ci) => (
+              <td
+                key={ci}
+                className={`px-2 py-1.5 text-right tabular-nums font-semibold ${getCellColor(val)} ${ri === midRow && ci === midCol ? "ring-2 ring-primary ring-inset" : ""}`}
+              >
+                {fmtCurrency(val)}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
