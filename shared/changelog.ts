@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.33.1",
+    date: "2026-05-06",
+    type: "patch",
+    title: "Fix ESign.tsx TypeScript errors — missing useTranslation hook",
+    description: "修復 ESign.tsx 中 RequestsSection 元件缺少 useTranslation('equity') hook 導致的 8 個 TS2304 編譯錯誤。",
+  },
+  {
     version: "2.33.0",
     date: "2026-05-06",
     type: "minor",

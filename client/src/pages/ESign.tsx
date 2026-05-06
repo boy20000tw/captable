@@ -400,6 +400,7 @@ const REQUEST_TABS: Array<{ value: string; label: string }> = [
 ];
 
 function RequestsSection() {
+  const { t } = useTranslation("equity");
   const { canEdit } = usePermissions();
   const utils = trpc.useUtils();
 
