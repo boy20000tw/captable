@@ -571,6 +571,22 @@ export const financialProjections = pgTable("financial_projections", {
 export type FinancialProjection = typeof financialProjections.$inferSelect;
 export type InsertFinancialProjection = typeof financialProjections.$inferInsert;
 
+// ─── Projection Scenarios (Scenario Manager) ────────────────────────────────
+// Stores snapshot of projection assumptions for "Best Case", "Base Case", "Worst Case", etc.
+export const projectionScenarios = pgTable("projection_scenarios", {
+    id: serial("id").primaryKey(),
+    projectionId: integer("projectionId").notNull(),
+    companyId: integer("companyId").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),          // e.g. "Best Case", "Base Case", "Worst Case"
+    description: text("description"),
+    assumptions: jsonb("assumptions").notNull(),               // Full ProjectionAssumptions JSON blob
+    isBaseline: boolean("isBaseline").default(false).notNull(), // Only one baseline per projection
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ProjectionScenario = typeof projectionScenarios.$inferSelect;
+export type InsertProjectionScenario = typeof projectionScenarios.$inferInsert;
+
 // ─── DCF Scenarios ──────────────────────────────────────────────────────────
 export const dcfScenarios = pgTable("dcf_scenarios", {
     id: serial("id").primaryKey(),

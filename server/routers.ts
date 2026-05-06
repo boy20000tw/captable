@@ -23,6 +23,7 @@ import {
   truncateAllBusinessData,
   // Financial projections + DCF
   getAllFinancialProjections, getFinancialProjectionById, createFinancialProjection, updateFinancialProjection, deleteFinancialProjection,
+  getProjectionScenarios, getProjectionScenario, createProjectionScenario, updateProjectionScenario, deleteProjectionScenario,
   getDcfScenariosByProjection, createDcfScenario, updateDcfScenario, deleteDcfScenario,
   // Comps Peers
   getCompsPeers, createCompsPeer, updateCompsPeer, deleteCompsPeer,
@@ -665,6 +666,44 @@ const financialProjectionsRouter = router({
   delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
     await deleteFinancialProjection(ctx.companyId, input.id);
     await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "financial_projection", resourceId: input.id });
+  }),
+});
+
+// ─── Projection Scenarios Router (Scenario Manager) ──────────────────────────
+const scenarioRouter = router({
+  list: companyProcedure.use(requireFeature("analysis.projections")).input(z.object({ projectionId: z.number() }))
+    .query(({ input, ctx }) => getProjectionScenarios(ctx.companyId, input.projectionId)),
+  get: companyProcedure.input(z.object({ id: z.number() }))
+    .query(({ input, ctx }) => getProjectionScenario(ctx.companyId, input.id)),
+  create: companyEditorProcedure.input(z.object({
+    projectionId: z.number(),
+    name: z.string().min(1),
+    description: z.string().optional(),
+    assumptions: ProjectionAssumptionsSchema,
+    isBaseline: z.boolean().default(false),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await createProjectionScenario({
+      ...input,
+      companyId: ctx.companyId,
+    });
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "projection_scenario", resourceName: input.name, changesAfter: JSON.stringify({ name: input.name, isBaseline: input.isBaseline }) });
+    return result;
+  }),
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      name: z.string().optional(),
+      description: z.string().optional(),
+      assumptions: ProjectionAssumptionsSchema.optional(),
+      isBaseline: z.boolean().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    await updateProjectionScenario(ctx.companyId, input.id, input.data);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "update", resourceType: "projection_scenario", resourceId: input.id, changesAfter: JSON.stringify(input.data) });
+  }),
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteProjectionScenario(ctx.companyId, input.id);
+    await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "delete", resourceType: "projection_scenario", resourceId: input.id });
   }),
 });
 
@@ -2876,6 +2915,7 @@ export const appRouter = router({
   invitations: invitationsRouter,
   auditLog: auditLogRouter,
   financialProjections: financialProjectionsRouter,
+  scenario: scenarioRouter,
   dcf: dcfRouter,
   comps: compsRouter,
   valuation409a: valuation409aRouter,

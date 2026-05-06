@@ -20,6 +20,34 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.41.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "Frontend Wiring — Scenario Save + Export Buttons + Comps Export",
+    description: "將匯出按鈕整合到 Projections DCF Tab（Export DCF PDF/Excel）、Three-Statement Tab（Export Three-Statement PDF/Excel）及 CompsAnalysis 頁面（Export Comps PDF/Excel）。P&L Tab 加入 Save as Scenario 按鈕，將當前假設儲存至 Scenario Manager。完整 i18n 支援（scenario.saved / enterName / bestCase 等鍵值）。",
+  },
+  {
+    version: "2.40.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "PDF & Excel Export — DCF, Comps, Three-Statement Financial Analysis",
+    description: "新增分析報表匯出功能。建立 client/src/utils/analysisExport.ts 模組，提供 6 個匯出函式：exportDcfPdf / exportDcfExcel（DCF 估值報告）、exportCompsPdf / exportCompsExcel（對標公司分析）、exportThreeStatementPdf / exportThreeStatementExcel（三表財務模型）。PDF 使用 jsPDF + jspdf-autotable，包含執行摘要、假設、FCF 投影、敏感性矩陣；Excel 採 ExcelJS，每份報告含 2-3 個工作表（摘要、詳細資料、敏感性）。完整格式化（NT$ 貨幣、百分比、倍數）及 EN/zh-TW i18n 支援。",
+  },
+  {
+    version: "2.39.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "Scenario Manager — Save & Compare Multiple Projection Scenarios",
+    description: "新增情景管理器功能：新 projection_scenarios DB 表存儲假設快照。DB 層 (db.ts) 新增 CRUD 函數；tRPC 路由 scenario.list / .get / .create / .update / .delete；前端 UI 於 Projections 頁頂部加入情景選擇器 + Save as Scenario 按鈕 + Compare 按鈕；Compare 對話框並排展示 2-3 個情景的關鍵指標 (營收、EBITDA、淨利、自由現金流)。完整 EN/zh-TW i18n 支援。",
+  },
+  {
+    version: "2.38.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "ClosedCompany Share Rights Export — PDF + Excel",
+    description: "閉鎖性公司特別股頁面新增 PDF 與 Excel 匯出功能。PDF 匯出使用 jsPDF + jspdf-autotable，含公司名稱、特別股權利對照表及生成時間。Excel 匯出使用 ExcelJS，支援標題列著色、交替列底色、自動欄寬。匯出按鈕於有股份類別時出現。完整 EN/zh-TW i18n 支援。",
+  },
+  {
     version: "2.37.0",
     date: "2026-05-06",
     type: "minor",

@@ -14,7 +14,11 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { buildProjection, type YearlyPnL } from "@shared/projectionCalc";
 import { runDCF, type DCFResult } from "@shared/dcfCalc";
 import { DEFAULT_ASSUMPTIONS, type ProjectionAssumptions } from "@shared/projectionTypes";
-import { BarChart3, Calculator, CheckCircle2, DollarSign, Download, FileSpreadsheet, Plus, TrendingUp, XCircle } from "lucide-react";
+import { BarChart3, Calculator, CheckCircle2, DollarSign, Download, FileSpreadsheet, FileText, Plus, Save, TrendingUp, XCircle } from "lucide-react";
+import {
+  exportDcfPdf, exportDcfExcel,
+  exportThreeStatementPdf, exportThreeStatementExcel,
+} from "@/utils/analysisExport";
 import { calculateWACC, DEFAULT_WACC_INPUTS, type WACCInputs } from "@shared/waccCalc";
 import {
   buildThreeStatements, DEFAULT_BS_ASSUMPTIONS, type BSAssumptions,
@@ -99,6 +103,11 @@ function ProjectionsContent() {
     onError: (e) => toast.error(e.message),
   });
 
+  const saveScenario = trpc.scenario.create.useMutation({
+    onSuccess: () => toast.success(t("scenario.saved")),
+    onError: (e) => toast.error(e.message),
+  });
+
   function handleCreateDefault() {
     const now = new Date();
     createProjection.mutate({
@@ -136,33 +145,60 @@ function ProjectionsContent() {
             TAB 1: 5-Year Projection
            ══════════════════════════════════════════════════════════════════ */}
         <TabsContent value="projection" className="space-y-6">
-          {/* Projection selector + New button */}
-          <div className="flex items-center gap-4">
+          {/* Projection selector + Scenario + New button */}
+          <div className="flex items-center gap-4 flex-wrap">
             {projections.length > 0 && (
-              <Select
-                value={activeProjectionId != null ? String(activeProjectionId) : ""}
-                onValueChange={(v) => setSelectedProjectionId(Number(v))}
-              >
-                <SelectTrigger className="w-60">
-                  <SelectValue placeholder="Select projection" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projections.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div>
+                <Label className="text-xs mb-1 block">{t("projections.sourceProjection")}</Label>
+                <Select
+                  value={activeProjectionId != null ? String(activeProjectionId) : ""}
+                  onValueChange={(v) => setSelectedProjectionId(Number(v))}
+                >
+                  <SelectTrigger className="w-60">
+                    <SelectValue placeholder="Select projection" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projections.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
             {canEdit && (
-              <Button
-                onClick={handleCreateDefault}
-                disabled={createProjection.isPending}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" /> {t("projections.newProjection")}
-              </Button>
+              <div className="flex items-end gap-2">
+                <Button
+                  onClick={handleCreateDefault}
+                  disabled={createProjection.isPending}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" /> {t("projections.newProjection")}
+                </Button>
+                {activeProjection && (
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => {
+                      const name = prompt(t("scenario.enterName"), `${activeProjection.name} — ${t("scenario.bestCase")}`);
+                      if (!name) return;
+                      const assumptions = typeof activeProjection.assumptions === "string"
+                        ? JSON.parse(activeProjection.assumptions as string)
+                        : activeProjection.assumptions;
+                      saveScenario.mutate({
+                        projectionId: activeProjection.id,
+                        name,
+                        assumptions,
+                        isBaseline: false,
+                      });
+                    }}
+                    disabled={saveScenario?.isPending}
+                  >
+                    <Save className="h-4 w-4" /> {t("scenario.saveAsScenario")}
+                  </Button>
+                )}
+              </div>
             )}
           </div>
 
@@ -766,6 +802,38 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
             )}
           </div>
         )}
+
+        {/* Export buttons */}
+        {dcfResult && sensitivityData && (
+          <div className="flex items-end gap-2 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                try {
+                  exportDcfPdf(dcfResult, sensitivityData, projectionRows);
+                  toast.success(t("export.exportSuccess"));
+                } catch { toast.error(t("export.exportError")); }
+              }}
+            >
+              <FileText className="h-4 w-4" /> {t("export.dcfReportPdf")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={async () => {
+                try {
+                  await exportDcfExcel(dcfResult, sensitivityData, projectionRows);
+                  toast.success(t("export.exportSuccess"));
+                } catch { toast.error(t("export.exportError")); }
+              }}
+            >
+              <FileSpreadsheet className="h-4 w-4" /> {t("export.dcfReportExcel")}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── WACC Calculator Panel ── */}
@@ -1249,6 +1317,38 @@ function ThreeStatementTab({ projections }: ThreeStatementTabProps) {
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${result.isBalanced ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
             {result.isBalanced ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
             {result.isBalanced ? t("threeStatement.balanced") : t("threeStatement.unbalanced")}
+          </div>
+        )}
+
+        {/* Export buttons */}
+        {result && (
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                try {
+                  exportThreeStatementPdf(result.balanceSheet, result.cashFlow, result.pnl);
+                  toast.success(t("export.exportSuccess"));
+                } catch { toast.error(t("export.exportError")); }
+              }}
+            >
+              <FileText className="h-4 w-4" /> {t("export.threeStatementPdf")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={async () => {
+                try {
+                  await exportThreeStatementExcel(result.balanceSheet, result.cashFlow, result.pnl);
+                  toast.success(t("export.exportSuccess"));
+                } catch { toast.error(t("export.exportError")); }
+              }}
+            >
+              <FileSpreadsheet className="h-4 w-4" /> {t("export.threeStatementExcel")}
+            </Button>
           </div>
         )}
       </div>

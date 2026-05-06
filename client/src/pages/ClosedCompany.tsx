@@ -10,6 +10,8 @@ import {
   Trash2,
   Settings,
   AlertCircle,
+  FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { FeatureGate } from '@/components/FeatureGate';
@@ -238,6 +240,171 @@ export default function ClosedCompanyPage() {
     await upsertProvisionMutation.mutateAsync(settingsData);
   };
 
+  const exportToPdf = async () => {
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const autoTable = (await import('jspdf-autotable')).default;
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      // Get company name or use default
+      const companyName = 'Company';
+      const titleText = t('closedCompany.exportPdfTitle');
+
+      // Add title
+      doc.setFontSize(14);
+      doc.text(titleText, 14, 15);
+
+      // Add company name and date
+      doc.setFontSize(10);
+      doc.text(`${companyName}`, 14, 22);
+      doc.setFontSize(9);
+      doc.text(`${t('shared.date')}: ${new Date().toLocaleDateString()}`, 14, 28);
+
+      // Prepare table data
+      const headers = [
+        t('closedCompany.shareClass'),
+        t('closedCompany.votesPerShare'),
+        t('closedCompany.vetoRight'),
+        t('closedCompany.boardSeats'),
+        t('closedCompany.dividendPriority'),
+        t('closedCompany.liquidationPriority'),
+        t('closedCompany.convertible'),
+      ];
+
+      const rows = rights.map((right: any) => [
+        right.shareClassName,
+        `${Number(right.votesPerShare).toFixed(2)}`,
+        right.hasVetoRight ? t('closedCompany.yes') : t('closedCompany.no'),
+        right.guaranteedBoardSeats > 0 ? right.guaranteedBoardSeats.toString() : '-',
+        dividendPriorityLabels[right.dividendPriority as DividendPriorityType] || '-',
+        right.liquidationPriority > 0 ? right.liquidationPriority.toString() : '-',
+        right.isConvertible ? t('closedCompany.yes') : t('closedCompany.no'),
+      ]);
+
+      // Add table using autoTable
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 35,
+        margin: { left: 14, right: 14 },
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+        },
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245],
+        },
+      });
+
+      // Add footer with timestamp
+      const pageCount = (doc as any).internal.getNumberOfPages?.() || 1;
+      doc.setFontSize(8);
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.text(
+          `${t('closedCompany.exportedOn')} ${new Date().toLocaleString()}`,
+          14,
+          doc.internal.pageSize.getHeight() - 10
+        );
+      }
+
+      // Save PDF
+      doc.save(`${companyName}-share-rights.pdf`);
+    } catch (error) {
+      console.error('PDF export error:', error);
+      alert(t('closedCompany.exportError'));
+    }
+  };
+
+  const exportToExcel = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(t('closedCompany.shareRightsTitle'));
+
+      // Set column widths
+      worksheet.columns = [
+        { header: t('closedCompany.shareClass'), key: 'shareClass', width: 20 },
+        { header: t('closedCompany.votesPerShare'), key: 'votesPerShare', width: 18 },
+        { header: t('closedCompany.vetoRight'), key: 'vetoRight', width: 12 },
+        { header: t('closedCompany.boardSeats'), key: 'boardSeats', width: 15 },
+        { header: t('closedCompany.dividendPriority'), key: 'dividendPriority', width: 18 },
+        { header: t('closedCompany.liquidationPriority'), key: 'liquidationPriority', width: 18 },
+        { header: t('closedCompany.convertible'), key: 'convertible', width: 12 },
+      ];
+
+      // Style header row
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF2980B9' },
+        };
+        cell.font = {
+          bold: true,
+          color: { argb: 'FFFFFFFF' },
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      });
+
+      // Add data rows
+      rights.forEach((right: any) => {
+        worksheet.addRow({
+          shareClass: right.shareClassName,
+          votesPerShare: Number(right.votesPerShare).toFixed(2),
+          vetoRight: right.hasVetoRight ? t('closedCompany.yes') : t('closedCompany.no'),
+          boardSeats: right.guaranteedBoardSeats > 0 ? right.guaranteedBoardSeats : '-',
+          dividendPriority: dividendPriorityLabels[right.dividendPriority as DividendPriorityType] || '-',
+          liquidationPriority: right.liquidationPriority > 0 ? right.liquidationPriority : '-',
+          convertible: right.isConvertible ? t('closedCompany.yes') : t('closedCompany.no'),
+        });
+      });
+
+      // Alternate row colors
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) {
+          if (rowNumber % 2 === 0) {
+            row.eachCell((cell) => {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFF5F5F5' },
+              };
+            });
+          }
+          row.eachCell((cell) => {
+            cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          });
+        }
+      });
+
+      // Generate and save file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const companyName = 'Company';
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${companyName}-share-rights.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Excel export error:', error);
+      alert(t('closedCompany.exportError'));
+    }
+  };
+
   const rights = rightsQuery.data || [];
   const isLoading =
     provisionQuery.isLoading ||
@@ -389,18 +556,44 @@ export default function ClosedCompanyPage() {
         {/* Share Class Rights Section (only visible when closed company is enabled) */}
         {isClosedCompany && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-2xl font-bold text-gray-900">
                 {t("closedCompany.shareRightsTitle")}
               </h2>
-              <Button
-                onClick={() => handleOpenDialog()}
-                className="gap-2"
-                disabled={isLoading}
-              >
-                <Plus className="h-4 w-4" />
-                {t("closedCompany.addShareClass")}
-              </Button>
+              <div className="flex gap-2">
+                {rights.length > 0 && (
+                  <>
+                    <Button
+                      onClick={exportToPdf}
+                      variant="outline"
+                      className="gap-2"
+                      disabled={isLoading}
+                      size="sm"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t("closedCompany.exportPdf")}
+                    </Button>
+                    <Button
+                      onClick={exportToExcel}
+                      variant="outline"
+                      className="gap-2"
+                      disabled={isLoading}
+                      size="sm"
+                    >
+                      <FileSpreadsheet className="h-4 w-4" />
+                      {t("closedCompany.exportExcel")}
+                    </Button>
+                  </>
+                )}
+                <Button
+                  onClick={() => handleOpenDialog()}
+                  className="gap-2"
+                  disabled={isLoading}
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("closedCompany.addShareClass")}
+                </Button>
+              </div>
             </div>
 
             {rights.length === 0 ? (

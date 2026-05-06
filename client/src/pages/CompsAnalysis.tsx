@@ -12,7 +12,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { runCompsAnalysis, type CompsResult, type CompsPeer } from "@shared/compsCalc";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
-import { BarChart3, Plus, Trash2, TrendingUp } from "lucide-react";
+import { BarChart3, FileSpreadsheet, FileText, Plus, Trash2, TrendingUp } from "lucide-react";
+import { exportCompsPdf, exportCompsExcel } from "@/utils/analysisExport";
 
 type DbCompsPeer = inferRouterOutputs<AppRouter>["comps"]["list"][number];
 
@@ -106,9 +107,41 @@ function CompsContent() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{tPages("comps.title")}</h1>
-        <p className="text-muted-foreground mt-1">{tPages("comps.desc")}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{tPages("comps.title")}</h1>
+          <p className="text-muted-foreground mt-1">{tPages("comps.desc")}</p>
+        </div>
+        {result && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                try {
+                  exportCompsPdf(result);
+                  toast.success(t("export.exportSuccess"));
+                } catch { toast.error(t("export.exportError")); }
+              }}
+            >
+              <FileText className="h-4 w-4" /> {t("export.compsPdf")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={async () => {
+                try {
+                  await exportCompsExcel(result);
+                  toast.success(t("export.exportSuccess"));
+                } catch { toast.error(t("export.exportError")); }
+              }}
+            >
+              <FileSpreadsheet className="h-4 w-4" /> {t("export.compsExcel")}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── Target Company Inputs ── */}

@@ -22,6 +22,7 @@ import {
   userInvitations, InsertUserInvitation,
   auditLogs, InsertAuditLog,
   financialProjections, InsertFinancialProjection,
+  projectionScenarios, InsertProjectionScenario,
   dcfScenarios, InsertDcfScenario,
   compsPeers, InsertCompsPeer,
   investors, InsertInvestor,
@@ -1234,6 +1235,48 @@ export async function deleteFinancialProjection(companyId: number, id: number) {
   if (!db) throw new Error("Database not available");
   await db.delete(financialProjections)
     .where(and(eq(financialProjections.id, id), eq(financialProjections.companyId, companyId)));
+}
+
+// ─── Projection Scenarios (Scenario Manager) ────────────────────────────────
+export async function getProjectionScenarios(companyId: number, projectionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projectionScenarios)
+    .where(and(
+      eq(projectionScenarios.projectionId, projectionId),
+      eq(projectionScenarios.companyId, companyId),
+    ))
+    .orderBy(desc(projectionScenarios.createdAt));
+}
+
+export async function getProjectionScenario(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(projectionScenarios)
+    .where(and(eq(projectionScenarios.id, id), eq(projectionScenarios.companyId, companyId)))
+    .limit(1);
+  return result[0];
+}
+
+export async function createProjectionScenario(data: InsertProjectionScenario) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(projectionScenarios).values(data).returning();
+  return result[0];
+}
+
+export async function updateProjectionScenario(companyId: number, id: number, data: Partial<InsertProjectionScenario>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(projectionScenarios).set({ ...data, updatedAt: new Date() })
+    .where(and(eq(projectionScenarios.id, id), eq(projectionScenarios.companyId, companyId)));
+}
+
+export async function deleteProjectionScenario(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(projectionScenarios)
+    .where(and(eq(projectionScenarios.id, id), eq(projectionScenarios.companyId, companyId)));
 }
 
 // ─── DCF Scenarios ──────────────────────────────────────────────────────────
