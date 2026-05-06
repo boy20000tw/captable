@@ -506,11 +506,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <SidebarMenuSub>
-                          {nav.items.map((item) => {
+                          {(() => { let lastSection = ""; return nav.items.map((item) => {
                             const isActive = location === item.path;
+                            const showSection = !!(item.section && item.section !== lastSection);
+                            if (item.section) lastSection = item.section;
                             return (
                               <React.Fragment key={item.path}>
-                                {item.section && (
+                                {showSection && (
                                   <li className="px-3 pt-2 pb-1">
                                     <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
                                       {item.section}
@@ -533,7 +535,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                                 </SidebarMenuSubItem>
                               </React.Fragment>
                             );
-                          })}
+                          }); })()}
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </SidebarMenuItem>

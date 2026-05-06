@@ -9,7 +9,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import { calculateTechShareTax } from "@/shared/techShareTaxCalc";
+import { calculateTechShareTax } from "@shared/techShareTaxCalc";
 import { TaxCalculationCard } from "@/components/TaxCalculationCard";
 import { Receipt, Plus, AlertTriangle, CheckCircle2, Clock, XCircle, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

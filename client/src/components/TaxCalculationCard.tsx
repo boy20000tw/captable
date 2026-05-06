@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { calculateTechShareTax, type TaxCalcResult } from "@/shared/techShareTaxCalc";
+import { calculateTechShareTax, type TaxCalcResult } from "@shared/techShareTaxCalc";
 import { formatCurrency } from "@/lib/utils";
 
 type TaxCalculationCardProps = {
@@ -39,7 +39,7 @@ export function TaxCalculationCard(props: TaxCalculationCardProps) {
   });
 
   const renderAmount = (value: number, isNegative?: boolean) => {
-    const formatted = formatCurrency(Math.abs(value), "TWD", 0);
+    const formatted = formatCurrency(Math.abs(value), "NTD", 0);
     const color = value < 0 ? "text-green-600" : isNegative ? "text-green-600" : "text-red-600";
     return <span className={`font-medium ${color}`}>{value < 0 ? "-" : ""}{formatted}</span>;
   };
@@ -81,7 +81,7 @@ export function TaxCalculationCard(props: TaxCalculationCardProps) {
               {t("techShare.taxCalc.totalTaxable")}
             </p>
             <p className="text-lg font-bold text-blue-700">
-              {formatCurrency(taxResult.totalTaxableIncome, "TWD", 0)}
+              {formatCurrency(taxResult.totalTaxableIncome, "NTD", 0)}
             </p>
           </div>
 
@@ -91,7 +91,7 @@ export function TaxCalculationCard(props: TaxCalculationCardProps) {
               {t("techShare.taxCalc.estimatedTax")}
             </p>
             <p className="text-lg font-bold text-red-600">
-              {formatCurrency(taxResult.estimatedTax, "TWD", 0)}
+              {formatCurrency(taxResult.estimatedTax, "NTD", 0)}
             </p>
           </div>
 
@@ -112,7 +112,7 @@ export function TaxCalculationCard(props: TaxCalculationCardProps) {
                 {t("techShare.taxCalc.deferralAmount")}
               </p>
               <p className="text-lg font-bold text-amber-700">
-                {formatCurrency(taxResult.deferralAmount, "TWD", 0)}
+                {formatCurrency(taxResult.deferralAmount, "NTD", 0)}
               </p>
             </div>
           )}
@@ -130,7 +130,7 @@ export function TaxCalculationCard(props: TaxCalculationCardProps) {
               <div>
                 <p className="text-sm">{t("techShare.taxCalc.acquisitionIncome")}</p>
                 <p className="text-xs text-muted-foreground">
-                  ({props.acquisitionFmv} × {props.sharesAcquired} - {formatCurrency(props.paidAmount, "TWD", 0)})
+                  ({props.acquisitionFmv} × {props.sharesAcquired} - {formatCurrency(props.paidAmount, "NTD", 0)})
                 </p>
               </div>
               {renderAmount(taxResult.acquisitionIncome)}
@@ -143,7 +143,7 @@ export function TaxCalculationCard(props: TaxCalculationCardProps) {
                   {t("techShare.taxCalc.deferralAmount")}
                 </p>
                 <Badge variant="outline" className="text-amber-700 border-amber-300">
-                  {formatCurrency(taxResult.deferralAmount, "TWD", 0)}
+                  {formatCurrency(taxResult.deferralAmount, "NTD", 0)}
                 </Badge>
               </div>
             )}
@@ -154,7 +154,7 @@ export function TaxCalculationCard(props: TaxCalculationCardProps) {
                   {t("techShare.taxCalc.taxableAtAcquisition")}
                 </p>
                 <Badge className="bg-blue-100 text-blue-700 border-transparent">
-                  {formatCurrency(taxResult.taxableAtAcquisition, "TWD", 0)}
+                  {formatCurrency(taxResult.taxableAtAcquisition, "NTD", 0)}
                 </Badge>
               </div>
             )}

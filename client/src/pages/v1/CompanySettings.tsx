@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Building2, Upload, Save, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Card,
   CardContent,
@@ -81,7 +81,7 @@ function CompanySettingsContent() {
   const { t } = useTranslation("pages");
   const { canEdit } = usePermissions();
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const companyQuery = trpc.companies.get.useQuery();
 
