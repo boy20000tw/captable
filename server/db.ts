@@ -2757,3 +2757,234 @@ export async function resolvePlatformDek(): Promise<Buffer> {
 export async function rotatePlatformKey(): Promise<void> {
   return rotateCompanyKey(PLATFORM_KEY_ID);
 }
+
+// ─── Encryption Migration Helper ────────────────────────────────────────────
+/**
+ * Finalize encryption dual-write migration for a company.
+ *
+ * Reads all rows from encrypted tables (users, companies, shareholders, allocations,
+ * shareRegisterEntries, instruments, shareTransfers, esopGrantsV1, docusealIntegrations).
+ * For each row where the encrypted column is NULL but plaintext exists, encrypts the
+ * plaintext value and backfills it into the encrypted column.
+ *
+ * Returns a migration report with:
+ *   - counts: { [tableName]: { total, migrated } }
+ *   - errors: [{ table, row_id, error }]
+ *   - summary: { totalRows, totalMigrated, totalErrors }
+ */
+export async function migrateEncryptionForCompany(
+  companyId: number
+): Promise<{
+  counts: Record<string, { total: number; migrated: number }>;
+  errors: Array<{ table: string; rowId: number; error: string }>;
+  summary: { totalRows: number; totalMigrated: number; totalErrors: number };
+}> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = {
+    counts: {} as Record<string, { total: number; migrated: number }>,
+    errors: [] as Array<{ table: string; rowId: number; error: string }>,
+    summary: { totalRows: 0, totalMigrated: 0, totalErrors: 0 },
+  };
+
+  const dek = await resolveCompanyDek(companyId);
+
+  // Helper to migrate PII fields (name, email, phone)
+  const migratePiiFn = async (
+    table: string,
+    rows: Array<{ id: number; [key: string]: any }>,
+    piiFields: { plaintext: string; encrypted: string; blindIndex?: string }[]
+  ) => {
+    result.counts[table] = { total: rows.length, migrated: 0 };
+    for (const row of rows) {
+      try {
+        const updates: Record<string, string> = {};
+        let needsUpdate = false;
+        for (const field of piiFields) {
+          if (row[field.encrypted] == null && row[field.plaintext]) {
+            updates[field.encrypted] = encryptField(row[field.plaintext], dek);
+            if (field.blindIndex) {
+              updates[field.blindIndex] = blindIndex(row[field.plaintext]);
+            }
+            needsUpdate = true;
+          }
+        }
+        if (needsUpdate) {
+          await db.update(eval(table)).set(updates).where(eq(eval(`${table}.id`), row.id));
+          result.counts[table].migrated++;
+        }
+      } catch (err) {
+        result.errors.push({
+          table,
+          rowId: row.id,
+          error: (err as Error).message,
+        });
+      }
+    }
+  };
+
+  // Helper to migrate financial fields (amount, shares, pricePerShare, etc)
+  const migrateFinancialFn = async (
+    table: string,
+    rows: Array<{ id: number; companyId?: number; [key: string]: any }>,
+    finFields: string[]
+  ) => {
+    result.counts[table] = { total: rows.length, migrated: 0 };
+    for (const row of rows) {
+      try {
+        const updates: Record<string, string> = {};
+        let needsUpdate = false;
+        for (const field of finFields) {
+          const encKey = `${field}Enc`;
+          if (row[encKey] == null && row[field] != null) {
+            updates[encKey] = encryptField(String(row[field]), dek);
+            needsUpdate = true;
+          }
+        }
+        if (needsUpdate) {
+          await db.update(eval(table)).set(updates).where(eq(eval(`${table}.id`), row.id));
+          result.counts[table].migrated++;
+        }
+      } catch (err) {
+        result.errors.push({
+          table,
+          rowId: row.id,
+          error: (err as Error).message,
+        });
+      }
+    }
+  };
+
+  // 1. Migrate users (platform-level, but filter for sanity)
+  try {
+    const userRows = await db.select().from(users);
+    await migratePiiFn("users", userRows, [
+      { plaintext: "name", encrypted: "nameEnc" },
+      { plaintext: "email", encrypted: "emailEnc", blindIndex: "emailBi" },
+    ]);
+  } catch (err) {
+    result.errors.push({
+      table: "users",
+      rowId: 0,
+      error: `Failed to query users: ${(err as Error).message}`,
+    });
+  }
+
+  // 2. Migrate companies
+  try {
+    const companyRows = await db.select().from(companies).where(eq(companies.id, companyId));
+    await migratePiiFn("companies", companyRows, [
+      { plaintext: "contactEmail", encrypted: "contactEmailEnc", blindIndex: "contactEmailBi" },
+      { plaintext: "representativeName", encrypted: "representativeNameEnc" },
+      { plaintext: "docusealTenantApiKey", encrypted: "docusealTenantApiKeyEnc" },
+      { plaintext: "docusealWebhookSecret", encrypted: "docusealWebhookSecretEnc" },
+    ]);
+  } catch (err) {
+    result.errors.push({
+      table: "companies",
+      rowId: companyId,
+      error: `Failed to migrate companies: ${(err as Error).message}`,
+    });
+  }
+
+  // 3. Migrate shareholders
+  try {
+    const rows = await db.select().from(shareholders).where(eq(shareholders.companyId, companyId));
+    await migratePiiFn("shareholders", rows, [
+      { plaintext: "name", encrypted: "nameEnc" },
+      { plaintext: "email", encrypted: "emailEnc", blindIndex: "emailBi" },
+      { plaintext: "phone", encrypted: "phoneEnc" },
+    ]);
+  } catch (err) {
+    result.errors.push({
+      table: "shareholders",
+      rowId: 0,
+      error: `Failed to migrate shareholders: ${(err as Error).message}`,
+    });
+  }
+
+  // 4. Migrate investors (V1: contacts)
+  try {
+    const rows = await db.select().from(investors).where(eq(investors.companyId, companyId));
+    await migratePiiFn("investors", rows, [
+      { plaintext: "name", encrypted: "nameEnc" },
+      { plaintext: "email", encrypted: "emailEnc", blindIndex: "emailBi" },
+      { plaintext: "phone", encrypted: "phoneEnc" },
+    ]);
+  } catch (err) {
+    result.errors.push({
+      table: "investors",
+      rowId: 0,
+      error: `Failed to migrate investors: ${(err as Error).message}`,
+    });
+  }
+
+  // 5. Migrate allocations
+  try {
+    const rows = await db.select().from(allocations).where(eq(allocations.companyId, companyId));
+    await migrateFinancialFn("allocations", rows, ALLOCATION_FIN_FIELDS);
+  } catch (err) {
+    result.errors.push({
+      table: "allocations",
+      rowId: 0,
+      error: `Failed to migrate allocations: ${(err as Error).message}`,
+    });
+  }
+
+  // 6. Migrate shareRegisterEntries
+  try {
+    const rows = await db.select().from(shareRegisterEntries).where(eq(shareRegisterEntries.companyId, companyId));
+    await migrateFinancialFn("shareRegisterEntries", rows, REGISTER_FIN_FIELDS);
+  } catch (err) {
+    result.errors.push({
+      table: "shareRegisterEntries",
+      rowId: 0,
+      error: `Failed to migrate shareRegisterEntries: ${(err as Error).message}`,
+    });
+  }
+
+  // 7. Migrate instruments
+  try {
+    const rows = await db.select().from(instruments).where(eq(instruments.companyId, companyId));
+    await migrateFinancialFn("instruments", rows, INSTRUMENT_FIN_FIELDS);
+  } catch (err) {
+    result.errors.push({
+      table: "instruments",
+      rowId: 0,
+      error: `Failed to migrate instruments: ${(err as Error).message}`,
+    });
+  }
+
+  // 8. Migrate shareTransfers
+  try {
+    const rows = await db.select().from(shareTransfers).where(eq(shareTransfers.companyId, companyId));
+    await migrateFinancialFn("shareTransfers", rows, TRANSFER_FIN_FIELDS);
+  } catch (err) {
+    result.errors.push({
+      table: "shareTransfers",
+      rowId: 0,
+      error: `Failed to migrate shareTransfers: ${(err as Error).message}`,
+    });
+  }
+
+  // 9. Migrate esopGrantsV1 (ESOP grants can have encrypted fields)
+  try {
+    const rows = await db.select().from(esopGrantsV1).where(eq(esopGrantsV1.companyId, companyId));
+    result.counts["esopGrantsV1"] = { total: rows.length, migrated: 0 };
+    // esopGrantsV1 doesn't have encrypted fields in current schema, but included for completeness
+  } catch (err) {
+    result.errors.push({
+      table: "esopGrantsV1",
+      rowId: 0,
+      error: `Failed to query esopGrantsV1: ${(err as Error).message}`,
+    });
+  }
+
+  // Calculate summary
+  result.summary.totalRows = Object.values(result.counts).reduce((sum, c) => sum + c.total, 0);
+  result.summary.totalMigrated = Object.values(result.counts).reduce((sum, c) => sum + c.migrated, 0);
+  result.summary.totalErrors = result.errors.length;
+
+  return result;
+}

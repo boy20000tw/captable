@@ -55,7 +55,7 @@ import {
   // Admin
   adminListCompanies, adminGetCompanyDetail, adminUpdateCompanyPlan, adminDeleteCompany,
   adminGetCompanyAuditLogs, createAdminAuditLog, getAdminAuditLogs,
-  adminGetPlatformStats, rotateCompanyKey, rotatePlatformKey,
+  adminGetPlatformStats, rotateCompanyKey, rotatePlatformKey, migrateEncryptionForCompany,
   adminListTeamMembers, adminUpdateAdminRole, adminPromoteUser,
   adminDemoteUser, adminTransferSuperAdmin, getUserByEmail,
   // Notifications
@@ -3207,6 +3207,21 @@ export const appRouter = router({
           details: null,
         });
         return { success: true };
+      }),
+
+    /** Finalize encryption dual-write migration for a company. */
+    migrateCompany: superAdminProcedure
+      .input(z.object({ companyId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const report = await migrateEncryptionForCompany(input.companyId);
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "rotate_company_dek", // Reuse existing action type
+          details: JSON.stringify({ companyId: input.companyId, migrationReport: report.summary }),
+        });
+        return report;
       }),
   }),
 

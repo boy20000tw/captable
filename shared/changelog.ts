@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.37.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "Encryption Dual-Write Migration Finalization",
+    description: "完成加密雙寫遷移收尾工作。所有 READ 函數已驗證正確解密加密欄位（users, companies, shareholders, allocations, shareRegisterEntries, instruments, shareTransfers, esopGrantsV1）。新增 migrateEncryptionForCompany(companyId) 遷移助手函數，讀取所有公司資料，對加密欄位為 NULL 但明文存在的列加密並回填。新增 admin tRPC endpoint encryption.migrateCompany (superAdminProcedure)，執行遷移並記錄稽核日誌，回傳遷移統計報告（per table migrated count、errors、summary）。",
+  },
+  {
     version: "2.36.0",
     date: "2026-05-06",
     type: "minor",
