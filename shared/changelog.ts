@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.36.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "Account Termination / Delete Feature — Complete Account & Data Cascade Deletion",
+    description: "Settings → Danger Zone 新增帳號刪除功能：後端 deleteAccountCascade 函式執行級聯刪除 (notifications, company_members, users)，deleteMyAccount tRPC endpoint 驗證郵件確認，前端確認對話框需輸入電郵驗證。刪除帳號後自動重導首頁。完整 EN/zh-TW i18n 支援。",
+  },
+  {
     version: "2.35.0",
     date: "2026-05-06",
     type: "minor",

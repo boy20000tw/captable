@@ -230,9 +230,10 @@ function CompanySettingsContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Basic info + Representative */}
-          <div className="lg:col-span-2 space-y-6">
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: Basic info + Representative */}
+            <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -447,7 +448,7 @@ function CompanySettingsContent() {
           </div>
         </div>
 
-        {/* Danger Zone — Account Deletion */}
+        {/* Danger Zone - Account Deletion */}
         <div className="mt-12 pt-8 border-t">
           <Card className="border-red-200 bg-red-50">
             <CardHeader>
@@ -524,6 +525,7 @@ function CompanySettingsContent() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </>
       )}
     </div>
   );
