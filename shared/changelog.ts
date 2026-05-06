@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.33.2",
+    date: "2026-05-06",
+    type: "patch",
+    title: "QA Round 5 Critical — DCF EV→Equity bridge & Three-Statement BS balance",
+    description: "修復兩個會直接影響財務數字正確性的計算錯誤：(1) DCF 的 EV→Equity bridge 之前同時減 netDebt 又加 cash，導致 equity 被高估（因為 netDebt 已含 cash 抵）— 移除重複的 + cash，並隱藏 cash 欄位、為 netDebt 加 hint。(2) Three-Statement Model 的 Year 1 開帳缺 commonStock，導致 isBalanced 永遠為 false — 補上 commonStock = initialCash − initialDebt 作為期初股本。Mid-year 折現對 TV 改為 n − 0.5 期。",
+  },
+  {
     version: "2.33.1",
     date: "2026-05-06",
     type: "patch",

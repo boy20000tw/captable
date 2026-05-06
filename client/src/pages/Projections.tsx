@@ -586,13 +586,12 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
       terminalValueMethod: tvMethod,
       midYearConvention,
       netDebt,
-      cash,
       minorityInterest,
       preferredEquity,
       targetRaise: targetRaise ? Number(targetRaise) : null,
       targetPreMoney: targetPreMoney ? Number(targetPreMoney) : null,
     };
-  }, [projectionRows, effectiveWACC, terminalGrowth, exitMultiple, tvMethod, midYearConvention, netDebt, cash, minorityInterest, preferredEquity, targetRaise, targetPreMoney]);
+  }, [projectionRows, effectiveWACC, terminalGrowth, exitMultiple, tvMethod, midYearConvention, netDebt, minorityInterest, preferredEquity, targetRaise, targetPreMoney]);
 
   // Run DCF
   const dcfResult = useMemo(() => {
@@ -907,14 +906,9 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
                 value={netDebt}
                 onChange={(e) => setNetDebt(Number(e.target.value) || 0)}
               />
-            </div>
-            <div>
-              <Label className="text-xs">{t("projections.cash")}</Label>
-              <Input
-                type="number"
-                value={cash}
-                onChange={(e) => setCash(Number(e.target.value) || 0)}
-              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {t("projections.netDebtHint")}
+              </p>
             </div>
             <div>
               <Label className="text-xs">{t("projections.minorityInterest")}</Label>
@@ -972,7 +966,6 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
                     [t("projections.pvOfTerminal"), dcfResult.pvOfTerminal, false],
                     [t("projections.enterpriseValue"), dcfResult.enterpriseValue, true],
                     [t("projections.lessNetDebt"), -dcfResult.lessNetDebt, false],
-                    [t("projections.plusCash"), dcfResult.lessCash, false],
                     ...(dcfResult.lessMinorityInterest ? [[t("projections.lessMinority"), -dcfResult.lessMinorityInterest, false] as const] : []),
                     ...(dcfResult.lessPreferredEquity ? [[t("projections.lessPreferred"), -dcfResult.lessPreferredEquity, false] as const] : []),
                     [t("projections.equityValueLabel"), dcfResult.equityValue, true],
@@ -1264,6 +1257,7 @@ function ThreeStatementTab({ projections }: ThreeStatementTabProps) {
                   {
                     title: t("threeStatement.equity"),
                     rows: [
+                      { label: t("threeStatement.commonStock"), key: "commonStock" },
                       { label: t("threeStatement.retainedEarnings"), key: "retainedEarnings" },
                       { label: t("threeStatement.totalEquity"), key: "totalEquity", bold: true },
                     ],

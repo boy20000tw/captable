@@ -20,10 +20,14 @@ export type DCFInputs = {
   lastYearEBITDA: number;       // needed for exit multiple TV
   terminalValueMethod: TerminalValueMethod;
   midYearConvention: boolean;   // true = discount at mid-year
-  netDebt: number;
-  cash: number;
+  netDebt: number;              // debt − cash (conventional definition)
   minorityInterest: number;     // subtracted from EV
   preferredEquity: number;      // subtracted from EV
+  /**
+   * @deprecated Cash is already netted in `netDebt`. Field retained for
+   * backwards compatibility but no longer used in the EV→Equity bridge.
+   */
+  cash?: number;
   targetRaise?: number | null;
   targetPreMoney?: number | null;
 };
@@ -44,8 +48,7 @@ export type DCFResult = {
 
   // EV → Equity bridge
   enterpriseValue: number;
-  lessNetDebt: number;
-  lessCash: number;             // added (positive = cash on hand)
+  lessNetDebt: number;          // netDebt = debt − cash
   lessMinorityInterest: number;
   lessPreferredEquity: number;
   equityValue: number;
@@ -79,7 +82,8 @@ export type DCFArgs = {
   discountRate: number;
   terminalGrowth: number;
   netDebt: number;
-  cash: number;
+  /** Legacy callers: cash is no longer added separately (netDebt already nets it). */
+  cash?: number;
   targetRaise?: number | null;
   targetPreMoney?: number | null;
 };
@@ -91,21 +95,26 @@ export function runDCF(args: DCFArgs): DCFResult;
 export function runDCF(args: DCFInputs | DCFArgs): DCFResult {
   // Normalize legacy callers
   const inputs: DCFInputs = "terminalValueMethod" in args
-    ? args as DCFInputs
+    ? args
     : {
-        ...args,
+        fcfs: args.fcfs,
+        discountRate: args.discountRate,
+        terminalGrowth: args.terminalGrowth,
+        netDebt: args.netDebt,
         exitMultiple: 10,
         lastYearEBITDA: 0,
         terminalValueMethod: "gordon" as TerminalValueMethod,
         midYearConvention: false,
         minorityInterest: 0,
         preferredEquity: 0,
+        targetRaise: args.targetRaise,
+        targetPreMoney: args.targetPreMoney,
       };
 
   const {
     fcfs, discountRate: r, terminalGrowth: g,
     exitMultiple, lastYearEBITDA, terminalValueMethod,
-    midYearConvention, netDebt, cash,
+    midYearConvention, netDebt,
     minorityInterest, preferredEquity,
   } = inputs;
 
@@ -134,16 +143,20 @@ export function runDCF(args: DCFInputs | DCFArgs): DCFResult {
     terminalValue = r > g ? (lastFCF * (1 + g)) / (r - g) : 0;
   }
 
-  // PV of terminal value
-  const tvDiscountPeriod = midYearConvention ? n : n;
+  // PV of terminal value.
+  // Mid-year convention: TV is treated as occurring at the same point as the
+  // final FCF (year n − 0.5), since both come from the same cash flow stream.
+  // End-of-year convention: TV occurs at year n.
+  const tvDiscountPeriod = midYearConvention ? n - 0.5 : n;
   const pvOfTerminal = terminalValue / Math.pow(1 + r, tvDiscountPeriod);
 
   // Enterprise value
   const enterpriseValue = sumPVFCF + pvOfTerminal;
   const tvAsPercentOfEV = enterpriseValue > 0 ? pvOfTerminal / enterpriseValue : 0;
 
-  // EV → Equity bridge
-  const equityValue = enterpriseValue - netDebt + cash - minorityInterest - preferredEquity;
+  // EV → Equity bridge.
+  // netDebt is debt − cash by definition, so cash is NOT added back here.
+  const equityValue = enterpriseValue - netDebt - minorityInterest - preferredEquity;
 
   // Funding round context
   const impliedPreMoney = equityValue;
@@ -165,7 +178,6 @@ export function runDCF(args: DCFInputs | DCFArgs): DCFResult {
     tvAsPercentOfEV,
     enterpriseValue,
     lessNetDebt: netDebt,
-    lessCash: cash,
     lessMinorityInterest: minorityInterest,
     lessPreferredEquity: preferredEquity,
     equityValue,

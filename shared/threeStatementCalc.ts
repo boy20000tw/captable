@@ -32,7 +32,8 @@ export type YearlyBalanceSheet = {
   totalLiabilities: number;
 
   // Equity
-  retainedEarnings: number;
+  commonStock: number;        // paid-in capital (opening equity)
+  retainedEarnings: number;   // accumulated net income
   totalEquity: number;
 
   // Validation
@@ -74,6 +75,12 @@ export type BSAssumptions = {
   initialCash: number;       // starting cash balance
   initialDebt: number;       // initial long-term debt
   debtRepaymentPct: number;  // annual % of debt repaid (e.g. 0.10 = 10%)
+  /**
+   * Opening equity (paid-in capital) at year 0.
+   * If omitted, defaults to `initialCash − initialDebt` so the BS balances
+   * at the start of year 1: Assets (cash) = Liab (debt) + Equity (paid-in).
+   */
+  initialEquity?: number;
 };
 
 export const DEFAULT_BS_ASSUMPTIONS: BSAssumptions = {
@@ -113,6 +120,12 @@ export function buildThreeStatements(
   let cumPPE = 0;
   let cumDepreciation = 0;
 
+  // Opening equity (paid-in capital). If not specified, derive from
+  // accounting identity at t=0: Assets = Liabilities + Equity, where
+  // Assets = initialCash and Liabilities = initialDebt, hence
+  // commonStock = initialCash − initialDebt.
+  const commonStock = bsAssumptions.initialEquity ?? (bsAssumptions.initialCash - bsAssumptions.initialDebt);
+
   for (let i = 0; i < years; i++) {
     const row = pnl[i];
     const rev = row.revenue;
@@ -151,7 +164,7 @@ export function buildThreeStatements(
     const totalAssets = totalCurrentAssets + netPPE;
     const totalCurrentLiabilities = ap;
     const totalLiabilities = totalCurrentLiabilities + longTermDebt;
-    const totalEquity = retainedEarnings;
+    const totalEquity = commonStock + retainedEarnings;
     const balanceCheck = Math.round((totalAssets - totalLiabilities - totalEquity) * 100) / 100;
 
     balanceSheet.push({
@@ -167,6 +180,7 @@ export function buildThreeStatements(
       totalCurrentLiabilities,
       longTermDebt,
       totalLiabilities,
+      commonStock,
       retainedEarnings,
       totalEquity,
       balanceCheck,
