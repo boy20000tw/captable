@@ -727,15 +727,15 @@ const compsRouter = router({
   list: companyProcedure.use(requireFeature("analysis.projections"))
     .query(({ ctx }) => getCompsPeers(ctx.companyId)),
   create: companyEditorProcedure.input(z.object({
-    groupName: z.string().min(1).default("Default"),
-    name: z.string().min(1),
-    ticker: z.string().optional(),
-    revenue: z.number().default(0),
-    ebitda: z.number().default(0),
-    netIncome: z.number().default(0),
-    marketCap: z.number().default(0),
-    netDebt: z.number().default(0),
-    sharesOutstanding: z.number().optional(),
+    groupName: z.string().min(1).max(255).default("Default"),
+    name: z.string().min(1).max(255),
+    ticker: z.string().max(20).optional(),
+    revenue: z.number().min(0).default(0),
+    ebitda: z.number().default(0),                  // EBITDA can be negative
+    netIncome: z.number().default(0),               // net income can be negative
+    marketCap: z.number().min(0).default(0),
+    netDebt: z.number().default(0),                 // net debt can be negative (net cash)
+    sharesOutstanding: z.number().min(0).optional(),
   })).mutation(async ({ input, ctx }) => {
     const result = await createCompsPeer({
       ...input,
@@ -753,15 +753,15 @@ const compsRouter = router({
   update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
-      groupName: z.string().optional(),
-      name: z.string().optional(),
-      ticker: z.string().nullable().optional(),
-      revenue: z.number().optional(),
+      groupName: z.string().max(255).optional(),
+      name: z.string().min(1).max(255).optional(),
+      ticker: z.string().max(20).nullable().optional(),
+      revenue: z.number().min(0).optional(),
       ebitda: z.number().optional(),
       netIncome: z.number().optional(),
-      marketCap: z.number().optional(),
+      marketCap: z.number().min(0).optional(),
       netDebt: z.number().optional(),
-      sharesOutstanding: z.number().nullable().optional(),
+      sharesOutstanding: z.number().min(0).nullable().optional(),
     }),
   })).mutation(async ({ input, ctx }) => {
     const updateData: Record<string, unknown> = {};

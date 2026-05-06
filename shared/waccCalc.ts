@@ -31,8 +31,30 @@ export const DEFAULT_WACC_INPUTS: WACCInputs = {
   debtWeight: 0.20,
 };
 
+/**
+ * Clamp a WACC input to a sensible range and warn (in dev) if out of bounds.
+ * Returns the clamped value. Used so a bad input never produces a negative
+ * or absurd WACC that breaks downstream DCF (Gordon Growth requires r > g).
+ */
+function clamp(value: number, min: number, max: number, label: string): number {
+  if (Number.isNaN(value)) return min;
+  if (value < min || value > max) {
+    if (typeof console !== "undefined") {
+      console.warn(`[WACC] ${label}=${value} out of range [${min}, ${max}], clamping`);
+    }
+  }
+  return Math.min(max, Math.max(min, value));
+}
+
 export function calculateWACC(inputs: WACCInputs): WACCResult {
-  const { riskFreeRate, beta, equityRiskPremium, costOfDebt, taxRate, debtWeight } = inputs;
+  // Validate / clamp inputs to plausible ranges. Negative rates and beta < 0
+  // are theoretically possible but extremely rare; treat as input errors.
+  const riskFreeRate = clamp(inputs.riskFreeRate, 0, 0.20, "riskFreeRate");
+  const beta = clamp(inputs.beta, 0, 5, "beta");
+  const equityRiskPremium = clamp(inputs.equityRiskPremium, 0, 0.20, "equityRiskPremium");
+  const costOfDebt = clamp(inputs.costOfDebt, 0, 0.50, "costOfDebt");
+  const taxRate = clamp(inputs.taxRate, 0, 1, "taxRate");
+  const debtWeight = clamp(inputs.debtWeight, 0, 1, "debtWeight");
 
   const costOfEquity = riskFreeRate + beta * equityRiskPremium;
   const afterTaxCostOfDebt = costOfDebt * (1 - taxRate);

@@ -280,6 +280,7 @@
   "comps.peerDeleted": "可比公司已移除",
   "comps.emptyState": "尚無可比公司",
   "comps.emptyDesc": "新增可比公司以查看隱含估值倍數",
+  "comps.loading": "載入可比公司中…",
   "comps.multipleStats": "倍數統計",
   "comps.metric": "指標",
   "comps.median": "中位數",

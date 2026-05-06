@@ -136,10 +136,11 @@ export function buildThreeStatements(
     const inventory = (cogs / 365) * bsAssumptions.inventoryDays;
     const ap = (cogs / 365) * bsAssumptions.apDays;
 
-    // PP&E: cumulative capex minus cumulative depreciation
+    // PP&E: cumulative capex minus cumulative depreciation. Clamp to >= 0
+    // for mature companies where depreciation > capex over time.
     cumPPE += row.capex;
     cumDepreciation += row.depreciation;
-    const netPPE = cumPPE - cumDepreciation;
+    const netPPE = Math.max(0, cumPPE - cumDepreciation);
 
     // Debt
     const debtRepayment = prevDebt * bsAssumptions.debtRepaymentPct;

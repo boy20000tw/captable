@@ -589,9 +589,11 @@ export type DcfScenario = typeof dcfScenarios.$inferSelect;
 export type InsertDcfScenario = typeof dcfScenarios.$inferInsert;
 
 // ─── Comps Peers ────────────────────────────────────────────────────────────
+// companyId is .notNull() — every peer must belong to a company (multi-tenant).
+// Existing tables use a softer pattern, but new tables (post-Round-4) enforce.
 export const compsPeers = pgTable("comps_peers", {
     id: serial("id").primaryKey(),
-    companyId: integer("companyId"),
+    companyId: integer("companyId").notNull(),
     groupName: varchar("groupName", { length: 255 }).notNull().default("Default"),
     name: varchar("name", { length: 255 }).notNull(),
     ticker: varchar("ticker", { length: 20 }),

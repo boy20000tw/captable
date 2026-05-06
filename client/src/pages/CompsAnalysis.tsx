@@ -10,7 +10,11 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { runCompsAnalysis, type CompsResult, type CompsPeer } from "@shared/compsCalc";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "../../../server/routers";
 import { BarChart3, Plus, Trash2, TrendingUp } from "lucide-react";
+
+type DbCompsPeer = inferRouterOutputs<AppRouter>["comps"]["list"][number];
 
 export default function CompsAnalysisPage() {
   return (
@@ -63,10 +67,10 @@ function CompsContent() {
   const [targetNetDebt, setTargetNetDebt] = useState(0);
 
   // Convert DB peers to calc format
-  const peers: CompsPeer[] = rawPeers.map((p: any) => ({
+  const peers: CompsPeer[] = (rawPeers as DbCompsPeer[]).map((p) => ({
     id: p.id,
     name: p.name,
-    ticker: p.ticker,
+    ticker: p.ticker ?? undefined,
     revenue: parseFloat(p.revenue ?? "0"),
     ebitda: parseFloat(p.ebitda ?? "0"),
     netIncome: parseFloat(p.netIncome ?? "0"),
@@ -178,7 +182,11 @@ function CompsContent() {
           )}
 
           {/* Peer table */}
-          {peers.length === 0 && !isLoading ? (
+          {isLoading ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              {t("comps.loading")}
+            </div>
+          ) : peers.length === 0 ? (
             <div className="py-12 text-center">
               <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
               <p className="text-muted-foreground">{t("comps.emptyState")}</p>

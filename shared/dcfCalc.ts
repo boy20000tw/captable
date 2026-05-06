@@ -229,11 +229,21 @@ export function generateSensitivityTable(args: {
     values.push(row);
   }
 
-  const rowHeader = rowParam === "discountRate" ? "WACC"
-    : rowParam === "exitMultiple" ? "Exit Multiple" : rowParam;
-  const colHeader = colParam === "terminalGrowth" ? "Terminal Growth"
-    : colParam === "exitMultiple" ? "Exit Multiple"
-    : colParam === "discountRate" ? "WACC" : colParam;
+  // Exhaustive label resolution — narrows the union and surfaces an obvious
+  // string if a new param is added without updating this switch.
+  const labelForParam = (param: typeof rowParam | typeof colParam): string => {
+    switch (param) {
+      case "discountRate": return "WACC";
+      case "exitMultiple": return "Exit Multiple";
+      case "terminalGrowth": return "Terminal Growth";
+      default: {
+        const _exhaustive: never = param;
+        return _exhaustive;
+      }
+    }
+  };
+  const rowHeader = labelForParam(rowParam);
+  const colHeader = labelForParam(colParam);
 
   return { rowHeader, colHeader, rowLabels, colLabels, values };
 }
@@ -248,8 +258,10 @@ export function defaultSensitivityTable(
   const baseWACC = baseInputs.discountRate;
   const baseGrowth = baseInputs.terminalGrowth;
 
-  // Generate 5 values centered on the base
-  const waccValues = [-0.02, -0.01, 0, 0.01, 0.02].map(d => baseWACC + d);
+  // Generate 5 values centered on the base.
+  // Floor WACC at baseGrowth + 0.5% so Gordon Growth (r > g) never breaks.
+  const waccFloor = baseGrowth + 0.005;
+  const waccValues = [-0.02, -0.01, 0, 0.01, 0.02].map(d => Math.max(waccFloor, baseWACC + d));
   const growthValues = [-0.01, -0.005, 0, 0.005, 0.01].map(d => baseGrowth + d);
 
   return generateSensitivityTable({

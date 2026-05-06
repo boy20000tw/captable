@@ -281,6 +281,7 @@
   "comps.peerDeleted": "Peer company removed",
   "comps.emptyState": "No peer companies yet",
   "comps.emptyDesc": "Add comparable companies to see implied valuation multiples",
+  "comps.loading": "Loading peer companies…",
   "comps.multipleStats": "Multiple Statistics",
   "comps.metric": "Metric",
   "comps.median": "Median",

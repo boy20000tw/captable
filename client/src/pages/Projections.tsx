@@ -64,7 +64,9 @@ function ProjectionsContent() {
   const createProjection = trpc.financialProjections.create.useMutation({
     onSuccess: (created) => {
       utils.financialProjections.list.invalidate();
-      setSelectedProjectionId((created as any).id);
+      if (created && typeof created === "object" && "id" in created) {
+        setSelectedProjectionId(Number(created.id));
+      }
       toast.success(t("projections.projectionCreated"));
     },
     onError: (e) => toast.error(e.message),
@@ -418,7 +420,7 @@ function AssumptionsPanel({
 // ─── Projection Table ───────────────────────────────────────────────────────
 
 // ROW_DEFS moved into ProjectionTable to use t()
-function getRowDefs(t: any): { key: keyof YearlyPnL; label: string; bold?: boolean }[] {
+function getRowDefs(t: (key: string) => string): { key: keyof YearlyPnL; label: string; bold?: boolean }[] {
   return [
     { key: "revenue", label: t("projections.revenue") },
     { key: "cogs", label: t("projections.cogs") },
@@ -541,7 +543,9 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
   const createScenario = trpc.dcf.create.useMutation({
     onSuccess: (created) => {
       utils.dcf.listByProjection.invalidate({ projectionId: activeProjId! });
-      setSelectedScenarioId((created as any).id);
+      if (created && typeof created === "object" && "id" in created) {
+        setSelectedScenarioId(Number(created.id));
+      }
       toast.success(t("projections.dcfScenarioCreated"));
     },
     onError: (e) => toast.error(e.message),
@@ -1362,7 +1366,7 @@ function StatementTable({ years, sections }: { years: number[]; sections: Statem
                 <td className={`px-3 py-1.5 ${row.bold ? "font-semibold" : ""}`}>{row.label}</td>
                 {section.data.map((d, i) => (
                   <td key={i} className={`text-right px-3 py-1.5 tabular-nums ${row.bold ? "font-semibold" : ""}`}>
-                    {fmtCurrency((d as any)[row.key] as number)}
+                    {fmtCurrency(d[row.key] ?? 0)}
                   </td>
                 ))}
               </tr>

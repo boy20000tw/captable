@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.33.3",
+    date: "2026-05-06",
+    type: "patch",
+    title: "QA Round 5 H/M/L — schema hardening, type safety, validation",
+    description: "C3: comps_peers.companyId 補上 .notNull()。H2: 移除 CompsAnalysis/Projections 的 as any、(p: any)，改用 inferRouterOutputs 跟具名 type。H3+M4: comps router 的 ticker 加 .max(20)，revenue/marketCap 加 .min(0)。M2: dcfCalc sensitivity header 改用 exhaustive switch + never check。M3: CompsAnalysis 補 isLoading 顯示。M5: WACC 全 input clamp 到合理範圍並警告。L4: netPPE clamp 到 >= 0。L5: sensitivity WACC row floor 到 baseGrowth + 0.5%，避免 r ≤ g 產生 TV=0。",
+  },
+  {
     version: "2.33.2",
     date: "2026-05-06",
     type: "patch",
