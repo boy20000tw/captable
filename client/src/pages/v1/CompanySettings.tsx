@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Building2, Upload, Save } from "lucide-react";
+import { Building2, Upload, Save, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Card,
   CardContent,
@@ -23,6 +25,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // ════════════════════════════════════════════════════════════════════════════
 // Company Settings (SPEC-company-settings.md)
@@ -70,11 +80,15 @@ export default function CompanySettingsPage() {
 function CompanySettingsContent() {
   const { t } = useTranslation("pages");
   const { canEdit } = usePermissions();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const utils = trpc.useUtils();
   const companyQuery = trpc.companies.get.useQuery();
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [hydrated, setHydrated] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
 
   // Hydrate form from the API once (and whenever the underlying record
   // actually changes identity — e.g., after switching companies).
@@ -113,6 +127,21 @@ function CompanySettingsContent() {
     onError: (e) => toast.error(e.message),
   });
 
+  const deleteAccountMut = trpc.auth.deleteMyAccount.useMutation({
+    onSuccess: () => {
+      toast.success(t("settings.companySettings.deleteAccountSuccess"));
+      // Redirect to home after account deletion
+      navigate("/");
+    },
+    onError: (e) => {
+      if (e.message.includes("Email does not match")) {
+        toast.error(t("settings.companySettings.deleteAccountEmailMismatch"));
+      } else {
+        toast.error(e.message);
+      }
+    },
+  });
+
   // Signature upload is deferred to Phase 2 (DocuSeal eSignature integration).
   // The backend `trpc.companies.uploadSignature` mutation and the
   // `companies.signatureUrl` DB column are still in place so that work can
@@ -141,6 +170,12 @@ function CompanySettingsContent() {
       representativeTitle: form.representativeTitle || null,
       defaultCurrency: form.defaultCurrency,
     });
+  }
+
+  function handleDeleteAccount() {
+    if (user && deleteConfirmEmail === user.email) {
+      deleteAccountMut.mutate({ confirmEmail: deleteConfirmEmail });
+    }
   }
 
   async function handleLogoUpload(file: File) {
@@ -411,6 +446,84 @@ function CompanySettingsContent() {
             </Card>
           </div>
         </div>
+
+        {/* Danger Zone — Account Deletion */}
+        <div className="mt-12 pt-8 border-t">
+          <Card className="border-red-200 bg-red-50">
+            <CardHeader>
+              <CardTitle className="text-red-700 flex items-center gap-2">
+                <Trash2 className="h-5 w-5" />
+                {t("settings.companySettings.dangerZone")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-red-900 mb-2">
+                  {t("settings.companySettings.deleteAccount")}
+                </h3>
+                <p className="text-sm text-red-800 mb-4">
+                  {t("settings.companySettings.deleteAccountDesc")}
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={deleteAccountMut.isPending}
+                >
+                  {deleteAccountMut.isPending ? "Deleting..." : t("settings.companySettings.deleteAccountBtn")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Delete Account Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-red-700">
+                {t("settings.companySettings.deleteAccountConfirmTitle")}
+              </DialogTitle>
+              <DialogDescription>
+                {t("settings.companySettings.deleteAccountConfirmDesc")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="confirmEmail">
+                  {t("settings.companySettings.deleteAccountConfirmLabel")}
+                </Label>
+                <Input
+                  id="confirmEmail"
+                  type="email"
+                  placeholder={user?.email || ""}
+                  value={deleteConfirmEmail}
+                  onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteDialogOpen(false);
+                  setDeleteConfirmEmail("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAccount}
+                disabled={
+                  deleteConfirmEmail !== (user?.email || "") ||
+                  deleteAccountMut.isPending
+                }
+              >
+                {deleteAccountMut.isPending ? "Deleting..." : t("settings.companySettings.deleteAccountBtn")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

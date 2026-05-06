@@ -331,5 +331,20 @@
   "threeStatement.debtRepaymentLabel": "Debt Repayment",
   "threeStatement.cashFromFinancing": "Cash from Financing",
   "threeStatement.netCashChange": "Net Change in Cash",
-  "threeStatement.endingCash": "Ending Cash Balance"
+  "threeStatement.endingCash": "Ending Cash Balance",
+
+  "projections.chart.revenueProfit": "Revenue & Profitability",
+  "projections.chart.revenue": "Revenue",
+  "projections.chart.netIncome": "Net Income",
+  "projections.chart.ebitda": "EBITDA",
+  "threeStatement.chart.bsComposition": "Balance Sheet Composition",
+  "threeStatement.chart.assets": "Total Assets",
+  "threeStatement.chart.liabilities": "Total Liabilities",
+  "threeStatement.chart.equity": "Total Equity",
+  "threeStatement.chart.cashFlow": "Cash Flow Trend",
+  "threeStatement.chart.cfo": "Operating",
+  "threeStatement.chart.cfi": "Investing",
+  "threeStatement.chart.cff": "Financing",
+  "threeStatement.chart.endingCash": "Ending Cash",
+  "projections.chart.tvPct": "Terminal Value % of EV"
 }

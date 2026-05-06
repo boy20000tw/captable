@@ -330,5 +330,20 @@
   "threeStatement.debtRepaymentLabel": "債務償還",
   "threeStatement.cashFromFinancing": "籌資活動現金流",
   "threeStatement.netCashChange": "現金淨變動",
-  "threeStatement.endingCash": "期末現金餘額"
+  "threeStatement.endingCash": "期末現金餘額",
+
+  "projections.chart.revenueProfit": "營收與獲利趨勢",
+  "projections.chart.revenue": "營收",
+  "projections.chart.netIncome": "淨利",
+  "projections.chart.ebitda": "EBITDA",
+  "threeStatement.chart.bsComposition": "資產負債結構",
+  "threeStatement.chart.assets": "總資產",
+  "threeStatement.chart.liabilities": "總負債",
+  "threeStatement.chart.equity": "總權益",
+  "threeStatement.chart.cashFlow": "現金流量趨勢",
+  "threeStatement.chart.cfo": "營業活動",
+  "threeStatement.chart.cfi": "投資活動",
+  "threeStatement.chart.cff": "籌資活動",
+  "threeStatement.chart.endingCash": "期末現金",
+  "projections.chart.tvPct": "終端價值佔 EV 比例"
 }

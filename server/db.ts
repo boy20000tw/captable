@@ -1178,6 +1178,25 @@ export async function deleteUserById(userId: number): Promise<void> {
   await db.delete(users).where(eq(users.id, userId));
 }
 
+export async function deleteAccountCascade(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    // Delete all notifications for this user
+    await db.delete(notifications).where(eq(notifications.userId, userId));
+
+    // Remove user from all company memberships
+    await db.delete(companyMembers).where(eq(companyMembers.userId, userId));
+
+    // Delete the user record
+    await db.delete(users).where(eq(users.id, userId));
+  } catch (error) {
+    console.error("[DB] Error during cascade delete for user", userId, error);
+    throw new Error("Failed to delete account. Please try again or contact support.");
+  }
+}
+
 // ─── Financial Projections (5-Year) ─────────────────────────────────────────
 export async function getAllFinancialProjections(companyId: number) {
   const db = await getDb();

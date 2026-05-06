@@ -74,6 +74,8 @@ import {
   // Support
   createSupportTicket, getAllSupportTickets, getSupportTicketsByUser, getSupportTicketById, updateSupportTicket,
   getAllSupportFaqs, createSupportFaq, updateSupportFaq, deleteSupportFaq,
+  // Account deletion
+  deleteAccountCascade,
 } from "./db";
 import { ProjectionAssumptionsSchema } from "../shared/projectionTypes";
 import { advanceAllocation, type AllocationStatus } from "../shared/allocationLifecycle";
@@ -2840,6 +2842,25 @@ export const appRouter = router({
         companyRole: opts.ctx.companyRole,
       };
     }),
+
+    deleteMyAccount: protectedProcedure
+      .input(z.object({ confirmEmail: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user;
+        if (!user) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Not authenticated" });
+        }
+
+        // Verify the provided email matches the user's email
+        if (input.confirmEmail !== user.email) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Email does not match" });
+        }
+
+        // Delete the account and all related data
+        await deleteAccountCascade(user.id);
+
+        return { success: true };
+      }),
   }),
   companies: companiesRouter,
   fundingRounds: fundingRoundsRouter,

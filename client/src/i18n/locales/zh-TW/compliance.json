@@ -14,7 +14,6 @@
   "shared.currency": "幣別",
   "shared.usd": "USD",
   "shared.ntd": "NTD",
-
   "techShare.newRecord": "新增紀錄",
   "techShare.deferred": "緩課中",
   "techShare.taxable": "應課稅",
@@ -68,7 +67,6 @@
   "techShare.filingRef": "申���參考號",
   "techShare.filingRefPlaceholder": "稅務局收件號等",
   "techShare.saveChanges": "保存變更",
-
   "closedCompany.companySettings": "公司設定",
   "closedCompany.companySettingsDesc": "閉鎖性公司基本設定及股份轉讓限制",
   "closedCompany.isClosedCompany": "本公司為閉鎖性股份有限公司",
@@ -130,7 +128,6 @@
   "closedCompany.customProvisionsPlaceholder": "其他特殊股份條款...",
   "closedCompany.notesPlaceholder": "內部備註...",
   "closedCompany.updateShareClass": "更新股份類別",
-
   "v409a.newValuation": "New Valuation",
   "v409a.activeValuation": "Current Active Valuation",
   "v409a.expiringSoon": "Expiring Soon",
@@ -160,7 +157,6 @@
   "v409a.valuationFirm": "Valuation Firm",
   "v409a.firmPlaceholder": "e.g. Aranca, Carta",
   "v409a.reportUrl": "Report URL",
-
   "e83b.newElection": "New Election",
   "e83b.deadlineAlert": "{{count}} election(s) with deadline within 10 days",
   "e83b.deadlineAlertDesc": "83(b) must be filed with the IRS within 30 days of the grant date. Late filings are not accepted.",
@@ -188,7 +184,6 @@
   "e83b.filedDate": "Filed Date",
   "e83b.propertyDesc": "Property Description",
   "e83b.propertyPlaceholder": "e.g. shares of Common Stock of Acme Inc.",
-
   "transfers.newTransfer": "New Transfer",
   "transfers.totalTransfers": "Total Transfers",
   "transfers.inProgress": "In Progress",
@@ -224,5 +219,16 @@
   "transfers.rejected": "Rejected",
   "transfers.rofrApplicable": "ROFR Applicable",
   "transfers.rofrDeadline": "ROFR Deadline",
-  "transfers.boardApprovalDate": "Board Approval Date"
+  "transfers.boardApprovalDate": "Board Approval Date",
+  "techShare.taxCalc.title": "稅額試算",
+  "techShare.taxCalc.acquisitionIncome": "取得時所得",
+  "techShare.taxCalc.deferralAmount": "緩課金額 (§19-1)",
+  "techShare.taxCalc.taxableAtAcquisition": "取得時應稅",
+  "techShare.taxCalc.vestingIncome": "Vesting 時所得",
+  "techShare.taxCalc.dispositionGain": "處分損益",
+  "techShare.taxCalc.totalTaxable": "應稅所得合計",
+  "techShare.taxCalc.estimatedTax": "估算稅額 (20%)",
+  "techShare.taxCalc.effectiveRate": "有效稅率",
+  "techShare.taxCalc.disclaimer": "此為試算結果，實際稅額請諮詢稅務顧問。",
+  "techShare.taxCalc.details": "稅額試算細節"
 }

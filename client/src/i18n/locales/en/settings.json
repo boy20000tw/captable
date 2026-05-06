@@ -203,5 +203,15 @@
   "snapshots.entity": "Entity",
   "snapshots.ownershipPct": "Ownership %",
   "snapshots.nameRequired": "Please enter a snapshot name",
-  "snapshots.snapshotCaptured": "Snapshot captured"
+  "snapshots.snapshotCaptured": "Snapshot captured",
+
+  "companySettings.dangerZone": "Danger Zone",
+  "companySettings.deleteAccount": "Delete Account",
+  "companySettings.deleteAccountDesc": "Permanently delete your account and remove all your data. This action cannot be undone.",
+  "companySettings.deleteAccountBtn": "Delete My Account",
+  "companySettings.deleteAccountConfirmTitle": "Are you absolutely sure?",
+  "companySettings.deleteAccountConfirmDesc": "This will permanently delete your account and remove you from all companies. Type your email to confirm.",
+  "companySettings.deleteAccountConfirmLabel": "Type your email to confirm",
+  "companySettings.deleteAccountSuccess": "Account deleted successfully",
+  "companySettings.deleteAccountEmailMismatch": "Email does not match"
 }

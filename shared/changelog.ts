@@ -20,6 +20,20 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.35.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "Tech Share Tax Calculator — 台灣 §19-1 緩課試算",
+    description: "新增技術股 / RSA 課稅試算功能：純 TypeScript 計算引擎 (calculateTechShareTax) 實作 §19-1 所得緩課規則、取得時所得、Vesting 所得、處分損益、應稅所得合計與 20% 預估稅額。TaxCalculationCard 元件展示可折展試算細節，支援 NT$ 貨幣格式、顏色編碼（綠：緩課，紅：應稅，琥珀：風險），完整 EN/zh-TW i18n。TechShareTax 頁面整合試算卡、表格列可點選檢視試算結果。",
+  },
+  {
+    version: "2.34.0",
+    date: "2026-05-06",
+    type: "minor",
+    title: "Recharts Interactive Charts — P&L, BS Composition, Cash Flow, DCF Terminal Value",
+    description: "Projections 頁面新增 4 組交互式 Recharts 圖表：P&L tab 的 Revenue & Profitability (ComposedChart)，Three-Statement tab 的 Balance Sheet Composition (BarChart)、Cash Flow Trend (ComposedChart with line overlay)，DCF tab 的 Terminal Value % of EV (Donut chart)。所有圖表 i18n 支援 (EN + zh-TW)，NT$ 貨幣格式化，ResponsiveContainer 自適應寬度。",
+  },
+  {
     version: "2.33.3",
     date: "2026-05-06",
     type: "patch",

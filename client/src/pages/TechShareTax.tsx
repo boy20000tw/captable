@@ -8,7 +8,9 @@ import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatCurrency } from "@/lib/utils";
+import { calculateTechShareTax } from "@/shared/techShareTaxCalc";
+import { TaxCalculationCard } from "@/components/TaxCalculationCard";
 import { Receipt, Plus, AlertTriangle, CheckCircle2, Clock, XCircle, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,6 +118,7 @@ function TechShareTaxContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<FormData>(emptyForm);
+  const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
 
   // Status labels map
   const statusLabels: Record<string, string> = {
@@ -304,6 +307,24 @@ function TechShareTaxContent() {
         </Card>
       )}
 
+      {/* Tax Calculation Card - Show when a record is selected or being edited */}
+      {(selectedRecordId || editId) && records && (
+        (() => {
+          const selectedRecord = records.find((r: any) => r.id === (selectedRecordId ?? editId));
+          if (!selectedRecord) return null;
+          return (
+            <TaxCalculationCard
+              sharesAcquired={Number(selectedRecord.sharesAcquired) || 0}
+              acquisitionFmv={Number(selectedRecord.acquisitionFmv) || 0}
+              paidAmount={Number(selectedRecord.paidAmount) || 0}
+              vestingFmv={selectedRecord.vestingFmv ? Number(selectedRecord.vestingFmv) : undefined}
+              dispositionFmv={selectedRecord.dispositionFmv ? Number(selectedRecord.dispositionFmv) : undefined}
+              isDeferralEligible={selectedRecord.isDeferralEligible ?? false}
+            />
+          );
+        })()
+      )}
+
       {/* Records Table */}
       <Card>
         <CardHeader className="pb-3">
@@ -339,7 +360,11 @@ function TechShareTaxContent() {
                   const Icon = s.icon;
                   const days = r.deferralExpiryDate ? daysUntil(r.deferralExpiryDate) : -1;
                   return (
-                    <TableRow key={r.id}>
+                    <TableRow
+                      key={r.id}
+                      className={`cursor-pointer hover:bg-muted transition-colors ${selectedRecordId === r.id ? 'bg-blue-50' : ''}`}
+                      onClick={() => setSelectedRecordId(selectedRecordId === r.id ? null : r.id)}
+                    >
                       <TableCell>
                         <p className="font-medium text-sm">{r.holderName}</p>
                       </TableCell>

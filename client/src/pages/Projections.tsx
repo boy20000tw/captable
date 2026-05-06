@@ -25,6 +25,10 @@ import {
   defaultSensitivityTable, exitMultipleSensitivityTable,
   type SensitivityTable,
 } from "@shared/dcfCalc";
+import {
+  ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+} from "recharts";
 
 export default function ProjectionsPage() {
   return (
@@ -42,6 +46,12 @@ function fmtCurrency(v: number): string {
   if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
   if (Math.abs(v) >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
   return `$${v.toFixed(0)}`;
+}
+
+function fmtCurrencyCompact(v: number): string {
+  if (v >= 1_000_000) return `NT$${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `NT$${(v / 1_000).toFixed(0)}K`;
+  return `NT$${v.toFixed(0)}`;
 }
 
 // ─── Main Content ───────────────────────────────────────────────────────────
@@ -336,6 +346,30 @@ function ProjectionDetail({ projection, canEdit, onUpdate, onDelete, isPending }
           <ProjectionTable rows={rows} />
         </CardContent>
       </Card>
+
+      {/* Revenue & Profitability Chart */}
+      {rows.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">{t("projections.chart.revenueProfit")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={rows}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" />
+                <YAxis yAxisId="left" tickFormatter={(v) => fmtCurrencyCompact(v)} />
+                <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => fmtCurrencyCompact(v)} />
+                <Tooltip formatter={(v) => fmtCurrencyCompact(v as number)} />
+                <Legend />
+                <Bar yAxisId="left" dataKey="revenue" fill="#3b82f6" name={t("projections.chart.revenue")} />
+                <Line yAxisId="right" type="monotone" dataKey="netIncome" stroke="#10b981" name={t("projections.chart.netIncome")} strokeWidth={2} />
+                <Line yAxisId="right" type="monotone" dataKey="ebitda" stroke="#f97316" name={t("projections.chart.ebitda")} strokeWidth={2} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -990,6 +1024,35 @@ function DCFTab({ projections, canEdit }: DCFTabProps) {
               </CardContent>
             </Card>
 
+            {/* Terminal Value Composition Donut */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">{t("projections.chart.tvPct")}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "Terminal Value", value: dcfResult.pvOfTerminal },
+                        { name: "PV(FCF)", value: dcfResult.sumPVFCF },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      <Cell fill="#f97316" />
+                      <Cell fill="#3b82f6" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
             {/* Valuation Gap Card */}
             <Card>
               <CardHeader>
@@ -1321,6 +1384,54 @@ function ThreeStatementTab({ projections }: ThreeStatementTabProps) {
               />
             </CardContent>
           </Card>
+
+          {/* Balance Sheet Composition Chart */}
+          {result.balanceSheet.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">{t("threeStatement.chart.bsComposition")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={result.balanceSheet}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" />
+                    <YAxis tickFormatter={(v) => fmtCurrencyCompact(v)} />
+                    <Tooltip formatter={(v) => fmtCurrencyCompact(v as number)} />
+                    <Legend />
+                    <Bar dataKey="totalAssets" fill="#3b82f6" name={t("threeStatement.chart.assets")} />
+                    <Bar dataKey="totalLiabilities" fill="#ef4444" name={t("threeStatement.chart.liabilities")} />
+                    <Bar dataKey="totalEquity" fill="#10b981" name={t("threeStatement.chart.equity")} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Cash Flow Trend Chart */}
+          {result.cashFlow.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">{t("threeStatement.chart.cashFlow")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={result.cashFlow}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" />
+                    <YAxis yAxisId="left" tickFormatter={(v) => fmtCurrencyCompact(v)} />
+                    <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => fmtCurrencyCompact(v)} />
+                    <Tooltip formatter={(v) => fmtCurrencyCompact(v as number)} />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="cashFromOperations" fill="#10b981" name={t("threeStatement.chart.cfo")} />
+                    <Bar yAxisId="left" dataKey="cashFromInvesting" fill="#ef4444" name={t("threeStatement.chart.cfi")} />
+                    <Bar yAxisId="left" dataKey="cashFromFinancing" fill="#3b82f6" name={t("threeStatement.chart.cff")} />
+                    <Line yAxisId="right" type="monotone" dataKey="endingCash" stroke="#f97316" name={t("threeStatement.chart.endingCash")} strokeWidth={2} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
