@@ -1155,7 +1155,7 @@ const v1AllocationsRouter = router({
     }
     // Auto-sync investor status based on allocation progress
     const ALLOC_TO_INVESTOR: Record<string, string> = {
-      pledged: "meeting",
+      committed: "meeting",
       signed: "term_sheet",
       funded: "invested",
       issued: "invested",

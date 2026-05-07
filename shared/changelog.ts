@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.48.1",
+    date: "2026-05-07",
+    type: "patch",
+    title: "Fix allocation→investor status sync + seed investor activities",
+    description: "修正 ALLOC_TO_INVESTOR mapping（pledged→committed）。新增 seed script 同步投資人狀態（根據 allocation 進度）並為 8 位 funnel 投資人補上完整 Activity 歷程記錄。",
+  },
+  {
     version: "2.48.0",
     date: "2026-05-07",
     type: "minor",
