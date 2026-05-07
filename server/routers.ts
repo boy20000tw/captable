@@ -6,6 +6,7 @@ import {
 } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { exportDemoPack, importDemoPack } from "./demo-pack";
 import {
   // Funding rounds (still used by V1 Rounds UI; tables shared)
   getAllFundingRounds, getFundingRoundById, createFundingRound, updateFundingRound, deleteFundingRound,
@@ -3154,6 +3155,34 @@ export const appRouter = router({
           changesBefore: JSON.stringify(counts),
         });
         return { success: true, cleared: counts };
+      }),
+
+    // ─── Demo Data Pack: Export ────────────────────────────────────────────
+    exportDemoPack: companyOwnerAdminProcedure
+      .mutation(async ({ ctx }) => {
+        const buffer = await exportDemoPack(ctx.companyId);
+        // Return as base64 string (client decodes + downloads)
+        return {
+          data: buffer.toString("base64"),
+          filename: `demo-pack-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        };
+      }),
+
+    // ─── Demo Data Pack: Import ────────────────────────────────────────────
+    importDemoPack: companyOwnerAdminProcedure
+      .input(z.object({ fileBase64: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const buffer = Buffer.from(input.fileBase64, "base64");
+        const result = await importDemoPack(ctx.companyId, ctx.user!.id, buffer);
+        await createAuditLog({
+          companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+          action: "import", resourceType: "system", resourceName: "Demo Data Pack import",
+          changesAfter: JSON.stringify({
+            sheetsImported: result.sheetsImported,
+            totalRecords: result.totalRecords,
+          }),
+        });
+        return result;
       }),
 
     // ─── Platform Admin: Dashboard stats ──────────────────────────────────

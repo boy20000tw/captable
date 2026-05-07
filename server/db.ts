@@ -1732,6 +1732,8 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   // DELETE by companyId for each table — order matters so child rows go before parents.
   // Tables without inter-table FKs can go in any order.
   await db.delete(auditLogs).where(eq(auditLogs.companyId, companyId));
+  await db.delete(notifications).where(eq(notifications.companyId, companyId));
+  await db.delete(investorActivities).where(eq(investorActivities.companyId, companyId));
   await db.delete(shareTransactions).where(eq(shareTransactions.companyId, companyId));
   await db.delete(shareHoldings).where(eq(shareHoldings.companyId, companyId));
   await db.delete(shareholderDocuments).where(eq(shareholderDocuments.companyId, companyId));
@@ -1740,12 +1742,19 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   await db.delete(esopPool).where(eq(esopPool.companyId, companyId));
   await db.delete(liquidationPreferences).where(eq(liquidationPreferences.companyId, companyId));
   await db.delete(valuations409a).where(eq(valuations409a.companyId, companyId));
+  await db.delete(elections83b).where(eq(elections83b.companyId, companyId));
   await db.delete(valuationProjections).where(eq(valuationProjections.companyId, companyId));
   await db.delete(capTableSnapshots).where(eq(capTableSnapshots.companyId, companyId));
   await db.delete(importLogs).where(eq(importLogs.companyId, companyId));
+  await db.delete(projectionScenarios).where(eq(projectionScenarios.companyId, companyId));
   await db.delete(dcfScenarios).where(eq(dcfScenarios.companyId, companyId));
   await db.delete(compsPeers).where(eq(compsPeers.companyId, companyId));
   await db.delete(financialProjections).where(eq(financialProjections.companyId, companyId));
+  await db.delete(angelTaxDeductions).where(eq(angelTaxDeductions.companyId, companyId));
+  await db.delete(techShareTaxRecords).where(eq(techShareTaxRecords.companyId, companyId));
+  await db.delete(closedCompanyShareRights).where(eq(closedCompanyShareRights.companyId, companyId));
+  await db.delete(closedCompanyProvisions).where(eq(closedCompanyProvisions.companyId, companyId));
+  await db.delete(shareTransfers).where(eq(shareTransfers.companyId, companyId));
   // V1 tables — delete in FK-safe order: snapshots → register entries → allocations → investors.
   await db.delete(snapshotsV1).where(eq(snapshotsV1.companyId, companyId));
   await db.delete(shareRegisterEntries).where(eq(shareRegisterEntries.companyId, companyId));

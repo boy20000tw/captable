@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Sparkles, X, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Sparkles, X, Download, PackageOpen, PackagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -39,6 +39,75 @@ function ImportContent() {
   const [analyzing, setAnalyzing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
+
+  // Demo Pack state
+  const [exporting, setExporting] = useState(false);
+  const [demoFile, setDemoFile] = useState<File | null>(null);
+  const [demoImporting, setDemoImporting] = useState(false);
+  const [demoResult, setDemoResult] = useState<{ success: boolean; sheetsImported: string[]; totalRecords: number; errors: string[] } | null>(null);
+  const demoFileRef = useRef<HTMLInputElement>(null);
+
+  const exportDemoPack = trpc.admin.exportDemoPack.useMutation({
+    onSuccess: (data) => {
+      const binary = atob(data.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = data.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      setExporting(false);
+      toast.success("Demo Data Pack exported!");
+    },
+    onError: (e) => {
+      toast.error("Export failed: " + e.message);
+      setExporting(false);
+    },
+  });
+
+  const importDemoPackMut = trpc.admin.importDemoPack.useMutation({
+    onSuccess: (data) => {
+      setDemoResult(data);
+      if (data.success) {
+        toast.success(`Demo Pack imported! ${data.totalRecords} records across ${data.sheetsImported.length} tables.`);
+        utils.fundingRounds.list.invalidate();
+        utils.v1.capTable.current.invalidate();
+        utils.v1.investors.list.invalidate();
+        utils.v1.allocations.list.invalidate();
+        utils.v1.register.list.invalidate();
+        utils.v1.esop.pools.invalidate();
+        utils.v1.esop.grants.invalidate();
+      } else {
+        toast.error("Import completed with errors.");
+      }
+      setDemoImporting(false);
+    },
+    onError: (e) => {
+      setDemoResult({ success: false, sheetsImported: [], totalRecords: 0, errors: [e.message] });
+      toast.error("Import failed: " + e.message);
+      setDemoImporting(false);
+    },
+  });
+
+  async function handleDemoImport() {
+    if (!demoFile) return;
+    setDemoImporting(true);
+    setDemoResult(null);
+    try {
+      const arrayBuffer = await demoFile.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      const fileBase64 = btoa(binary);
+      importDemoPackMut.mutate({ fileBase64 });
+    } catch {
+      setDemoResult({ success: false, sheetsImported: [], totalRecords: 0, errors: ["Failed to read file"] });
+      setDemoImporting(false);
+    }
+  }
 
   const { data: rounds } = trpc.fundingRounds.list.useQuery();
   const { data: capTable } = trpc.v1.capTable.current.useQuery();
@@ -247,6 +316,104 @@ function ImportContent() {
               <div className="space-y-1">
                 <p className="text-xs font-medium text-red-700">{t("import.warnings")}</p>
                 {result.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-red-600">• {e}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Demo Data Pack Section */}
+      <div className="bg-card border border-border rounded-sm p-6 space-y-5">
+        <div className="space-y-0.5">
+          <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">DEMO DATA PACK</p>
+          <h3 className="text-base font-semibold tracking-tight">匯出/匯入完整 Demo 資料</h3>
+          <p className="text-xs text-muted-foreground">
+            將所有業務資料（投資人、輪次、股權、ESOP、合規、分析等 25+ 張表）匯出為 Excel，可匯入至任何帳號完整還原。
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* Export */}
+          <div className="border border-border rounded-sm p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <PackageOpen className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium">匯出 Demo Pack</p>
+            </div>
+            <p className="text-xs text-muted-foreground">將目前所有資料匯出為多 Sheet Excel 檔案。</p>
+            {canImport ? (
+              <button
+                onClick={() => { setExporting(true); exportDemoPack.mutate(); }}
+                disabled={exporting}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {exporting ? "匯出中..." : "匯出 Excel"}
+              </button>
+            ) : (
+              <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-sm px-3 py-1.5 text-xs">需要 Owner/Admin 權限</p>
+            )}
+          </div>
+
+          {/* Import */}
+          <div className="border border-border rounded-sm p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <PackagePlus className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium">匯入 Demo Pack</p>
+            </div>
+            <p className="text-xs text-muted-foreground">從 Demo Pack Excel 檔案匯入所有資料。建議先清空資料再匯入。</p>
+            <input ref={demoFileRef} type="file" accept=".xlsx" onChange={e => { setDemoFile(e.target.files?.[0] || null); setDemoResult(null); }} className="hidden" />
+            <div className="flex items-center gap-2">
+              {canImport ? (
+                <>
+                  <button
+                    onClick={() => demoFileRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-medium rounded-sm hover:bg-secondary/50 transition-colors"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    {demoFile ? demoFile.name : "選擇檔案"}
+                  </button>
+                  {demoFile && (
+                    <button
+                      onClick={handleDemoImport}
+                      disabled={demoImporting}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                      {demoImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      {demoImporting ? "匯入中..." : "匯入"}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-sm px-3 py-1.5 text-xs">需要 Owner/Admin 權限</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Demo Import Result */}
+        {demoResult && (
+          <div className={`border rounded-sm p-4 space-y-2 ${demoResult.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}`}>
+            <div className="flex items-center gap-2">
+              {demoResult.success
+                ? <CheckCircle className="h-4 w-4 text-green-600" />
+                : <AlertCircle className="h-4 w-4 text-red-600" />
+              }
+              <p className={`text-sm font-medium ${demoResult.success ? "text-green-800" : "text-red-800"}`}>
+                {demoResult.success
+                  ? `匯入成功！共 ${demoResult.totalRecords} 筆記錄，涵蓋 ${demoResult.sheetsImported.length} 張表。`
+                  : "匯入失敗"}
+              </p>
+            </div>
+            {demoResult.sheetsImported.length > 0 && (
+              <p className="text-xs text-green-600">
+                已匯入：{demoResult.sheetsImported.join(", ")}
+              </p>
+            )}
+            {demoResult.errors.length > 0 && (
+              <div className="space-y-1">
+                {demoResult.errors.map((e, i) => (
                   <p key={i} className="text-xs text-red-600">• {e}</p>
                 ))}
               </div>

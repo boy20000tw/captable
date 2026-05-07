@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.49.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Demo Data Pack — Full Export/Import for 25+ Tables",
+    description: "新增 Demo Data Pack 功能：一鍵匯出所有業務資料（投資人、輪次、股權、ESOP、合規、分析等 25+ 張表）為多 Sheet Excel。可匯入至全新帳號完整還原所有 demo 內容。修正 truncateAllBusinessData 遺漏 8 張表的問題。",
+  },
+  {
     version: "2.48.2",
     date: "2026-05-07",
     type: "patch",
