@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.48.2",
+    date: "2026-05-07",
+    type: "patch",
+    title: "Investor view toggle — prominent tab bar",
+    description: "視圖切換按鈕從右上角小圖示改為標題下方的醒目 Tab Bar（含圖示+文字標籤），切換 List/Board/Calendar 更直覺。",
+  },
+  {
     version: "2.48.1",
     date: "2026-05-07",
     type: "patch",

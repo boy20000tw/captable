@@ -1100,52 +1100,55 @@ function V1InvestorsContent() {
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
             <Users className="h-7 w-7 text-primary" />
-            {tPages("investors.title")}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {tPages("investors.desc")}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* View mode toggle */}
-          <div className="flex items-center border rounded-md">
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-8 px-3 rounded-r-none"
-              onClick={() => setViewMode("list")}
-              title={t("board.listView") || "List"}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "board" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-8 px-3 rounded-none border-x"
-              onClick={() => setViewMode("board")}
-              title={t("board.boardView") || "Board"}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "calendar" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-8 px-3 rounded-l-none"
-              onClick={() => setViewMode("calendar")}
-              title={t("board.calendarView") || "Calendar"}
-            >
-              <CalendarDays className="h-4 w-4" />
-            </Button>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {tPages("investors.title")}
+            </h1>
           </div>
           {canEdit && (
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4 mr-1" /> {t("investors.newInvestor")}
             </Button>
           )}
+        </div>
+        {/* View mode toggle — prominent tab bar */}
+        <div className="flex items-center border-b">
+          <button
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              viewMode === "list"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+            }`}
+            onClick={() => setViewMode("list")}
+          >
+            <List className="h-4 w-4" />
+            {t("board.listView") || "List"}
+          </button>
+          <button
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              viewMode === "board"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+            }`}
+            onClick={() => setViewMode("board")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            {t("board.boardView") || "Board"}
+          </button>
+          <button
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              viewMode === "calendar"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+            }`}
+            onClick={() => setViewMode("calendar")}
+          >
+            <CalendarDays className="h-4 w-4" />
+            {t("board.calendarView") || "Calendar"}
+          </button>
         </div>
       </div>
 
