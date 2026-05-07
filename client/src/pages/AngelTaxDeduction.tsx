@@ -102,7 +102,7 @@ export default function AngelTaxDeductionPage() {
   return (
     <DashboardLayout>
       <FeatureGate feature="compliance.techShareTax">
-        <div className="space-y-6">
+        <div className="p-8 max-w-6xl mx-auto space-y-6">
           {/* Header */}
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
