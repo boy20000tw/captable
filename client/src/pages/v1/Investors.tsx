@@ -5,6 +5,7 @@ import {
   Plus, Edit2, Trash2, Users, Search, ChevronDown, ChevronUp,
   Calendar, FileText, MessageSquare, Phone, Mail, StickyNote,
   MoreHorizontal, CheckCircle2, Clock, X, ArrowRight,
+  List, LayoutGrid, CalendarDays, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
@@ -45,6 +46,7 @@ type EntityKind = "individual" | "entity";
 type ActivityType = "meeting" | "document" | "discussion" | "follow_up" | "call" | "email" | "note" | "other";
 type ActivityStatus = "pending" | "completed" | "cancelled";
 type ActivityPriority = "high" | "medium" | "low";
+type ViewMode = "list" | "board" | "calendar";
 
 type InvestorForm = {
   name: string;
@@ -76,6 +78,8 @@ const EMPTY_ACTIVITY: ActivityForm = {
   type: "follow_up", title: "", description: "", dueDate: "", priority: "medium",
 };
 
+const INVESTOR_STATUSES: InvestorStatus[] = ["prospect", "meeting", "term_sheet", "invested", "passed"];
+
 function getStatusOptions(t: any): { value: InvestorStatus; label: string }[] {
   return [
     { value: "prospect", label: t("investors.prospect") },
@@ -86,23 +90,21 @@ function getStatusOptions(t: any): { value: InvestorStatus; label: string }[] {
   ];
 }
 
+const STATUS_COLORS: Record<InvestorStatus, { bg: string; text: string; border: string; badge: string }> = {
+  prospect: { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200", badge: "bg-gray-100 text-gray-700 border-transparent" },
+  meeting: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200", badge: "bg-blue-100 text-blue-700 border-transparent" },
+  term_sheet: { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", badge: "bg-yellow-100 text-yellow-700 border-transparent" },
+  invested: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200", badge: "bg-green-100 text-green-700 border-transparent" },
+  passed: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200", badge: "bg-red-100 text-red-700 border-transparent" },
+};
+
 function statusBadge(status: InvestorStatus, t: any) {
-  const map: Record<InvestorStatus, { cls: string; key: string }> = {
-    prospect: { cls: "bg-gray-100 text-gray-700 border-transparent", key: "investors.prospect" },
-    meeting: { cls: "bg-blue-100 text-blue-700 border-transparent", key: "investors.meeting" },
-    term_sheet: { cls: "bg-yellow-100 text-yellow-700 border-transparent", key: "investors.termSheet" },
-    invested: { cls: "bg-green-100 text-green-700 border-transparent", key: "investors.invested" },
-    passed: { cls: "bg-red-100 text-red-700 border-transparent", key: "investors.passed" },
-  };
-  const info = map[status];
-  return <Badge className={info.cls}>{t(info.key)}</Badge>;
+  const info = STATUS_COLORS[status];
+  return <Badge className={info.badge}>{t(`investors.${status === "term_sheet" ? "termSheet" : status}`)}</Badge>;
 }
 
 function entityBadge(kind: EntityKind) {
-  if (kind === "entity") {
-    return <Badge variant="outline" className="text-[11px]">Entity</Badge>;
-  }
-  return <Badge variant="outline" className="text-[11px]">Individual</Badge>;
+  return <Badge variant="outline" className="text-[11px]">{kind === "entity" ? "Entity" : "Individual"}</Badge>;
 }
 
 const ACTIVITY_ICONS: Record<ActivityType, typeof Calendar> = {
@@ -116,8 +118,24 @@ const ACTIVITY_ICONS: Record<ActivityType, typeof Calendar> = {
   other: MoreHorizontal,
 };
 
+const ACTIVITY_COLORS: Record<ActivityType, string> = {
+  meeting: "bg-blue-500",
+  document: "bg-purple-500",
+  discussion: "bg-teal-500",
+  follow_up: "bg-orange-500",
+  call: "bg-green-500",
+  email: "bg-indigo-500",
+  note: "bg-yellow-500",
+  other: "bg-gray-500",
+};
+
+const PRIORITY_DOTS: Record<string, string> = {
+  high: "bg-red-500",
+  medium: "bg-yellow-500",
+  low: "bg-gray-400",
+};
+
 function activityTypeBadge(type: ActivityType, t: any) {
-  const key = `activities.type_${type}`;
   const colors: Record<ActivityType, string> = {
     meeting: "bg-blue-100 text-blue-700",
     document: "bg-purple-100 text-purple-700",
@@ -132,7 +150,7 @@ function activityTypeBadge(type: ActivityType, t: any) {
   return (
     <Badge className={`${colors[type]} border-transparent gap-1`}>
       <Icon className="h-3 w-3" />
-      {t(key) || type}
+      {t(`activities.type_${type}`) || type}
     </Badge>
   );
 }
@@ -144,6 +162,19 @@ function priorityBadge(priority: ActivityPriority, t: any) {
     low: "bg-gray-100 text-gray-600 border-transparent",
   };
   return <Badge className={map[priority]}>{t(`activities.priority_${priority}`) || priority}</Badge>;
+}
+
+function isDueSoon(dueDate: string | Date | null) {
+  if (!dueDate) return false;
+  const d = new Date(dueDate);
+  const now = new Date();
+  const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  return diff <= 7 && diff >= 0;
+}
+
+function isOverdue(dueDate: string | Date | null) {
+  if (!dueDate) return false;
+  return new Date(dueDate) < new Date();
 }
 
 /* ─────────────────────────────── Activity Timeline ─────────────────────────────── */
@@ -168,38 +199,46 @@ function InvestorActivityTimeline({
   const createAct = trpc.investorActivities.create.useMutation({
     onSuccess: () => {
       utils.investorActivities.byInvestor.invalidate({ investorId });
+      utils.investorActivities.list.invalidate();
+      utils.investorActivities.upcoming.invalidate();
       utils.v1.investors.list.invalidate();
       toast.success(t("activities.created") || "Activity created");
       closeActivityDialog();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message),
   });
 
   const updateAct = trpc.investorActivities.update.useMutation({
     onSuccess: () => {
       utils.investorActivities.byInvestor.invalidate({ investorId });
+      utils.investorActivities.list.invalidate();
+      utils.investorActivities.upcoming.invalidate();
       utils.v1.investors.list.invalidate();
       toast.success(t("activities.updated") || "Activity updated");
       closeActivityDialog();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message),
   });
 
   const deleteAct = trpc.investorActivities.delete.useMutation({
     onSuccess: () => {
       utils.investorActivities.byInvestor.invalidate({ investorId });
+      utils.investorActivities.list.invalidate();
+      utils.investorActivities.upcoming.invalidate();
       utils.v1.investors.list.invalidate();
       toast.success(t("activities.deleted") || "Activity deleted");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message),
   });
 
   const completeAct = trpc.investorActivities.update.useMutation({
     onSuccess: () => {
       utils.investorActivities.byInvestor.invalidate({ investorId });
+      utils.investorActivities.list.invalidate();
+      utils.investorActivities.upcoming.invalidate();
       utils.v1.investors.list.invalidate();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message),
   });
 
   function openCreateActivity() {
@@ -264,9 +303,8 @@ function InvestorActivityTimeline({
     deleteAct.mutate({ id: actId });
   }
 
-  // Split activities into pending and completed
   const pending = useMemo(() =>
-    (activities ?? []).filter((a) => a.status === "pending").sort((a, b) => {
+    (activities ?? []).filter((a: any) => a.status === "pending").sort((a: any, b: any) => {
       if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       if (a.dueDate) return -1;
       if (b.dueDate) return 1;
@@ -275,31 +313,17 @@ function InvestorActivityTimeline({
   [activities]);
 
   const completed = useMemo(() =>
-    (activities ?? []).filter((a) => a.status === "completed").sort((a, b) =>
+    (activities ?? []).filter((a: any) => a.status === "completed").sort((a: any, b: any) =>
       new Date(b.completedAt ?? b.updatedAt).getTime() - new Date(a.completedAt ?? a.updatedAt).getTime()
     ),
   [activities]);
 
   const cancelled = useMemo(() =>
-    (activities ?? []).filter((a) => a.status === "cancelled"),
+    (activities ?? []).filter((a: any) => a.status === "cancelled"),
   [activities]);
-
-  function isDueSoon(dueDate: string | Date | null) {
-    if (!dueDate) return false;
-    const d = new Date(dueDate);
-    const now = new Date();
-    const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    return diff <= 7 && diff >= 0;
-  }
-
-  function isOverdue(dueDate: string | Date | null) {
-    if (!dueDate) return false;
-    return new Date(dueDate) < new Date();
-  }
 
   return (
     <div className="border-t bg-muted/30 p-6 space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-lg">
           {t("activities.timelineTitle") || "Activity Timeline"} — {investorName}
@@ -323,14 +347,13 @@ function InvestorActivityTimeline({
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Pending Activities */}
           {pending.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                 {t("activities.pendingSection") || "Pending"} ({pending.length})
               </h4>
               <div className="space-y-2">
-                {pending.map((act) => (
+                {pending.map((act: any) => (
                   <div
                     key={act.id}
                     className={`flex items-start gap-3 p-3 rounded-lg border bg-white ${
@@ -383,14 +406,13 @@ function InvestorActivityTimeline({
             </div>
           )}
 
-          {/* Completed Activities */}
           {completed.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                 {t("activities.completedSection") || "Completed"} ({completed.length})
               </h4>
               <div className="space-y-1.5">
-                {completed.slice(0, 10).map((act) => (
+                {completed.slice(0, 10).map((act: any) => (
                   <div key={act.id} className="flex items-start gap-3 p-2.5 rounded-lg border bg-white/50 opacity-70">
                     {canEdit && (
                       <button
@@ -426,7 +448,6 @@ function InvestorActivityTimeline({
             </div>
           )}
 
-          {/* Cancelled */}
           {cancelled.length > 0 && (
             <p className="text-xs text-muted-foreground">
               {cancelled.length} {t("activities.cancelledCount") || "cancelled"}
@@ -523,6 +544,400 @@ function InvestorActivityTimeline({
   );
 }
 
+/* ─────────────────────────────── Board View (Kanban) ─────────────────────────────── */
+
+function BoardView({
+  investors,
+  canEdit,
+  canDelete,
+  onEdit,
+  onDelete,
+  onStatusChange,
+  t,
+}: {
+  investors: any[];
+  canEdit: boolean;
+  canDelete: boolean;
+  onEdit: (inv: any) => void;
+  onDelete: (inv: any) => void;
+  onStatusChange: (inv: any, newStatus: InvestorStatus) => void;
+  t: any;
+}) {
+  const statusFlow: InvestorStatus[] = ["prospect", "meeting", "term_sheet", "invested", "passed"];
+
+  const columns = useMemo(() => {
+    const map: Record<InvestorStatus, any[]> = {
+      prospect: [], meeting: [], term_sheet: [], invested: [], passed: [],
+    };
+    for (const inv of investors) {
+      const s = (inv.status as InvestorStatus) || "prospect";
+      if (map[s]) map[s].push(inv);
+    }
+    return map;
+  }, [investors]);
+
+  function getNextStatus(current: InvestorStatus): InvestorStatus | null {
+    const idx = statusFlow.indexOf(current);
+    if (idx < 0 || idx >= statusFlow.length - 2) return null; // invested/passed are terminal-ish
+    return statusFlow[idx + 1];
+  }
+
+  return (
+    <div className="flex gap-4 overflow-x-auto pb-4 min-h-[500px]">
+      {statusFlow.map((status) => {
+        const col = columns[status];
+        const colors = STATUS_COLORS[status];
+        return (
+          <div key={status} className={`flex-shrink-0 w-[260px] rounded-lg border ${colors.border} ${colors.bg}`}>
+            {/* Column header */}
+            <div className={`px-3 py-2.5 border-b ${colors.border} flex items-center justify-between`}>
+              <div className="flex items-center gap-2">
+                <span className={`font-semibold text-sm ${colors.text}`}>
+                  {t(`investors.${status === "term_sheet" ? "termSheet" : status}`)}
+                </span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${colors.badge}`}>
+                  {col.length}
+                </span>
+              </div>
+            </div>
+
+            {/* Cards */}
+            <div className="p-2 space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto">
+              {col.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-6 italic">
+                  {t("board.emptyColumn") || "No investors"}
+                </p>
+              )}
+              {col.map((inv: any) => {
+                const nextStatus = getNextStatus(status);
+                return (
+                  <div
+                    key={inv.id}
+                    className="bg-white rounded-md border shadow-sm p-3 space-y-2 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{inv.name}</p>
+                        {inv.aka && inv.aka !== inv.name && (
+                          <p className="text-xs text-muted-foreground truncate">{inv.aka}</p>
+                        )}
+                      </div>
+                      {entityBadge(inv.entityKind as EntityKind)}
+                    </div>
+
+                    {/* Contact info */}
+                    <div className="space-y-0.5">
+                      {inv.email && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{inv.email}</span>
+                        </div>
+                      )}
+                      {inv.phone && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{inv.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Last contact */}
+                    {inv.lastContactAt && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("investors.lastContact")}: {formatDate(inv.lastContactAt)}
+                      </p>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 pt-1 border-t">
+                      {canEdit && nextStatus && status !== "invested" && status !== "passed" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className={`h-7 text-xs flex-1 ${STATUS_COLORS[nextStatus].text}`}
+                          onClick={() => onStatusChange(inv, nextStatus)}
+                          title={t("board.advanceTo") || "Advance to"}
+                        >
+                          <ArrowRight className="h-3 w-3 mr-1" />
+                          {t(`investors.${nextStatus === "term_sheet" ? "termSheet" : nextStatus}`)}
+                        </Button>
+                      )}
+                      {canEdit && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(inv)}>
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onDelete(inv)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─────────────────────────────── Calendar View ─────────────────────────────── */
+
+function CalendarView({ t }: { t: any }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const fromDate = new Date(viewYear, viewMonth, -6).toISOString().slice(0, 10);
+  const toDate = new Date(viewYear, viewMonth + 1, 7).toISOString().slice(0, 10);
+
+  const { data: activities, isLoading } = trpc.investorActivities.list.useQuery({
+    status: statusFilter === "all" ? undefined : statusFilter as any,
+    fromDate,
+    toDate,
+  });
+
+  const { data: upcoming } = trpc.investorActivities.upcoming.useQuery({ withinDays: 30 });
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
+    else setViewMonth((m) => m - 1);
+  }
+
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
+    else setViewMonth((m) => m + 1);
+  }
+
+  function goToday() {
+    setViewYear(today.getFullYear());
+    setViewMonth(today.getMonth());
+  }
+
+  const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+
+  const actByDate = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const act of activities ?? []) {
+      if (!act.dueDate) continue;
+      const key = new Date(act.dueDate).toISOString().slice(0, 10);
+      if (!map[key]) map[key] = [];
+      map[key].push(act);
+    }
+    return map;
+  }, [activities]);
+
+  const noDueDate = useMemo(() => (activities ?? []).filter((a: any) => !a.dueDate), [activities]);
+
+  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const isTodayCell = (day: number) =>
+    viewYear === today.getFullYear() && viewMonth === today.getMonth() && day === today.getDate();
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex-1">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={prevMonth}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h2 className="text-lg font-semibold min-w-[180px] text-center">{monthLabel}</h2>
+                <Button variant="outline" size="icon" onClick={nextMonth}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={goToday} className="ml-2">
+                  {t("pipeline.today") || "Today"}
+                </Button>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("pipeline.allStatus") || "All"}</SelectItem>
+                  <SelectItem value="pending">{t("activities.pendingSection") || "Pending"}</SelectItem>
+                  <SelectItem value="completed">{t("activities.completedSection") || "Completed"}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="py-20 text-center text-muted-foreground text-sm">
+                {t("activities.loading") || "Loading..."}
+              </div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-7 mb-1">
+                  {weekDays.map((d) => (
+                    <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">
+                      {d}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 border-t border-l">
+                  {Array.from({ length: firstDay }).map((_, i) => (
+                    <div key={`empty-${i}`} className="border-r border-b min-h-[100px] bg-muted/20" />
+                  ))}
+
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                    const dayActivities = actByDate[dateKey] ?? [];
+                    const todayClass = isTodayCell(day) ? "bg-primary/5 ring-2 ring-primary/20 ring-inset" : "";
+
+                    return (
+                      <div key={day} className={`border-r border-b min-h-[100px] p-1 ${todayClass}`}>
+                        <div className={`text-xs font-medium mb-1 ${isTodayCell(day) ? "text-primary font-bold" : "text-muted-foreground"}`}>
+                          {day}
+                        </div>
+                        <div className="space-y-0.5">
+                          {dayActivities.slice(0, 3).map((act: any) => {
+                            const Icon = ACTIVITY_ICONS[act.type as ActivityType] ?? MoreHorizontal;
+                            const dotColor = PRIORITY_DOTS[act.priority] ?? "bg-gray-400";
+                            return (
+                              <div
+                                key={act.id}
+                                className={`flex items-center gap-1 px-1 py-0.5 rounded text-[10px] leading-tight truncate ${
+                                  act.status === "completed" ? "opacity-50 line-through" : ""
+                                }`}
+                                title={`${act.title} (${act.investorName ?? ""})`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+                                <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                <span className="truncate">{act.title}</span>
+                              </div>
+                            );
+                          })}
+                          {dayActivities.length > 3 && (
+                            <div className="text-[10px] text-muted-foreground pl-1">
+                              +{dayActivities.length - 3} {t("pipeline.more") || "more"}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {(() => {
+                    const totalCells = firstDay + daysInMonth;
+                    const remainder = totalCells % 7;
+                    if (remainder === 0) return null;
+                    return Array.from({ length: 7 - remainder }).map((_, i) => (
+                      <div key={`trail-${i}`} className="border-r border-b min-h-[100px] bg-muted/20" />
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {noDueDate.length > 0 && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="text-sm">{t("pipeline.noDueDate") || "Without Due Date"}</CardTitle>
+              <CardDescription>{noDueDate.length} {t("pipeline.activities") || "activities"}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1.5">
+                {noDueDate.map((act: any) => {
+                  const Icon = ACTIVITY_ICONS[act.type as ActivityType] ?? MoreHorizontal;
+                  return (
+                    <div key={act.id} className="flex items-center gap-2 text-sm">
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate">{act.title}</span>
+                      <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                        {act.investorName ?? ""}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Sidebar — upcoming + legend */}
+      <div className="w-full lg:w-72 shrink-0 space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              {t("pipeline.upcoming30") || "Upcoming 30 Days"}
+            </CardTitle>
+            <CardDescription>
+              {(upcoming ?? []).length} {t("pipeline.pendingActivities") || "pending activities"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(upcoming ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                {t("pipeline.noUpcoming") || "No upcoming activities"}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {(upcoming ?? []).slice(0, 15).map((act: any) => {
+                  const Icon = ACTIVITY_ICONS[act.type as ActivityType] ?? MoreHorizontal;
+                  const overdue = act.dueDate && new Date(act.dueDate) < new Date();
+                  return (
+                    <div key={act.id} className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium truncate">{act.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 pl-5">
+                        <span className={`text-xs ${overdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                          {act.dueDate ? formatDate(act.dueDate) : "—"}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate">
+                          {act.investorName ?? ""}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">{t("pipeline.legend") || "Activity Types"}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              {(Object.keys(ACTIVITY_ICONS) as ActivityType[]).map((type) => {
+                const Icon = ACTIVITY_ICONS[type];
+                const color = ACTIVITY_COLORS[type];
+                return (
+                  <div key={type} className="flex items-center gap-2 text-sm">
+                    <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>{t(`activities.type_${type}`) || type}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────────── Main Content ─────────────────────────────── */
 
 function V1InvestorsContent() {
@@ -536,6 +951,7 @@ function V1InvestorsContent() {
     return <ErrorState onRetry={() => refetch()} />;
   }
 
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<InvestorForm>(EMPTY_FORM);
@@ -551,7 +967,7 @@ function V1InvestorsContent() {
       toast.success(t("investors.investorCreated"));
       closeDialog();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message),
   });
 
   const updateMut = trpc.v1.investors.update.useMutation({
@@ -560,7 +976,7 @@ function V1InvestorsContent() {
       toast.success(t("investors.investorUpdated"));
       closeDialog();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message),
   });
 
   const deleteMut = trpc.v1.investors.delete.useMutation({
@@ -568,7 +984,7 @@ function V1InvestorsContent() {
       utils.v1.investors.list.invalidate();
       toast.success(t("investors.investorDeleted"));
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message),
   });
 
   function openCreate() {
@@ -577,7 +993,7 @@ function V1InvestorsContent() {
     setDialogOpen(true);
   }
 
-  function openEdit(inv: NonNullable<typeof investors>[number], e?: React.MouseEvent) {
+  function openEdit(inv: any, e?: React.MouseEvent) {
     e?.stopPropagation();
     setEditId(inv.id);
     setForm({
@@ -638,25 +1054,31 @@ function V1InvestorsContent() {
     }
   }
 
-  function handleDelete(inv: NonNullable<typeof investors>[number], e: React.MouseEvent) {
-    e.stopPropagation();
+  function handleDelete(inv: any, e?: React.MouseEvent) {
+    e?.stopPropagation();
     if (!confirm(t("investors.confirmDelete", { name: inv.name }))) return;
     deleteMut.mutate({ id: inv.id });
+  }
+
+  function handleStatusChange(inv: any, newStatus: InvestorStatus) {
+    updateMut.mutate({
+      id: inv.id,
+      data: { status: newStatus },
+    });
   }
 
   function toggleExpanded(invId: number) {
     setExpandedId((prev) => (prev === invId ? null : invId));
   }
 
-  // Exclude ESOP pool entries — they belong on Cap Table, not Investors
   const baseInvestors = useMemo(() => {
     const list = investors ?? [];
-    return list.filter((inv) => !inv.name?.toUpperCase().includes('ESOP'));
+    return list.filter((inv: any) => !inv.name?.toUpperCase().includes('ESOP'));
   }, [investors]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return baseInvestors.filter((inv) => {
+    return baseInvestors.filter((inv: any) => {
       if (statusFilter !== "all" && inv.status !== statusFilter) return false;
       if (kindFilter !== "all" && inv.entityKind !== kindFilter) return false;
       if (q && !inv.name.toLowerCase().includes(q)) return false;
@@ -666,8 +1088,17 @@ function V1InvestorsContent() {
 
   const isEmpty = !isLoading && baseInvestors.length === 0;
 
+  // Status summary counts
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const inv of baseInvestors) {
+      counts[inv.status] = (counts[inv.status] || 0) + 1;
+    }
+    return counts;
+  }, [baseInvestors]);
+
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
@@ -679,174 +1110,256 @@ function V1InvestorsContent() {
             {tPages("investors.desc")}
           </p>
         </div>
-        {canEdit && (
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" /> {t("investors.newInvestor")}
-          </Button>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="flex-1 min-w-[220px] relative">
-          <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-          <Input
-            placeholder={t("investors.searchPlaceholder") || "Search by name..."}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[170px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("investors.allStatuses") || "All statuses"}</SelectItem>
-            {getStatusOptions(t).map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={kindFilter} onValueChange={setKindFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("investors.allKinds") || "All kinds"}</SelectItem>
-            <SelectItem value="individual">{t("investors.individual") || "Individual"}</SelectItem>
-            <SelectItem value="entity">{t("investors.entity") || "Entity"}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>{t("investors.allInvestors")}</CardTitle>
-              <CardDescription>
-                {filtered.length} of {baseInvestors.length}
-              </CardDescription>
-            </div>
+        <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center border rounded-md">
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 px-3 rounded-r-none"
+              onClick={() => setViewMode("list")}
+              title={t("board.listView") || "List"}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "board" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 px-3 rounded-none border-x"
+              onClick={() => setViewMode("board")}
+              title={t("board.boardView") || "Board"}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "calendar" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 px-3 rounded-l-none"
+              onClick={() => setViewMode("calendar")}
+              title={t("board.calendarView") || "Calendar"}
+            >
+              <CalendarDays className="h-4 w-4" />
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="py-12 text-center text-muted-foreground text-sm px-6">
-              {t("investors.loading")}
-            </div>
-          ) : isEmpty ? (
-            <div className="py-12 text-center space-y-3 px-6">
-              <p className="text-muted-foreground text-sm">
-                {t("investors.emptyDesc")}
-              </p>
-              {canEdit && (
-                <Button onClick={openCreate}>
-                  <Plus className="h-4 w-4 mr-1" /> {t("investors.newInvestor")}
-                </Button>
-              )}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground px-6">
-              {t("investors.noMatch") || "No investors match the current filters."}
-            </div>
-          ) : (
-            <div>
-              <div className="overflow-x-auto px-6">
-                <Table className="min-w-[640px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-8"></TableHead>
-                      <TableHead>{t("investors.name")}</TableHead>
-                      <TableHead>{t("investors.entityKind")}</TableHead>
-                      <TableHead>{t("investors.status")}</TableHead>
-                      <TableHead>{t("investors.email")}</TableHead>
-                      <TableHead>{t("investors.phone")}</TableHead>
-                      <TableHead>{t("investors.lastContact") || "Last Contact"}</TableHead>
-                      <TableHead className="w-[100px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map((inv) => (
-                      <>
-                        <TableRow
-                          key={inv.id}
-                          className="hover:bg-secondary/30 cursor-pointer"
-                          onClick={() => toggleExpanded(inv.id)}
-                        >
-                          <TableCell className="w-8 pr-0">
-                            {expandedId === inv.id
-                              ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                              : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {inv.name}
-                            {inv.aka && inv.aka !== inv.name && (
-                              <span className="ml-2 text-xs text-muted-foreground">
-                                ({inv.aka})
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell>{entityBadge(inv.entityKind as EntityKind)}</TableCell>
-                          <TableCell>{statusBadge(inv.status as InvestorStatus, t)}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {inv.email ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {inv.phone ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {inv.lastContactAt ? formatDate(inv.lastContactAt) : "—"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-end gap-1">
-                              {canEdit && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={(e) => openEdit(inv, e)}
-                                  title={t("investors.edit")}
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              {canDelete && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={(e) => handleDelete(inv, e)}
-                                  title={t("investors.delete")}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        {expandedId === inv.id && (
-                          <TableRow key={`${inv.id}-timeline`}>
-                            <TableCell colSpan={8} className="p-0">
-                              <InvestorActivityTimeline
-                                investorId={inv.id}
-                                investorName={inv.name}
-                                canEdit={canEdit}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </>
-                    ))}
-                  </TableBody>
-                </Table>
+          {canEdit && (
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-1" /> {t("investors.newInvestor")}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Status summary pills */}
+      {baseInvestors.length > 0 && viewMode !== "board" && (
+        <div className="flex flex-wrap gap-2">
+          {INVESTOR_STATUSES.map((status) => {
+            const count = statusCounts[status] || 0;
+            if (count === 0 && status !== "prospect") return null;
+            const colors = STATUS_COLORS[status];
+            return (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(statusFilter === status ? "all" : status)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                  statusFilter === status
+                    ? `${colors.badge} ring-2 ring-offset-1 ring-current`
+                    : `${colors.badge} opacity-80 hover:opacity-100`
+                }`}
+              >
+                {t(`investors.${status === "term_sheet" ? "termSheet" : status}`)}
+                <span className="font-bold">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Filters (List + Board only) */}
+      {viewMode !== "calendar" && (
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex-1 min-w-[220px] relative">
+            <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <Input
+              placeholder={t("investors.searchPlaceholder") || "Search by name..."}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          {viewMode === "list" && (
+            <>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[170px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("investors.allStatuses") || "All statuses"}</SelectItem>
+                  {getStatusOptions(t).map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={kindFilter} onValueChange={setKindFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("investors.allKinds") || "All kinds"}</SelectItem>
+                  <SelectItem value="individual">{t("investors.individual") || "Individual"}</SelectItem>
+                  <SelectItem value="entity">{t("investors.entity") || "Entity"}</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ─── VIEW CONTENT ─── */}
+
+      {viewMode === "board" && (
+        <BoardView
+          investors={filtered}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onEdit={(inv) => openEdit(inv)}
+          onDelete={(inv) => handleDelete(inv)}
+          onStatusChange={handleStatusChange}
+          t={t}
+        />
+      )}
+
+      {viewMode === "calendar" && (
+        <CalendarView t={t} />
+      )}
+
+      {viewMode === "list" && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>{t("investors.allInvestors")}</CardTitle>
+                <CardDescription>
+                  {filtered.length} of {baseInvestors.length}
+                </CardDescription>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="py-12 text-center text-muted-foreground text-sm px-6">
+                {t("investors.loading")}
+              </div>
+            ) : isEmpty ? (
+              <div className="py-12 text-center space-y-3 px-6">
+                <p className="text-muted-foreground text-sm">
+                  {t("investors.emptyDesc")}
+                </p>
+                {canEdit && (
+                  <Button onClick={openCreate}>
+                    <Plus className="h-4 w-4 mr-1" /> {t("investors.newInvestor")}
+                  </Button>
+                )}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground px-6">
+                {t("investors.noMatch") || "No investors match the current filters."}
+              </div>
+            ) : (
+              <div>
+                <div className="overflow-x-auto px-6">
+                  <Table className="min-w-[640px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-8"></TableHead>
+                        <TableHead>{t("investors.name")}</TableHead>
+                        <TableHead>{t("investors.entityKind")}</TableHead>
+                        <TableHead>{t("investors.status")}</TableHead>
+                        <TableHead>{t("investors.email")}</TableHead>
+                        <TableHead>{t("investors.phone")}</TableHead>
+                        <TableHead>{t("investors.lastContact") || "Last Contact"}</TableHead>
+                        <TableHead className="w-[100px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((inv: any) => (
+                        <>
+                          <TableRow
+                            key={inv.id}
+                            className="hover:bg-secondary/30 cursor-pointer"
+                            onClick={() => toggleExpanded(inv.id)}
+                          >
+                            <TableCell className="w-8 pr-0">
+                              {expandedId === inv.id
+                                ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {inv.name}
+                              {inv.aka && inv.aka !== inv.name && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  ({inv.aka})
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>{entityBadge(inv.entityKind as EntityKind)}</TableCell>
+                            <TableCell>{statusBadge(inv.status as InvestorStatus, t)}</TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {inv.email ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {inv.phone ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {inv.lastContactAt ? formatDate(inv.lastContactAt) : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-end gap-1">
+                                {canEdit && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={(e) => openEdit(inv, e)}
+                                    title={t("investors.edit")}
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                {canDelete && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={(e) => handleDelete(inv, e)}
+                                    title={t("investors.delete")}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {expandedId === inv.id && (
+                            <TableRow key={`${inv.id}-timeline`}>
+                              <TableCell colSpan={8} className="p-0">
+                                <InvestorActivityTimeline
+                                  investorId={inv.id}
+                                  investorName={inv.name}
+                                  canEdit={canEdit}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(v) => (v ? setDialogOpen(true) : closeDialog())}>

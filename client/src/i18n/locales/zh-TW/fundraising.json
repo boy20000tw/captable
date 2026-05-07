@@ -292,5 +292,11 @@
   "pipeline.upcoming30": "未來 30 天",
   "pipeline.pendingActivities": "項待處理活動",
   "pipeline.noUpcoming": "目前沒有待處理活動",
-  "pipeline.legend": "活動類型"
+  "pipeline.legend": "活動類型",
+
+  "board.listView": "列表",
+  "board.boardView": "看板",
+  "board.calendarView": "日曆",
+  "board.emptyColumn": "尚無投資人",
+  "board.advanceTo": "推進至"
 }

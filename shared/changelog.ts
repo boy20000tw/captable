@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.48.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Investor CRM — Unified 3-View Page + Board Kanban + Status Auto-Sync",
+    description: "投資人頁面統一為三視圖（列表/看板/日曆），Pipeline 日曆併入 Investors 頁面。新增 Board View 看板（5 欄 Kanban，一鍵推進狀態）。Allocation 推進時自動同步投資人狀態（pledged→Meeting, signed→Term Sheet, funded/issued→Invested）。側邊欄精簡為 3 項。",
+  },
+  {
     version: "2.47.0",
     date: "2026-05-07",
     type: "minor",

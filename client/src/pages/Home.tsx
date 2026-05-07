@@ -1013,7 +1013,7 @@ function UpcomingActivitiesCard({
       {items.length > 8 && (
         <div className="px-4 py-2 border-t border-border text-center">
           <button
-            onClick={() => onNavigate("/investor-pipeline")}
+            onClick={() => onNavigate("/investors")}
             className="text-[11px] text-primary hover:underline"
           >
             {isZh ? `查看全部 ${items.length} 項` : `View all ${items.length} items`} →

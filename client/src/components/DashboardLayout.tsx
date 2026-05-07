@@ -67,7 +67,6 @@ import {
   Receipt,
   Landmark,
   CalendarClock,
-  CalendarDays,
   HelpCircle,
   Gavel,
 } from "lucide-react";
@@ -128,7 +127,6 @@ function buildNavStructure(t: TFunction<"nav">, companyRole: CompanyRole | null)
       items: [
         { icon: Rocket,       label: t("fundraising.rounds"),      path: "/funding-rounds" },
         { icon: Users,        label: t("fundraising.investors"),   path: "/investors" },
-        { icon: CalendarDays, label: t("fundraising.pipeline"),    path: "/investor-pipeline" },
         { icon: FileText,     label: t("fundraising.instruments"), path: "/instruments" },
       ],
     },

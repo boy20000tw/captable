@@ -1153,6 +1153,27 @@ const v1AllocationsRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: `Failed to advance allocation to ${result.newStatus} status; possible race condition.` });
       }
     }
+    // Auto-sync investor status based on allocation progress
+    const ALLOC_TO_INVESTOR: Record<string, string> = {
+      pledged: "meeting",
+      signed: "term_sheet",
+      funded: "invested",
+      issued: "invested",
+    };
+    const mappedInvestorStatus = ALLOC_TO_INVESTOR[result.newStatus];
+    if (mappedInvestorStatus && existing.investorId) {
+      const inv = await getInvestorById(ctx.companyId, existing.investorId);
+      if (inv) {
+        // Only advance forward, never regress (prospect < meeting < term_sheet < invested)
+        const INVESTOR_ORDER: Record<string, number> = { prospect: 0, meeting: 1, term_sheet: 2, invested: 3, passed: 4 };
+        const currentOrder = INVESTOR_ORDER[inv.status as string] ?? 0;
+        const targetOrder = INVESTOR_ORDER[mappedInvestorStatus] ?? 0;
+        if (targetOrder > currentOrder && inv.status !== "passed") {
+          await updateInvestor(ctx.companyId, existing.investorId, { status: mappedInvestorStatus as any });
+        }
+      }
+    }
+
     await createAuditLog({
       companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
       action: "update", resourceType: "allocation", resourceId: input.id,

@@ -290,5 +290,11 @@
   "pipeline.upcoming30": "Upcoming 30 Days",
   "pipeline.pendingActivities": "pending activities",
   "pipeline.noUpcoming": "No upcoming activities",
-  "pipeline.legend": "Activity Types"
+  "pipeline.legend": "Activity Types",
+
+  "board.listView": "List",
+  "board.boardView": "Board",
+  "board.calendarView": "Calendar",
+  "board.emptyColumn": "No investors",
+  "board.advanceTo": "Advance to"
 }
