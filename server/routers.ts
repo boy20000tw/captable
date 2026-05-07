@@ -70,6 +70,9 @@ import {
   createTechShareTaxRecord, updateTechShareTaxRecord, deleteTechShareTaxRecord,
   getAngelTaxDeductions, getAngelTaxDeductionById, getUpcomingAngelTaxDeductions,
   getUpcomingDeadlines, syncDeadlineNotifications,
+  getInvestorActivities, getCompanyActivities, getInvestorActivityById,
+  createInvestorActivity, updateInvestorActivity, deleteInvestorActivity,
+  getUpcomingInvestorActivities,
   createAngelTaxDeduction, updateAngelTaxDeduction, deleteAngelTaxDeduction,
   // Closed Company (TW)
   getClosedCompanyProvision, upsertClosedCompanyProvision,
@@ -2864,6 +2867,83 @@ const deadlinesRouter = router({
   }),
 });
 
+// ─── Investor Activities Router (CRM Pipeline) ─────────────────────────────────
+const investorActivitiesRouter = router({
+  /** List activities for a specific investor */
+  byInvestor: companyProcedure
+    .input(z.object({ investorId: z.number() }))
+    .query(({ ctx, input }) => getInvestorActivities(ctx.companyId, input.investorId)),
+
+  /** List all activities for the company (calendar view), with optional filters */
+  list: companyProcedure
+    .input(z.object({
+      status: z.enum(["pending", "completed", "cancelled"]).optional(),
+      fromDate: z.string().optional(),
+      toDate: z.string().optional(),
+    }).optional())
+    .query(({ ctx, input }) => getCompanyActivities(ctx.companyId, input)),
+
+  /** Get upcoming activities within N days (for Dashboard) */
+  upcoming: companyProcedure
+    .input(z.object({ withinDays: z.number().min(1).max(365).default(60) }).optional())
+    .query(({ ctx, input }) => getUpcomingInvestorActivities(ctx.companyId, input?.withinDays ?? 60)),
+
+  /** Get a single activity */
+  get: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .query(({ ctx, input }) => getInvestorActivityById(ctx.companyId, input.id)),
+
+  /** Create a new activity */
+  create: companyEditorProcedure
+    .input(z.object({
+      investorId: z.number(),
+      type: z.enum(["meeting", "document", "discussion", "follow_up", "call", "email", "note", "other"]),
+      title: z.string().min(1).max(500),
+      description: z.string().optional(),
+      dueDate: z.string().optional(),
+      priority: z.enum(["high", "medium", "low"]).default("medium"),
+      metadata: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return createInvestorActivity({
+        companyId: ctx.companyId,
+        investorId: input.investorId,
+        userId: ctx.user!.id,
+        type: input.type,
+        title: input.title,
+        description: input.description ?? null,
+        dueDate: input.dueDate ? new Date(input.dueDate) : null,
+        priority: input.priority,
+        status: "pending",
+        metadata: input.metadata ?? null,
+      });
+    }),
+
+  /** Update an activity */
+  update: companyEditorProcedure
+    .input(z.object({
+      id: z.number(),
+      type: z.enum(["meeting", "document", "discussion", "follow_up", "call", "email", "note", "other"]).optional(),
+      title: z.string().min(1).max(500).optional(),
+      description: z.string().optional(),
+      dueDate: z.string().nullable().optional(),
+      status: z.enum(["pending", "completed", "cancelled"]).optional(),
+      priority: z.enum(["high", "medium", "low"]).optional(),
+      metadata: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, dueDate, ...rest } = input;
+      const data: any = { ...rest };
+      if (dueDate !== undefined) data.dueDate = dueDate ? new Date(dueDate) : null;
+      return updateInvestorActivity(ctx.companyId, id, data);
+    }),
+
+  /** Delete an activity */
+  delete: companyEditorProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(({ ctx, input }) => deleteInvestorActivity(ctx.companyId, input.id)),
+});
+
 // ─── Closed Company Router (閉鎖性公司 — 台灣法規) ───────────────────────────
 const closedCompanyRouter = router({
   // Company-level provisions (single record per company)
@@ -3028,6 +3108,7 @@ export const appRouter = router({
   techShareTax: techShareTaxRouter,
   angelTax: angelTaxRouter,
   deadlines: deadlinesRouter,
+  investorActivities: investorActivitiesRouter,
   closedCompany: closedCompanyRouter,
   v1: router({
     investors: v1InvestorsRouter,

@@ -20,6 +20,20 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.47.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Investor CRM — Activity Timeline, Pipeline Calendar & Dashboard",
+    description: "投資人 CRM 前端完整上線：投資人列表可展開內嵌活動時間軸（待處理/已完成分區、逾期高亮、類型與優先級徽章）；全新管線日曆頁面（月檢視、活動分日顯示、30 天即將到來列表）；Dashboard 右側新增即將到來活動卡片。",
+  },
+  {
+    version: "2.46.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Investor CRM Activities — Backend Foundation",
+    description: "投資人 CRM 活動追蹤後端。新增 investor_activities 資料表（會議、文件、跟進、電話、備忘等 8 種類型），含 CRUD tRPC 路由、狀態/優先級/到期日篩選、自動更新 lastContactAt。",
+  },
+  {
     version: "2.45.0",
     date: "2026-05-07",
     type: "minor",

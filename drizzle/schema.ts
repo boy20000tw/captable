@@ -1318,3 +1318,33 @@ export const companyKeys = pgTable("company_keys", {
 });
 export type CompanyKey = typeof companyKeys.$inferSelect;
 export type InsertCompanyKey = typeof companyKeys.$inferInsert;
+
+// ─── Investor Activities (CRM Pipeline — meetings, follow-ups, tasks) ────────
+export const investorActivityTypeEnum = pgEnum("investor_activity_type", [
+    "meeting", "document", "discussion", "follow_up", "call", "email", "note", "other",
+]);
+export const investorActivityStatusEnum = pgEnum("investor_activity_status", [
+    "pending", "completed", "cancelled",
+]);
+export const investorActivityPriorityEnum = pgEnum("investor_activity_priority", [
+    "high", "medium", "low",
+]);
+
+export const investorActivities = pgTable("investor_activities", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    investorId: integer("investorId").notNull(),
+    userId: integer("userId").notNull(),               // creator / assignee
+    type: investorActivityTypeEnum("type").notNull(),
+    title: varchar("title", { length: 500 }).notNull(),
+    description: text("description"),
+    dueDate: timestamp("dueDate"),                      // nullable — notes don't need due dates
+    status: investorActivityStatusEnum("status").default("pending").notNull(),
+    priority: investorActivityPriorityEnum("priority").default("medium").notNull(),
+    completedAt: timestamp("completedAt"),
+    metadata: text("metadata"),                         // JSON — flexible extra data
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type InvestorActivity = typeof investorActivities.$inferSelect;
+export type InsertInvestorActivity = typeof investorActivities.$inferInsert;

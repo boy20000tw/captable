@@ -45,6 +45,7 @@ import {
   supportTickets, InsertSupportTicket,
   supportFaqs, InsertSupportFaq,
   companyKeys, InsertCompanyKey,
+  investorActivities, InsertInvestorActivity,
 } from "../drizzle/schema";
 import {
   generateCompanyDek, getCompanyDek as getCachedDek, invalidateDekCache,
@@ -2535,6 +2536,106 @@ export async function syncDeadlineNotifications(companyId: number, userId: numbe
     console.error("[syncDeadlineNotifications] Error:", e);
     return 0;
   }
+}
+
+// ─── Investor Activities (CRM Pipeline) ─────────────────────────────────────
+
+/** List activities for a specific investor. */
+export async function getInvestorActivities(companyId: number, investorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(investorActivities)
+    .where(and(eq(investorActivities.companyId, companyId), eq(investorActivities.investorId, investorId)))
+    .orderBy(desc(investorActivities.createdAt));
+}
+
+/** List all activities for a company (for calendar view). Optional filters. */
+export async function getCompanyActivities(
+  companyId: number,
+  opts?: { status?: string; fromDate?: string; toDate?: string },
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(investorActivities.companyId, companyId)];
+  if (opts?.status) conditions.push(eq(investorActivities.status, opts.status as any));
+  if (opts?.fromDate) conditions.push(sql`${investorActivities.dueDate} >= ${opts.fromDate}::timestamp`);
+  if (opts?.toDate) conditions.push(sql`${investorActivities.dueDate} <= ${opts.toDate}::timestamp`);
+  const rows = await db.select({
+    activity: investorActivities,
+    investorName: investors.name,
+  })
+    .from(investorActivities)
+    .leftJoin(investors, eq(investorActivities.investorId, investors.id))
+    .where(and(...conditions))
+    .orderBy(asc(investorActivities.dueDate));
+  return rows.map(r => ({ ...r.activity, investorName: r.investorName }));
+}
+
+/** Get a single activity by id. */
+export async function getInvestorActivityById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(investorActivities)
+    .where(and(eq(investorActivities.id, id), eq(investorActivities.companyId, companyId)));
+  return row ?? null;
+}
+
+/** Create a new investor activity. */
+export async function createInvestorActivity(data: InsertInvestorActivity) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [row] = await db.insert(investorActivities).values(data).returning();
+  // Update investor lastContactAt
+  await db.update(investors)
+    .set({ lastContactAt: new Date(), updatedAt: new Date() })
+    .where(eq(investors.id, data.investorId));
+  return row;
+}
+
+/** Update an investor activity. */
+export async function updateInvestorActivity(
+  companyId: number, id: number,
+  data: Partial<Pick<InsertInvestorActivity, "type" | "title" | "description" | "dueDate" | "status" | "priority" | "completedAt" | "metadata">>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const updates: Record<string, any> = { ...data, updatedAt: new Date() };
+  if (data.status === "completed" && !data.completedAt) updates.completedAt = new Date();
+  const [row] = await db.update(investorActivities)
+    .set(updates)
+    .where(and(eq(investorActivities.id, id), eq(investorActivities.companyId, companyId)))
+    .returning();
+  return row;
+}
+
+/** Delete an investor activity. */
+export async function deleteInvestorActivity(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(investorActivities)
+    .where(and(eq(investorActivities.id, id), eq(investorActivities.companyId, companyId)));
+}
+
+/** Get upcoming investor activities for Dashboard deadlines integration. */
+export async function getUpcomingInvestorActivities(companyId: number, withinDays = 60) {
+  const db = await getDb();
+  if (!db) return [];
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() + withinDays);
+  const rows = await db.select({
+    activity: investorActivities,
+    investorName: investors.name,
+  })
+    .from(investorActivities)
+    .leftJoin(investors, eq(investorActivities.investorId, investors.id))
+    .where(and(
+      eq(investorActivities.companyId, companyId),
+      eq(investorActivities.status, "pending"),
+      isNotNull(investorActivities.dueDate),
+      sql`${investorActivities.dueDate} <= ${cutoff.toISOString()}::timestamp`,
+    ))
+    .orderBy(asc(investorActivities.dueDate));
+  return rows.map(r => ({ ...r.activity, investorName: r.investorName }));
 }
 
 // ─── Share Transfers (Secondary Trading) ───────────────────────────────────────

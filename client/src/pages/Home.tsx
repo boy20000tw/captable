@@ -11,7 +11,9 @@ import {
   TrendingUp, Users, PieChart as PieIcon, Sparkles, ArrowRight,
   Briefcase, Shield, Camera, Calculator, Rocket, BookOpen,
   Building2, ChevronRight, Lightbulb, Upload, Target,
-  AlertTriangle, Clock, Bell, CheckCircle2,
+  AlertTriangle, Clock, Bell, CheckCircle2, CalendarDays,
+  Phone, Mail, FileText as FileTextIcon, MessageSquare,
+  StickyNote, MoreHorizontal,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -69,6 +71,7 @@ function DashboardContent() {
   const esopSummary = trpc.v1.esop.poolSummary.useQuery();
   const rounds = trpc.fundingRounds.list.useQuery();
   const deadlines = trpc.deadlines.list.useQuery({ withinDays: 180 });
+  const upcomingActivities = trpc.investorActivities.upcoming.useQuery({ withinDays: 30 });
 
   // Auto-sync deadline notifications on mount (fire-and-forget)
   const syncDeadlines = trpc.deadlines.sync.useMutation();
@@ -621,6 +624,10 @@ function DashboardContent() {
               items={deadlines.data ?? []}
               onNavigate={setLocation}
             />
+            <UpcomingActivitiesCard
+              items={upcomingActivities.data ?? []}
+              onNavigate={setLocation}
+            />
           </div>
         </div>
         </div>
@@ -900,6 +907,117 @@ function UpcomingDeadlinesCard({
           <span className="text-[11px] text-muted-foreground">
             {isZh ? `還有 ${items.length - 10} 個項目` : `+${items.length - 10} more`}
           </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Upcoming Investor Activities Card ─────────────────────────────────────
+const ACT_ICON_MAP: Record<string, typeof CalendarDays> = {
+  meeting: CalendarDays,
+  document: FileTextIcon,
+  discussion: MessageSquare,
+  follow_up: ArrowRight,
+  call: Phone,
+  email: Mail,
+  note: StickyNote,
+  other: MoreHorizontal,
+};
+
+const ACT_PRIORITY_DOT: Record<string, string> = {
+  high: "bg-red-500",
+  medium: "bg-amber-400",
+  low: "bg-gray-400",
+};
+
+function UpcomingActivitiesCard({
+  items,
+  onNavigate,
+}: {
+  items: any[];
+  onNavigate: (path: string) => void;
+}) {
+  const { i18n } = useTranslation();
+  const isZh = i18n.language.startsWith("zh");
+
+  if (items.length === 0) return null;
+
+  const overdueCount = items.filter(i => i.dueDate && new Date(i.dueDate) < new Date()).length;
+  const highCount = items.filter(i => i.priority === "high").length;
+
+  return (
+    <div className="bg-card border rounded-sm border-border">
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-blue-500" />
+          <h3 className="text-sm font-semibold">
+            {isZh ? "投資人跟進" : "Investor Follow-ups"}
+          </h3>
+        </div>
+        <div className="flex gap-2 mt-2">
+          {overdueCount > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+              {overdueCount} {isZh ? "逾期" : "overdue"}
+            </span>
+          )}
+          {highCount > 0 && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
+              {highCount} {isZh ? "高優先" : "high priority"}
+            </span>
+          )}
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+            {items.length} {isZh ? "項待辦" : "pending"}
+          </span>
+        </div>
+      </div>
+
+      <div className="divide-y divide-border">
+        {items.slice(0, 8).map(act => {
+          const Icon = ACT_ICON_MAP[act.type] ?? MoreHorizontal;
+          const isOverdue = act.dueDate && new Date(act.dueDate) < new Date();
+          const dotColor = ACT_PRIORITY_DOT[act.priority] ?? "bg-gray-400";
+
+          return (
+            <button
+              key={act.id}
+              onClick={() => onNavigate("/investors")}
+              className="w-full text-left px-4 py-2.5 hover:bg-muted/40 transition-colors"
+            >
+              <div className="flex items-start gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${dotColor}`} />
+                <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">{act.title}</p>
+                  <div className="flex items-center justify-between gap-1 mt-0.5">
+                    <span className="text-[11px] text-muted-foreground truncate">
+                      {(act as any).investorName ?? ""}
+                    </span>
+                    <span className={`text-[11px] font-medium tabular-nums shrink-0 ${
+                      isOverdue ? "text-red-600" : "text-muted-foreground"
+                    }`}>
+                      {act.dueDate
+                        ? new Date(act.dueDate).toLocaleDateString(isZh ? "zh-TW" : "en-US", {
+                            month: "short", day: "numeric",
+                          })
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {items.length > 8 && (
+        <div className="px-4 py-2 border-t border-border text-center">
+          <button
+            onClick={() => onNavigate("/investor-pipeline")}
+            className="text-[11px] text-primary hover:underline"
+          >
+            {isZh ? `查看全部 ${items.length} 項` : `View all ${items.length} items`} →
+          </button>
         </div>
       )}
     </div>
