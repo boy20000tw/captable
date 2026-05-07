@@ -78,7 +78,7 @@ export default function CompanySettingsPage() {
 }
 
 function CompanySettingsContent() {
-  const { t } = useTranslation("pages");
+  const { t } = useTranslation(["pages", "settings"]);
   const { canEdit } = usePermissions();
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -129,13 +129,13 @@ function CompanySettingsContent() {
 
   const deleteAccountMut = trpc.auth.deleteMyAccount.useMutation({
     onSuccess: () => {
-      toast.success(t("settings.companySettings.deleteAccountSuccess"));
+      toast.success(t("settings:companySettings.deleteAccountSuccess"));
       // Redirect to home after account deletion
       navigate("/");
     },
     onError: (e) => {
       if (e.message.includes("Email does not match")) {
-        toast.error(t("settings.companySettings.deleteAccountEmailMismatch"));
+        toast.error(t("settings:companySettings.deleteAccountEmailMismatch"));
       } else {
         toast.error(e.message);
       }
@@ -454,23 +454,23 @@ function CompanySettingsContent() {
             <CardHeader>
               <CardTitle className="text-red-700 flex items-center gap-2">
                 <Trash2 className="h-5 w-5" />
-                {t("settings.companySettings.dangerZone")}
+                {t("settings:companySettings.dangerZone")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <h3 className="font-semibold text-red-900 mb-2">
-                  {t("settings.companySettings.deleteAccount")}
+                  {t("settings:companySettings.deleteAccount")}
                 </h3>
                 <p className="text-sm text-red-800 mb-4">
-                  {t("settings.companySettings.deleteAccountDesc")}
+                  {t("settings:companySettings.deleteAccountDesc")}
                 </p>
                 <Button
                   variant="destructive"
                   onClick={() => setDeleteDialogOpen(true)}
                   disabled={deleteAccountMut.isPending}
                 >
-                  {deleteAccountMut.isPending ? "Deleting..." : t("settings.companySettings.deleteAccountBtn")}
+                  {deleteAccountMut.isPending ? "Deleting..." : t("settings:companySettings.deleteAccountBtn")}
                 </Button>
               </div>
             </CardContent>
@@ -482,16 +482,16 @@ function CompanySettingsContent() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="text-red-700">
-                {t("settings.companySettings.deleteAccountConfirmTitle")}
+                {t("settings:companySettings.deleteAccountConfirmTitle")}
               </DialogTitle>
               <DialogDescription>
-                {t("settings.companySettings.deleteAccountConfirmDesc")}
+                {t("settings:companySettings.deleteAccountConfirmDesc")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="confirmEmail">
-                  {t("settings.companySettings.deleteAccountConfirmLabel")}
+                  {t("settings:companySettings.deleteAccountConfirmLabel")}
                 </Label>
                 <Input
                   id="confirmEmail"
@@ -520,7 +520,7 @@ function CompanySettingsContent() {
                   deleteAccountMut.isPending
                 }
               >
-                {deleteAccountMut.isPending ? "Deleting..." : t("settings.companySettings.deleteAccountBtn")}
+                {deleteAccountMut.isPending ? "Deleting..." : t("settings:companySettings.deleteAccountBtn")}
               </Button>
             </DialogFooter>
           </DialogContent>
