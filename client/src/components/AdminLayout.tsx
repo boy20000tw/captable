@@ -14,7 +14,7 @@ import {
 import {
   LayoutDashboard, LogOut, Building2, ClipboardList,
   ArrowLeft, ShieldCheck, MessageSquare, Tag,
-  Lock, CreditCard, Users, FileText,
+  Lock, CreditCard, Users, FileText, Bell,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import LanguageToggle from "./LanguageToggle";
@@ -37,6 +37,7 @@ const adminNavGroups: NavGroup[] = [
       { icon: FileText,        labelKey: "nav.templates",   path: "/admin/templates",  navKey: "templates" },
       { icon: MessageSquare,   labelKey: "nav.tickets",     path: "/admin/tickets",    navKey: "tickets" },
       { icon: Users,           labelKey: "nav.team",        path: "/admin/team",       navKey: "team" },
+      { icon: Bell,            labelKey: "nav.notifications", path: "/admin/notifications", navKey: "notifications" },
     ],
   },
   {

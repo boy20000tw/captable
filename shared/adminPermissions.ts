@@ -19,11 +19,12 @@ export type AdminNavKey =
   | "activity"
   | "versions"
   | "security"
-  | "payment";
+  | "payment"
+  | "notifications";
 
 const ALL_ADMIN_NAV: AdminNavKey[] = [
   "overview", "companies", "tickets", "team", "templates",
-  "activity", "versions", "security", "payment",
+  "activity", "versions", "security", "payment", "notifications",
 ];
 
 export const ADMIN_ROLE_VISIBLE_NAV: Record<AdminRole, AdminNavKey[]> = {

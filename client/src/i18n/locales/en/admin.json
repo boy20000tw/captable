@@ -276,5 +276,28 @@
   "templates.plan.starter": "Starter",
   "templates.plan.standard": "Standard",
   "templates.plan.plus": "Plus",
-  "templates.plan.enterprise": "Enterprise"
+  "templates.plan.enterprise": "Enterprise",
+
+  "nav.notifications": "Notifications",
+
+  "notifications.title": "Broadcast Notifications",
+  "notifications.desc": "Send platform-wide notifications to all companies",
+  "notifications.sendNew": "Send New Broadcast",
+  "notifications.formTitle": "Title",
+  "notifications.formTitlePlaceholder": "e.g. Scheduled maintenance on May 10",
+  "notifications.formMessage": "Message",
+  "notifications.formMessagePlaceholder": "Describe the notification content...",
+  "notifications.formChannel": "Channel",
+  "notifications.channel_in_app": "In-App",
+  "notifications.channel_email": "Email",
+  "notifications.channel_both": "Both",
+  "notifications.formLink": "Link URL (optional)",
+  "notifications.formLinkHint": "Internal path (e.g. /pricing) or external URL. Shown as an action link in the notification.",
+  "notifications.sendBtn": "Send Broadcast",
+  "notifications.sending": "Sending...",
+  "notifications.sendSuccess": "Broadcast sent to {{count}} companies",
+  "notifications.history": "Broadcast History",
+  "notifications.loading": "Loading broadcasts...",
+  "notifications.empty": "No broadcasts sent yet.",
+  "notifications.companies": "companies"
 }

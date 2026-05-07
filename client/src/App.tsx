@@ -37,6 +37,7 @@ import AdminOverviewPage from "./pages/admin/AdminOverview";
 import AdminCompaniesPage from "./pages/admin/AdminCompanies";
 import AdminActivityPage from "./pages/admin/AdminActivity";
 import AdminTicketsPage from "./pages/admin/AdminTickets";
+import AdminNotificationsPage from "./pages/admin/AdminNotifications";
 import AdminVersionsPage from "./pages/admin/AdminVersions";
 import AdminSecurityPage from "./pages/admin/AdminSecurity";
 import AdminPaymentPage from "./pages/admin/AdminPayment";
@@ -97,6 +98,7 @@ function Router() {
       <Route path="/admin/templates" component={AdminTemplatesPage} />
       <Route path="/admin/activity" component={AdminActivityPage} />
       <Route path="/admin/tickets" component={AdminTicketsPage} />
+      <Route path="/admin/notifications" component={AdminNotificationsPage} />
       <Route path="/admin/versions" component={AdminVersionsPage} />
       <Route path="/admin/security" component={AdminSecurityPage} />
       <Route path="/admin/payment" component={AdminPaymentPage} />

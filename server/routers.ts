@@ -63,6 +63,7 @@ import {
   // Notifications
   getNotifications, getUnreadNotificationCount, createNotification,
   markNotificationRead, markAllNotificationsRead, deleteNotification,
+  broadcastNotification, listBroadcasts,
   // Share Transfers
   getShareTransfers, getShareTransferById, createShareTransfer,
   updateShareTransfer, deleteShareTransfer,
@@ -3499,6 +3500,30 @@ export const appRouter = router({
         });
         return report;
       }),
+
+    // ── Broadcast Notifications ────────────────────────────────────────
+    /** Send a notification to ALL companies on the platform. */
+    broadcastNotification: adminProcedure
+      .input(z.object({
+        title: z.string().min(1).max(255),
+        message: z.string().min(1).max(5000),
+        channel: z.enum(["in_app", "email", "both"]).default("in_app"),
+        linkUrl: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await broadcastNotification(input);
+        await createAdminAuditLog({
+          adminUserId: ctx.user!.id,
+          adminUserName: ctx.user!.name ?? undefined,
+          adminUserEmail: ctx.user!.email ?? undefined,
+          action: "broadcast_notification",
+          details: JSON.stringify({ title: input.title, companiesNotified: result.count }),
+        });
+        return result;
+      }),
+
+    /** List recent broadcast notifications (admin history). */
+    listBroadcasts: adminProcedure.query(() => listBroadcasts(100)),
   }),
 
   // ═══════════════════════════════════════════════════════════════════════════

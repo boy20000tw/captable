@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.50.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Admin Broadcast Notifications — 平台級廣播通知",
+    description: "新增後臺管理廣播通知功能：管理員可一鍵向所有公司發送站內 / Email / 雙管道通知。含發送表單、頻道選擇、歷史記錄，並整合 platform_broadcast 通知類型。",
+  },
+  {
     version: "2.49.1",
     date: "2026-05-07",
     type: "patch",

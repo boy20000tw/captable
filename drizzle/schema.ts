@@ -75,7 +75,7 @@ export const adminAuditActionEnum = pgEnum("admin_audit_action", [
     "view_company", "update_plan", "update_permissions",
     "view_audit_log", "suspend_company", "reactivate_company",
     "update_admin_role", "add_admin", "remove_admin", "transfer_super_admin",
-    "rotate_company_dek", "rotate_platform_dek", "delete_company",
+    "rotate_company_dek", "rotate_platform_dek", "delete_company", "broadcast_notification",
 ]);
 
 // ─── Companies ──────────────────────────────────────────────────────────────
@@ -1072,6 +1072,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
     "election_83b",      // 83(b) filing deadline approaching
     "share_transfer",    // shares transferred
     "general",           // manual / system notification
+    "platform_broadcast", // admin broadcast to all companies
 ]);
 
 export const notifications = pgTable("notifications", {

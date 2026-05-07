@@ -276,5 +276,28 @@
   "templates.plan.starter": "入門版",
   "templates.plan.standard": "標準版",
   "templates.plan.plus": "進階版",
-  "templates.plan.enterprise": "企業版"
+  "templates.plan.enterprise": "企業版",
+
+  "nav.notifications": "通知管理",
+
+  "notifications.title": "廣播通知",
+  "notifications.desc": "向所有公司發送平台級通知",
+  "notifications.sendNew": "發送新廣播",
+  "notifications.formTitle": "標題",
+  "notifications.formTitlePlaceholder": "例：5 月 10 日排程維護通知",
+  "notifications.formMessage": "訊息內容",
+  "notifications.formMessagePlaceholder": "描述通知內容...",
+  "notifications.formChannel": "發送管道",
+  "notifications.channel_in_app": "站內通知",
+  "notifications.channel_email": "Email",
+  "notifications.channel_both": "兩者皆發",
+  "notifications.formLink": "連結 URL（選填）",
+  "notifications.formLinkHint": "內部路徑（如 /pricing）或外部 URL，將顯示為通知中的操作連結。",
+  "notifications.sendBtn": "發送廣播",
+  "notifications.sending": "發送中...",
+  "notifications.sendSuccess": "已向 {{count}} 間公司發送廣播",
+  "notifications.history": "廣播歷史",
+  "notifications.loading": "載入中...",
+  "notifications.empty": "尚未發送任何廣播。",
+  "notifications.companies": "間公司"
 }

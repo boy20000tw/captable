@@ -2477,6 +2477,46 @@ export async function deleteNotification(companyId: number, id: number) {
 }
 
 /**
+ * Broadcast a notification to ALL companies on the platform.
+ * Creates one notification row per company with type "platform_broadcast".
+ * Returns the count of notifications created.
+ */
+export async function broadcastNotification(data: {
+  title: string;
+  message: string;
+  channel?: "in_app" | "email" | "both";
+  linkUrl?: string;
+}) {
+  const db = await getDb();
+  if (!db) return { count: 0 };
+  const allCompanies = await db.select({ id: companies.id }).from(companies);
+  if (allCompanies.length === 0) return { count: 0 };
+  const rows = allCompanies.map((c) => ({
+    companyId: c.id,
+    userId: null as unknown as number,
+    type: "platform_broadcast" as const,
+    title: data.title,
+    message: data.message ?? null,
+    channel: (data.channel ?? "in_app") as "in_app" | "email" | "both",
+    linkUrl: data.linkUrl ?? null,
+    metadata: JSON.stringify({ broadcast: true, broadcastAt: new Date().toISOString() }),
+  }));
+  await db.insert(notifications).values(rows);
+  return { count: allCompanies.length };
+}
+
+/** List recent broadcast notifications (admin view). */
+export async function listBroadcasts(limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select()
+    .from(notifications)
+    .where(eq(notifications.type, "platform_broadcast"))
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit);
+}
+
+/**
  * Sync deadline-based notifications.
  * Scans upcoming deadlines and auto-creates notifications for urgent/warning items.
  * Deduplicates by checking metadata JSON for matching deadlineId + severity.
