@@ -50,7 +50,7 @@ export default function AdminNotificationsPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-8">
+      <div className="p-8 max-w-6xl mx-auto space-y-8">
         {/* ── Header ───────────────────────────────────────────── */}
         <div>
           <h1 className="font-serif text-2xl font-bold">{t("notifications.title")}</h1>

@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.50.1",
+    date: "2026-05-07",
+    type: "patch",
+    title: "Fix: 版本紀錄改讀統一 CHANGELOG + 通知頁面 padding 對齊",
+    description: "Admin 版本紀錄頁面從廢棄的 ADMIN_CHANGELOG 改讀主 CHANGELOG（修正版本停在 v1.8.0 的問題）。Admin Overview 當前版本同步修正。通知管理頁面補上 p-8 max-w-6xl mx-auto wrapper 對齊其他頁面。",
+  },
+  {
     version: "2.50.0",
     date: "2026-05-07",
     type: "minor",

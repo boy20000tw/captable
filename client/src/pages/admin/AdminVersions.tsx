@@ -1,11 +1,11 @@
 /**
- * Admin Version Log — displays the Admin Panel (MintPanel) changelog,
- * separate from the platform changelog.
+ * Admin Version Log — displays the unified platform changelog.
+ * Reads from shared/changelog.ts (single source of truth for all versioning).
  */
 
 import { useTranslation } from "react-i18next";
 import AdminLayout from "@/components/AdminLayout";
-import { ADMIN_CHANGELOG } from "../../../../shared/adminChangelog";
+import { CHANGELOG } from "../../../../shared/changelog";
 import { Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,8 +26,6 @@ export default function AdminVersionsPage() {
 
 function AdminVersionsContent() {
   const { t } = useTranslation("admin");
-  const { i18n } = useTranslation();
-  const isZh = i18n.language.startsWith("zh");
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">
@@ -40,7 +38,7 @@ function AdminVersionsContent() {
         </p>
       </div>
 
-      {ADMIN_CHANGELOG.length === 0 ? (
+      {CHANGELOG.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
             {t("versions.noEntries")}
@@ -48,7 +46,7 @@ function AdminVersionsContent() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {ADMIN_CHANGELOG.map((entry) => (
+          {CHANGELOG.map((entry) => (
             <Card key={entry.version}>
               <CardContent className="p-5">
                 <div className="flex items-start gap-4">
@@ -60,13 +58,13 @@ function AdminVersionsContent() {
                       {t(`versions.${entry.type}`)}
                     </Badge>
                   </div>
-                  {/* Title + description — bilingual */}
+                  {/* Title + description */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold leading-snug">
-                      {isZh ? entry.title : entry.titleEn}
+                      {entry.title}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                      {isZh ? entry.description : entry.descriptionEn}
+                      {entry.description}
                     </p>
                   </div>
                 </div>
