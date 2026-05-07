@@ -23,8 +23,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "2.50.1",
     date: "2026-05-07",
     type: "patch",
-    title: "Fix: 版本紀錄改讀統一 CHANGELOG + 通知頁面 padding 對齊",
-    description: "Admin 版本紀錄頁面從廢棄的 ADMIN_CHANGELOG 改讀主 CHANGELOG（修正版本停在 v1.8.0 的問題）。Admin Overview 當前版本同步修正。通知管理頁面補上 p-8 max-w-6xl mx-auto wrapper 對齊其他頁面。",
+    title: "Fix: Admin 版本紀錄整合雙 Changelog + 通知頁面 padding 對齊",
+    description: "Admin 版本紀錄頁面改為 Tab 切換，同時顯示前臺（Platform）與後臺（Admin Panel）兩份 Changelog。Overview 頁面同時展示兩者最新版本。通知管理頁面補上 p-8 max-w-6xl mx-auto wrapper 對齊其他頁面。補齊 adminChangelog.ts 缺漏的 v1.9.0~v1.12.0 四個版本。",
   },
   {
     version: "2.50.0",

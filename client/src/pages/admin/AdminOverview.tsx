@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { normalizePlan } from "../../../../shared/plans";
 import { CHANGELOG } from "../../../../shared/changelog";
+import { ADMIN_CHANGELOG } from "../../../../shared/adminChangelog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,8 @@ function AdminOverviewContent() {
   const { data: logs } = trpc.admin.adminAuditLogs.useQuery({ limit: 5, offset: 0 });
   const { data: tickets } = trpc.admin.adminTickets.useQuery(undefined, { retry: false });
 
-  const currentVersion = CHANGELOG[0];
+  const currentPlatformVersion = CHANGELOG[0];
+  const currentAdminVersion = ADMIN_CHANGELOG[0];
   const recentCompanies = companies?.slice(0, 5) ?? [];
   const openTickets = tickets?.filter((t: any) => t.status === "open" || t.status === "in_progress") ?? [];
 
@@ -113,8 +115,16 @@ function AdminOverviewContent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">v{currentVersion.version}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{currentVersion.date}</p>
+            <div className="space-y-1.5">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("overview.versionAdmin")}</p>
+                <p className="text-xl font-bold">v{currentAdminVersion.version}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("overview.versionPlatform")}</p>
+                <p className="text-base font-semibold text-muted-foreground">v{currentPlatformVersion.version}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

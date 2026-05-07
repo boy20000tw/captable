@@ -21,6 +21,42 @@ export type AdminChangelogEntry = {
 
 export const ADMIN_CHANGELOG: AdminChangelogEntry[] = [
   {
+    version: "1.12.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "版本紀錄整合 — 同時顯示前臺與後臺 Changelog",
+    titleEn: "Unified Version Log — Display Both Frontend & Admin Changelogs",
+    description: "Admin 版本紀錄頁面改為 Tab 切換，同時顯示前臺（Platform）與後臺（Admin Panel）兩份 Changelog。Overview 頁面同時展示兩者最新版本。",
+    descriptionEn: "Admin Version Log page now uses tabs to display both Platform and Admin Panel changelogs side by side. Overview page shows latest version from both changelogs.",
+  },
+  {
+    version: "1.11.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "廣播通知管理 — 平台級公告推送",
+    titleEn: "Broadcast Notifications — Platform-Wide Announcements",
+    description: "新增後臺廣播通知功能：管理員可向所有公司發送站內 / Email / 雙管道通知。含發送表單、頻道選擇、歷史記錄。",
+    descriptionEn: "Added broadcast notification feature: admins can send in-app/email/both notifications to all companies. Includes send form, channel selection, and broadcast history.",
+  },
+  {
+    version: "1.10.0",
+    date: "2026-05-04",
+    type: "minor",
+    title: "公司刪除功能 — 含確認保護",
+    titleEn: "Delete Company — With Confirmation Protection",
+    description: "平台管理員可永久刪除公司，需輸入完整公司名稱確認。刪除涵蓋所有業務資料、團隊成員、加密金鑰。操作記錄於稽核日誌。",
+    descriptionEn: "Platform admins can permanently delete companies with full name confirmation. Deletion cascades through all business data, team members, and encryption keys. Logged to audit trail.",
+  },
+  {
+    version: "1.9.0",
+    date: "2026-04-30",
+    type: "minor",
+    title: "平台範本管理 — 電子簽名範本統一管控",
+    titleEn: "Platform Template Management — Unified eSign Template Control",
+    description: "Admin Panel 新增 Templates 頁面。管理員可上傳、編輯、刪除合約範本，依文件類型分類、設定最低方案門檻。公司端依訂閱方案即時可見對應範本。",
+    descriptionEn: "Added Templates page to Admin Panel. Admins can upload, edit, and delete contract templates with document type classification and minimum plan requirements. Companies see templates based on their subscription tier.",
+  },
+  {
     version: "1.8.0",
     date: "2026-04-29",
     type: "minor",
