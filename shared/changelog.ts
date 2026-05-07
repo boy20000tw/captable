@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.49.1",
+    date: "2026-05-07",
+    type: "patch",
+    title: "Fix RBAC — 補齊新功能頁面角色權限",
+    description: "修正 CFO / Viewer / Lawyer 角色無法存取 /comps（可比公司分析）、/angel-tax（天使投資抵減）、/compare-plans 等新增頁面的權限白名單遺漏。同步修正 CompanySettings Danger Zone i18n namespace 問題。",
+  },
+  {
     version: "2.49.0",
     date: "2026-05-07",
     type: "minor",

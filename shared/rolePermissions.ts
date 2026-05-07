@@ -63,15 +63,15 @@ export const ROLE_ALLOWED_PATHS: Record<CompanyRole, string[] | "all"> = {
   cfo: [
     "/", "/cap-table", "/register", "/esop", "/esign",
     "/funding-rounds", "/investors", "/instruments",
-    "/waterfall", "/valuation", "/projections", "/anti-dilution",
-    "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers",
+    "/waterfall", "/valuation", "/projections", "/anti-dilution", "/comps",
+    "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers", "/angel-tax",
     "/snapshots", "/audit-log",
-    "/subscription", "/pricing", "/help",
+    "/subscription", "/pricing", "/compare-plans", "/help",
     "/privacy", "/terms",
   ],
   lawyer: [
     "/",
-    "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers",
+    "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers", "/angel-tax",
     "/help",
     "/privacy", "/terms",
   ],
@@ -82,10 +82,10 @@ export const ROLE_ALLOWED_PATHS: Record<CompanyRole, string[] | "all"> = {
   viewer: [
     "/", "/cap-table", "/register", "/esop", "/esign",
     "/funding-rounds", "/investors", "/instruments",
-    "/waterfall", "/valuation", "/projections", "/anti-dilution",
-    "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers",
+    "/waterfall", "/valuation", "/projections", "/anti-dilution", "/comps",
+    "/tech-share-tax", "/closed-company", "/409a", "/83b", "/transfers", "/angel-tax",
     "/snapshots", "/audit-log",
-    "/subscription", "/pricing", "/help",
+    "/subscription", "/pricing", "/compare-plans", "/help",
     "/privacy", "/terms",
   ],
 };
