@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.42.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Analysis Demo Data Seed Script",
+    description: "新增 scripts/seed-analysis-demo.ts，為 Analysis 模組 5 個頁面植入展示資料：Financial Projections（Biotech SaaS 五年預測）、3 個 Projection Scenarios（Base/Optimistic/Conservative）、5 家台灣上市生技公司 Comps Peers（合一/藥華藥/智擎/保瑞/晟德）、Liquidation Preferences（Pre-Seed/Seed/Series A）、Anti-Dilution Provisions（BBWA + Full Ratchet）。腳本完全冪等，可重複執行。",
+  },
+  {
     version: "2.41.0",
     date: "2026-05-06",
     type: "minor",
