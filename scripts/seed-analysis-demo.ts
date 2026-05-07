@@ -58,7 +58,7 @@ const compsPeerData = [
   {
     name: "合一生技",
     ticker: "4743.TW",
-    groupName: "台灣生技",
+    groupName: "Taiwan Biotech",
     revenue: 2_800_000_000,     // NT$28億
     ebitda: 1_200_000_000,      // NT$12億
     netIncome: 980_000_000,     // NT$9.8億
@@ -69,7 +69,7 @@ const compsPeerData = [
   {
     name: "藥華藥",
     ticker: "6446.TW",
-    groupName: "台灣生技",
+    groupName: "Taiwan Biotech",
     revenue: 5_200_000_000,     // NT$52億
     ebitda: 1_800_000_000,      // NT$18億
     netIncome: 1_500_000_000,   // NT$15億
@@ -80,7 +80,7 @@ const compsPeerData = [
   {
     name: "智擎生技",
     ticker: "4162.TW",
-    groupName: "台灣生技",
+    groupName: "Taiwan Biotech",
     revenue: 1_500_000_000,     // NT$15億
     ebitda: 450_000_000,        // NT$4.5億
     netIncome: 350_000_000,     // NT$3.5億
@@ -91,7 +91,7 @@ const compsPeerData = [
   {
     name: "保瑞藥業",
     ticker: "6472.TW",
-    groupName: "台灣生技",
+    groupName: "Taiwan Biotech",
     revenue: 12_000_000_000,    // NT$120億
     ebitda: 2_400_000_000,      // NT$24億
     netIncome: 1_800_000_000,   // NT$18億
@@ -102,7 +102,7 @@ const compsPeerData = [
   {
     name: "晟德大藥廠",
     ticker: "4123.TW",
-    groupName: "台灣生技",
+    groupName: "Taiwan Biotech",
     revenue: 3_800_000_000,     // NT$38億
     ebitda: 600_000_000,        // NT$6億
     netIncome: 400_000_000,     // NT$4億
@@ -184,7 +184,7 @@ async function main() {
       INSERT INTO financial_projections ("companyId", name, "startYear", years, assumptions)
       VALUES (
         ${companyId},
-        'Biotech SaaS 五年財務預測',
+        'Biotech SaaS 5-Year Projection',
         2025,
         5,
         ${JSON.stringify(baseAssumptions)}
@@ -192,7 +192,7 @@ async function main() {
       RETURNING id
     `;
     projectionId = proj.id;
-    console.log(`  ✅ Created projection: "Biotech SaaS 五年財務預測" (id=${projectionId})`);
+    console.log(`  ✅ Created projection: "Biotech SaaS 5-Year Projection" (id=${projectionId})`);
     console.log(`     Year1 NT$30M / GM 72% / Growth 150→40%`);
   }
 
@@ -203,20 +203,20 @@ async function main() {
 
   const scenarios = [
     {
-      name: "Base Case — 穩健成長",
-      description: "基礎情境：Year1 NT$30M 營收，逐年成長 150→40%，毛利率 72%。反映穩定客戶擴展與合理獲客成本。",
+      name: "Base Case — Steady Growth",
+      description: "Base scenario: Year1 NT$30M revenue, growth 150→40%, gross margin 72%. Reflects steady customer expansion with reasonable CAC.",
       assumptions: baseAssumptions,
       isBaseline: true,
     },
     {
-      name: "Optimistic — 高速擴張",
-      description: "樂觀情境：Year1 NT$35M 營收，成長 200→60%，毛利率 78%。假設產品-市場契合提早達成、企業客戶快速採用。",
+      name: "Optimistic — Rapid Expansion",
+      description: "Optimistic scenario: Year1 NT$35M revenue, growth 200→60%, gross margin 78%. Assumes early product-market fit and rapid enterprise adoption.",
       assumptions: optimisticAssumptions,
       isBaseline: false,
     },
     {
-      name: "Conservative — 保守估計",
-      description: "保守情境：Year1 NT$20M 營收，成長 100→20%，毛利率 65%。假設市場進入速度較慢、競爭壓力較大。",
+      name: "Conservative — Slow Start",
+      description: "Conservative scenario: Year1 NT$20M revenue, growth 100→20%, gross margin 65%. Assumes slower market penetration and higher competitive pressure.",
       assumptions: conservativeAssumptions,
       isBaseline: false,
     },
