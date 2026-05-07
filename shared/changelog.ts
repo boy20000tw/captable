@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.45.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Active Deadline Notifications — Auto-Sync on Login",
+    description: "主動通知系統。Dashboard 載入時自動掃描 60 天內到期事項，依 deadlineId + severity 去重後建立站內通知。嚴重度升級（warning → urgent）時再次通知。右側面板持續顯示待處理事項。",
+  },
+  {
     version: "2.44.0",
     date: "2026-05-07",
     type: "minor",

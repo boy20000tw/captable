@@ -69,7 +69,7 @@ import {
   getTechShareTaxRecords, getTechShareTaxRecordById, getDeferralExpiringRecords,
   createTechShareTaxRecord, updateTechShareTaxRecord, deleteTechShareTaxRecord,
   getAngelTaxDeductions, getAngelTaxDeductionById, getUpcomingAngelTaxDeductions,
-  getUpcomingDeadlines,
+  getUpcomingDeadlines, syncDeadlineNotifications,
   createAngelTaxDeduction, updateAngelTaxDeduction, deleteAngelTaxDeduction,
   // Closed Company (TW)
   getClosedCompanyProvision, upsertClosedCompanyProvision,
@@ -2856,6 +2856,12 @@ const deadlinesRouter = router({
       const withinDays = input?.withinDays ?? 180;
       return getUpcomingDeadlines(ctx.companyId, withinDays);
     }),
+
+  /** Auto-create in-app notifications for upcoming deadlines (dedup by deadlineId|severity) */
+  sync: companyProcedure.mutation(async ({ ctx }) => {
+    const created = await syncDeadlineNotifications(ctx.companyId, ctx.user!.id);
+    return { created };
+  }),
 });
 
 // ─── Closed Company Router (閉鎖性公司 — 台灣法規) ───────────────────────────

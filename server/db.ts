@@ -2466,6 +2466,77 @@ export async function deleteNotification(companyId: number, id: number) {
   await db.delete(notifications).where(and(eq(notifications.id, id), eq(notifications.companyId, companyId)));
 }
 
+/**
+ * Sync deadline-based notifications.
+ * Scans upcoming deadlines and auto-creates notifications for urgent/warning items.
+ * Deduplicates by checking metadata JSON for matching deadlineId + severity.
+ * Returns count of newly created notifications.
+ */
+export async function syncDeadlineNotifications(companyId: number, userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  try {
+    const deadlines = await getUpcomingDeadlines(companyId, 60); // only urgent + warning
+    if (deadlines.length === 0) return 0;
+
+    // Get existing deadline notifications for this company (unread, recent 90 days)
+    const existing = await db.select({ metadata: notifications.metadata })
+      .from(notifications)
+      .where(and(
+        eq(notifications.companyId, companyId),
+        sql`${notifications.metadata} LIKE '%"source":"deadline"%'`,
+        sql`${notifications.createdAt} > NOW() - INTERVAL '90 days'`,
+      ));
+
+    // Build a set of existing keys for dedup: "deadlineId|severity"
+    const existingKeys = new Set<string>();
+    for (const row of existing) {
+      try {
+        const meta = JSON.parse(row.metadata || "{}");
+        if (meta.deadlineId && meta.severity) {
+          existingKeys.add(`${meta.deadlineId}|${meta.severity}`);
+        }
+      } catch { /* ignore parse errors */ }
+    }
+
+    let created = 0;
+    for (const item of deadlines) {
+      if (item.severity === "info") continue; // only notify for urgent + warning
+
+      const key = `${item.id}|${item.severity}`;
+      if (existingKeys.has(key)) continue; // already notified
+
+      await db.insert(notifications).values({
+        companyId,
+        userId,
+        type: "general",
+        title: item.titleZh,  // default to zh since user is in Taiwan
+        message: `${item.descZh} — ${item.daysLeft <= 0 ? "已到期" : `${item.daysLeft} 天後到期`}`,
+        channel: "in_app",
+        linkUrl: item.path,
+        metadata: JSON.stringify({
+          source: "deadline",
+          deadlineId: item.id,
+          deadlineType: item.type,
+          severity: item.severity,
+          dueDate: item.dueDate,
+          daysLeft: item.daysLeft,
+          titleEn: item.titleEn,
+          descEn: item.descEn,
+        }),
+      });
+      existingKeys.add(key);
+      created++;
+    }
+
+    return created;
+  } catch (e) {
+    console.error("[syncDeadlineNotifications] Error:", e);
+    return 0;
+  }
+}
+
 // ─── Share Transfers (Secondary Trading) ───────────────────────────────────────
 
 /** List share transfers for a company. */

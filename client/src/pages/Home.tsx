@@ -11,10 +11,10 @@ import {
   TrendingUp, Users, PieChart as PieIcon, Sparkles, ArrowRight,
   Briefcase, Shield, Camera, Calculator, Rocket, BookOpen,
   Building2, ChevronRight, Lightbulb, Upload, Target,
-  AlertTriangle, Clock, Bell,
+  AlertTriangle, Clock, Bell, CheckCircle2,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import OnboardingWizard from "@/components/OnboardingWizard";
 
@@ -69,6 +69,16 @@ function DashboardContent() {
   const esopSummary = trpc.v1.esop.poolSummary.useQuery();
   const rounds = trpc.fundingRounds.list.useQuery();
   const deadlines = trpc.deadlines.list.useQuery({ withinDays: 180 });
+
+  // Auto-sync deadline notifications on mount (fire-and-forget)
+  const syncDeadlines = trpc.deadlines.sync.useMutation();
+  const syncRef = useRef(false);
+  useEffect(() => {
+    if (!syncRef.current) {
+      syncRef.current = true;
+      syncDeadlines.mutate();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isLoading =
     capTable.isLoading || investors.isLoading || allocations.isLoading ||
@@ -182,7 +192,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-10">
+    <div className="p-8 max-w-[1440px] mx-auto space-y-10">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="space-y-1">
@@ -210,7 +220,9 @@ function DashboardContent() {
       {!hasData ? (
         <EmptyState setLocation={setLocation} />
       ) : (
-        <>
+        <div className="flex gap-6">
+        {/* ─── Main content (left) ──────────────────────────────── */}
+        <div className="flex-1 min-w-0 space-y-10">
           {/* ─── KPI row ─────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
@@ -498,14 +510,6 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* ─── Zone 3.5: Upcoming Deadlines ─────────────────────── */}
-          {(deadlines.data ?? []).length > 0 && (
-            <UpcomingDeadlinesCard
-              items={deadlines.data ?? []}
-              onNavigate={setLocation}
-            />
-          )}
-
           {/* ─── Zone 4: All Rounds table (simplified) ────────────── */}
           <div className="bg-card border border-border rounded-sm">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
@@ -591,7 +595,18 @@ function DashboardContent() {
               </div>
             )}
           </div>
-        </>
+        </div>
+
+        {/* ─── Right sidebar: Upcoming Deadlines ─────────────────── */}
+        <div className="hidden xl:block w-80 shrink-0">
+          <div className="sticky top-8 space-y-4">
+            <UpcomingDeadlinesCard
+              items={deadlines.data ?? []}
+              onNavigate={setLocation}
+            />
+          </div>
+        </div>
+        </div>
       )}
     </div>
   );
@@ -778,93 +793,95 @@ function UpcomingDeadlinesCard({
   const urgentCount = items.filter(i => i.severity === "urgent").length;
   const warningCount = items.filter(i => i.severity === "warning").length;
 
-  const severityStyle: Record<string, string> = {
-    urgent: "border-l-red-500 bg-red-50/40",
-    warning: "border-l-amber-400 bg-amber-50/30",
-    info: "border-l-blue-300 bg-blue-50/20",
+  const severityDot: Record<string, string> = {
+    urgent: "bg-red-500",
+    warning: "bg-amber-400",
+    info: "bg-blue-300",
   };
-  const severityIcon: Record<string, React.ReactNode> = {
-    urgent: <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />,
-    warning: <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />,
-    info: <Bell className="h-3.5 w-3.5 text-blue-400 shrink-0" />,
+  const severityBorder: Record<string, string> = {
+    urgent: "border-l-red-500",
+    warning: "border-l-amber-400",
+    info: "border-l-blue-300",
   };
 
   return (
     <div className={`bg-card border rounded-sm ${urgentCount > 0 ? "border-red-300" : "border-border"}`}>
-      <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${urgentCount > 0 ? "bg-red-100" : "bg-amber-100"}`}>
-            <AlertTriangle className={`h-4 w-4 ${urgentCount > 0 ? "text-red-600" : "text-amber-600"}`} />
-          </div>
-          <div>
-            <p className="text-[10px] tracking-widest uppercase text-muted-foreground font-medium">
-              {isZh ? "即將到期" : "UPCOMING DEADLINES"}
-            </p>
-            <h3 className="text-base font-semibold tracking-tight">
-              {isZh
-                ? `${items.length} 個項目需要注意`
-                : `${items.length} item${items.length > 1 ? "s" : ""} need attention`}
-            </h3>
-          </div>
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Bell className={`h-4 w-4 ${urgentCount > 0 ? "text-red-500" : "text-amber-500"}`} />
+          <h3 className="text-sm font-semibold">
+            {isZh ? "待處理事項" : "Action Items"}
+          </h3>
         </div>
-        <div className="flex gap-2 text-xs">
-          {urgentCount > 0 && (
-            <span className="px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium">
-              {urgentCount} {isZh ? "緊急" : "urgent"}
-            </span>
-          )}
-          {warningCount > 0 && (
-            <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">
-              {warningCount} {isZh ? "注意" : "warning"}
-            </span>
-          )}
-        </div>
+        {items.length > 0 && (
+          <div className="flex gap-2 mt-2">
+            {urgentCount > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                {urgentCount} {isZh ? "緊急" : "urgent"}
+              </span>
+            )}
+            {warningCount > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                {warningCount} {isZh ? "注意" : "warning"}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="divide-y divide-border">
-        {items.slice(0, 8).map(item => (
-          <button
-            key={item.id}
-            onClick={() => onNavigate(item.path)}
-            className={`w-full flex items-center gap-4 px-6 py-3 text-left hover:bg-muted/40 transition-colors border-l-4 ${severityStyle[item.severity]}`}
-          >
-            {severityIcon[item.severity]}
-            <span className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground w-12 shrink-0">
-              {TYPE_ICONS[item.type] || item.type}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {isZh ? item.titleZh : item.titleEn}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {isZh ? item.descZh : item.descEn}
-              </p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className={`text-sm font-semibold tabular-nums ${
-                item.severity === "urgent" ? "text-red-600"
-                  : item.severity === "warning" ? "text-amber-600"
-                  : "text-muted-foreground"
-              }`}>
-                {item.daysLeft <= 0
-                  ? (isZh ? "已到期" : "Overdue")
-                  : `${item.daysLeft}${isZh ? " 天" : "d"}`}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {new Date(item.dueDate).toLocaleDateString(isZh ? "zh-TW" : "en-US", {
-                  month: "short", day: "numeric",
-                })}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </button>
-        ))}
-      </div>
+      {/* Items */}
+      {items.length === 0 ? (
+        <div className="px-4 py-6 text-center">
+          <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
+          <p className="text-xs text-muted-foreground">
+            {isZh ? "180 天內無待處理事項" : "All clear for the next 180 days"}
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {items.slice(0, 10).map(item => (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.path)}
+              className={`w-full text-left px-4 py-2.5 hover:bg-muted/40 transition-colors border-l-[3px] ${severityBorder[item.severity]}`}
+            >
+              <div className="flex items-start gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${severityDot[item.severity]}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                      {TYPE_ICONS[item.type] || item.type}
+                    </span>
+                    <span className={`text-[11px] font-semibold tabular-nums ${
+                      item.severity === "urgent" ? "text-red-600"
+                        : item.severity === "warning" ? "text-amber-600"
+                        : "text-muted-foreground"
+                    }`}>
+                      {item.daysLeft <= 0
+                        ? (isZh ? "已到期" : "Overdue")
+                        : `${item.daysLeft}${isZh ? "天" : "d"}`}
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium truncate mt-0.5">
+                    {isZh ? item.titleZh : item.titleEn}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {new Date(item.dueDate).toLocaleDateString(isZh ? "zh-TW" : "en-US", {
+                      month: "short", day: "numeric", year: "numeric",
+                    })}
+                  </p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
-      {items.length > 8 && (
-        <div className="px-6 py-3 border-t border-border text-center">
-          <span className="text-xs text-muted-foreground">
-            {isZh ? `還有 ${items.length - 8} 個項目` : `+${items.length - 8} more items`}
+      {items.length > 10 && (
+        <div className="px-4 py-2 border-t border-border text-center">
+          <span className="text-[11px] text-muted-foreground">
+            {isZh ? `還有 ${items.length - 10} 個項目` : `+${items.length - 10} more`}
           </span>
         </div>
       )}
