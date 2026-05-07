@@ -216,9 +216,9 @@ function DashboardContent() {
           <EmptyState setLocation={setLocation} />
         </div>
       ) : (
-        <div className="flex gap-6">
+        <div className="flex gap-10">
         {/* ─── Main content (left) ──────────────────────────────── */}
-        <div className="flex-1 min-w-0 space-y-10">
+        <div className="flex-1 min-w-0 space-y-10 overflow-hidden">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="space-y-1">
