@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.44.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Unified Deadline Reminders — Dashboard Widget",
+    description: "統一到期提醒系統。後端掃描 9 類時間敏感事件（409A / 83b / 技術股 / 天使稅 / ESOP 到期 / 閉鎖期 / 到期日 / ROFR / 電子簽署），前端 Dashboard 新增 Upcoming Deadlines 卡片，依緊急度分色（urgent ≤14d / warning ≤60d / info），點擊直接跳轉對應頁面。",
+  },
+  {
     version: "2.43.0",
     date: "2026-05-07",
     type: "minor",

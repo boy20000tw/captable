@@ -3089,3 +3089,229 @@ export async function migrateEncryptionForCompany(
 
   return result;
 }
+
+// ─── Unified Upcoming Deadlines ──────────────────────────────────────────────
+export type DeadlineItem = {
+  id: string;           // unique key: "type:id"
+  type: string;         // "409a" | "83b" | "techShare" | "angelTax" | "esopExpiry" | "lockup" | "maturity" | "rofr" | "esign"
+  titleEn: string;
+  titleZh: string;
+  descEn: string;
+  descZh: string;
+  dueDate: string;      // ISO date
+  daysLeft: number;
+  severity: "urgent" | "warning" | "info";
+  path: string;         // navigation path
+};
+
+function deadlineDaysUntil(dateStr: string): number {
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
+}
+
+function deadlineSeverity(days: number): "urgent" | "warning" | "info" {
+  if (days <= 14) return "urgent";
+  if (days <= 60) return "warning";
+  return "info";
+}
+
+export async function getUpcomingDeadlines(companyId: number, withinDays = 180): Promise<DeadlineItem[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const cutoff = new Date(Date.now() + withinDays * 86400000).toISOString().slice(0, 10);
+  const items: DeadlineItem[] = [];
+
+  // 1. 409A Valuation expiry
+  try {
+    const rows = await db.select().from(valuations409a).where(and(
+      eq(valuations409a.companyId, companyId),
+      eq(valuations409a.status, "active"),
+      isNotNull(valuations409a.expiryDate),
+      sql`${valuations409a.expiryDate} >= ${today}`,
+      sql`${valuations409a.expiryDate} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const days = deadlineDaysUntil(r.expiryDate!);
+      items.push({
+        id: `409a:${r.id}`, type: "409a",
+        titleEn: "409A valuation expiring", titleZh: "409A 估值即將到期",
+        descEn: `Valuation from ${r.valuationDate} expires in ${days} days`,
+        descZh: `${r.valuationDate} 的估值將在 ${days} 天後到期`,
+        dueDate: r.expiryDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/409a",
+      });
+    }
+  } catch {}
+
+  // 2. 83(b) Election filing deadline
+  try {
+    const rows = await db.select().from(elections83b).where(and(
+      eq(elections83b.companyId, companyId),
+      eq(elections83b.status, "pending"),
+      sql`${elections83b.filingDeadline} >= ${today}`,
+      sql`${elections83b.filingDeadline} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const days = deadlineDaysUntil(r.filingDeadline);
+      items.push({
+        id: `83b:${r.id}`, type: "83b",
+        titleEn: "83(b) filing deadline", titleZh: "83(b) 申報截止",
+        descEn: `${r.recipientName} — ${days} days left to file`,
+        descZh: `${r.recipientName} — 剩 ${days} 天申報`,
+        dueDate: r.filingDeadline, daysLeft: days, severity: deadlineSeverity(days), path: "/83b",
+      });
+    }
+  } catch {}
+
+  // 3. Tech Share Tax deferral expiry (§19-1)
+  try {
+    const rows = await db.select().from(techShareTaxRecords).where(and(
+      eq(techShareTaxRecords.companyId, companyId),
+      eq(techShareTaxRecords.isDeferralEligible, true),
+      eq(techShareTaxRecords.taxStatus, "deferred"),
+      isNotNull(techShareTaxRecords.deferralExpiryDate),
+      sql`${techShareTaxRecords.deferralExpiryDate} >= ${today}`,
+      sql`${techShareTaxRecords.deferralExpiryDate} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const days = deadlineDaysUntil(r.deferralExpiryDate!);
+      items.push({
+        id: `techShare:${r.id}`, type: "techShare",
+        titleEn: "Tech share deferral expiring", titleZh: "技術股緩課即將到期",
+        descEn: `${r.shareholderName} — deferral ends in ${days} days`,
+        descZh: `${r.shareholderName} — 緩課 ${days} 天後到期`,
+        dueDate: r.deferralExpiryDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/tech-share-tax",
+      });
+    }
+  } catch {}
+
+  // 4. Angel Tax lockup (§23-2)
+  try {
+    const rows = await db.select().from(angelTaxDeductions).where(and(
+      eq(angelTaxDeductions.companyId, companyId),
+      eq(angelTaxDeductions.isEligible, true),
+      eq(angelTaxDeductions.status, "pending"),
+      isNotNull(angelTaxDeductions.lockupEndDate),
+      sql`${angelTaxDeductions.lockupEndDate} >= ${today}`,
+      sql`${angelTaxDeductions.lockupEndDate} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const days = deadlineDaysUntil(r.lockupEndDate!);
+      items.push({
+        id: `angelTax:${r.id}`, type: "angelTax",
+        titleEn: "Angel tax lock-up ending", titleZh: "天使投資閉鎖期即將到期",
+        descEn: `${r.investorName} — lock-up ends in ${days} days`,
+        descZh: `${r.investorName} — 閉鎖期 ${days} 天後到期`,
+        dueDate: r.lockupEndDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/angel-tax",
+      });
+    }
+  } catch {}
+
+  // 5. ESOP option exercise expiry
+  try {
+    const rows = await db.select().from(esopGrantsV1).where(and(
+      eq(esopGrantsV1.companyId, companyId),
+      eq(esopGrantsV1.status, "active"),
+      isNotNull(esopGrantsV1.expiryDate),
+      sql`${esopGrantsV1.expiryDate} >= ${today}`,
+      sql`${esopGrantsV1.expiryDate} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const days = deadlineDaysUntil(r.expiryDate!);
+      items.push({
+        id: `esopExpiry:${r.id}`, type: "esopExpiry",
+        titleEn: "Option grant expiring", titleZh: "期權即將到期",
+        descEn: `${r.employeeName} — ${r.sharesGranted?.toLocaleString()} options, ${days} days left`,
+        descZh: `${r.employeeName} — ${r.sharesGranted?.toLocaleString()} 份期權，剩 ${days} 天`,
+        dueDate: r.expiryDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/esop",
+      });
+    }
+  } catch {}
+
+  // 6. Share lockup expiration
+  try {
+    const rows = await db.select().from(shareTransactions).where(and(
+      eq(shareTransactions.companyId, companyId),
+      isNotNull(shareTransactions.lockUpEndDate),
+      sql`${shareTransactions.lockUpEndDate} >= ${today}`,
+      sql`${shareTransactions.lockUpEndDate} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const days = deadlineDaysUntil(r.lockUpEndDate!);
+      items.push({
+        id: `lockup:${r.id}`, type: "lockup",
+        titleEn: "Share lock-up ending", titleZh: "股份鎖定期即將結束",
+        descEn: `${r.shareholderName || "Shareholder"} — lock-up ends in ${days} days`,
+        descZh: `${r.shareholderName || "股東"} — 鎖定期 ${days} 天後結束`,
+        dueDate: r.lockUpEndDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/register",
+      });
+    }
+  } catch {}
+
+  // 7. SAFE / Convertible Note maturity
+  try {
+    const rows = await db.select().from(instruments).where(and(
+      eq(instruments.companyId, companyId),
+      eq(instruments.status, "active"),
+      isNotNull(instruments.maturityDate),
+      sql`${instruments.maturityDate} >= ${today}`,
+      sql`${instruments.maturityDate} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const days = deadlineDaysUntil(r.maturityDate!);
+      items.push({
+        id: `maturity:${r.id}`, type: "maturity",
+        titleEn: "Instrument maturing", titleZh: "可轉換工具即將到期",
+        descEn: `${r.instrumentName || r.instrumentType} — matures in ${days} days`,
+        descZh: `${r.instrumentName || r.instrumentType} — ${days} 天後到期`,
+        dueDate: r.maturityDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/instruments",
+      });
+    }
+  } catch {}
+
+  // 8. Share Transfer ROFR deadline
+  try {
+    const rows = await db.select().from(shareTransfers).where(and(
+      eq(shareTransfers.companyId, companyId),
+      eq(shareTransfers.status, "rofr_notice"),
+      isNotNull(shareTransfers.rofrDeadline),
+      sql`${shareTransfers.rofrDeadline} >= ${today}`,
+      sql`${shareTransfers.rofrDeadline} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const days = deadlineDaysUntil(r.rofrDeadline!);
+      items.push({
+        id: `rofr:${r.id}`, type: "rofr",
+        titleEn: "ROFR deadline approaching", titleZh: "優先認購權截止日將至",
+        descEn: `Transfer #${r.id} — ROFR expires in ${days} days`,
+        descZh: `轉讓 #${r.id} — 優先認購權 ${days} 天後截止`,
+        dueDate: r.rofrDeadline!, daysLeft: days, severity: deadlineSeverity(days), path: "/transfers",
+      });
+    }
+  } catch {}
+
+  // 9. eSignature request expiry
+  try {
+    const rows = await db.select().from(signingRequests).where(and(
+      eq(signingRequests.companyId, companyId),
+      eq(signingRequests.status, "pending"),
+      isNotNull(signingRequests.expiresAt),
+      sql`${signingRequests.expiresAt} >= ${today}`,
+      sql`${signingRequests.expiresAt} <= ${cutoff}`,
+    ));
+    for (const r of rows) {
+      const expiryDate = new Date(r.expiresAt!).toISOString().slice(0, 10);
+      const days = deadlineDaysUntil(expiryDate);
+      items.push({
+        id: `esign:${r.id}`, type: "esign",
+        titleEn: "Signing request expiring", titleZh: "簽署請求即將到期",
+        descEn: `${r.signerName || "Signer"} — expires in ${days} days`,
+        descZh: `${r.signerName || "簽署人"} — ${days} 天後到期`,
+        dueDate: expiryDate, daysLeft: days, severity: deadlineSeverity(days), path: "/esign",
+      });
+    }
+  } catch {}
+
+  // Sort by urgency (daysLeft ascending)
+  items.sort((a, b) => a.daysLeft - b.daysLeft);
+  return items;
+}

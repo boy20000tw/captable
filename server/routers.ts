@@ -69,6 +69,7 @@ import {
   getTechShareTaxRecords, getTechShareTaxRecordById, getDeferralExpiringRecords,
   createTechShareTaxRecord, updateTechShareTaxRecord, deleteTechShareTaxRecord,
   getAngelTaxDeductions, getAngelTaxDeductionById, getUpcomingAngelTaxDeductions,
+  getUpcomingDeadlines,
   createAngelTaxDeduction, updateAngelTaxDeduction, deleteAngelTaxDeduction,
   // Closed Company (TW)
   getClosedCompanyProvision, upsertClosedCompanyProvision,
@@ -2847,6 +2848,16 @@ const angelTaxRouter = router({
   }),
 });
 
+// ─── Unified Deadlines Router ────────────────────────────────────────────────
+const deadlinesRouter = router({
+  list: companyProcedure
+    .input(z.object({ withinDays: z.number().min(1).max(730).default(180) }).optional())
+    .query(async ({ ctx, input }) => {
+      const withinDays = input?.withinDays ?? 180;
+      return getUpcomingDeadlines(ctx.companyId, withinDays);
+    }),
+});
+
 // ─── Closed Company Router (閉鎖性公司 — 台灣法規) ───────────────────────────
 const closedCompanyRouter = router({
   // Company-level provisions (single record per company)
@@ -3010,6 +3021,7 @@ export const appRouter = router({
   shareTransfers: shareTransfersRouter,
   techShareTax: techShareTaxRouter,
   angelTax: angelTaxRouter,
+  deadlines: deadlinesRouter,
   closedCompany: closedCompanyRouter,
   v1: router({
     investors: v1InvestorsRouter,
