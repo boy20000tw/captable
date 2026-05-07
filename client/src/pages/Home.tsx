@@ -192,9 +192,9 @@ function DashboardContent() {
   }
 
   return (
-    <div className="pl-8 pt-8 pb-8 pr-0 space-y-10">
+    <div className="pl-20 pt-8 pb-8 pr-0 space-y-10">
       {!hasData ? (
-        <div className="pr-8 max-w-7xl mx-auto space-y-10">
+        <div className="pr-20 max-w-7xl mx-auto space-y-10">
           {/* Header — empty state */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="space-y-1">
@@ -220,7 +220,7 @@ function DashboardContent() {
         {/* ─── Main content (left) ──────────────────────────────── */}
         <div className="flex-1 min-w-0 space-y-10">
           {/* Header */}
-          <div className="pr-8 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="space-y-1">
               <div className="h-px bg-foreground/20 w-16 mb-4" />
               <h1
@@ -615,7 +615,7 @@ function DashboardContent() {
         </div>
 
         {/* ─── Right sidebar: Upcoming Deadlines ─────────────────── */}
-        <div className="hidden xl:block w-80 shrink-0 pr-4">
+        <div className="hidden xl:block w-80 shrink-0 pr-10">
           <div className="sticky top-[72px] space-y-4">
             <UpcomingDeadlinesCard
               items={deadlines.data ?? []}
