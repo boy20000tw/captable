@@ -1169,6 +1169,41 @@ export const techShareTaxRecords = pgTable("tech_share_tax_records", {
 export type TechShareTaxRecord = typeof techShareTaxRecords.$inferSelect;
 export type InsertTechShareTaxRecord = typeof techShareTaxRecords.$inferInsert;
 
+// ─── Angel Investor Tax Deduction (天使投資人租稅優惠 — 產創條例 §23-2) ────────────
+export const angelTaxStatusEnum = pgEnum("angel_tax_status", ["pending", "eligible", "filed", "expired", "not_applicable"]);
+export const angelTaxIneligibleReasonEnum = pgEnum("angel_tax_ineligible_reason", ["founder", "entity", "foreign", "holding_period", "other"]);
+
+export const angelTaxDeductions = pgTable("angel_tax_deductions", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").notNull(),
+    investorId: integer("investorId"),                              // FK to investors
+    investorName: varchar("investorName", { length: 255 }).notNull(),
+    roundName: varchar("roundName", { length: 128 }),               // e.g. "Seed", "Pre-A"
+    // 投資資訊
+    investmentDate: date("investmentDate").notNull(),
+    investmentAmountNtd: decimal("investmentAmountNtd", { precision: 20, scale: 2 }).notNull(),
+    sharesAcquired: integer("sharesAcquired").notNull(),
+    pricePerShareNtd: decimal("pricePerShareNtd", { precision: 20, scale: 6 }),
+    // 適用性
+    isEligible: boolean("isEligible").default(false).notNull(),
+    ineligibleReason: angelTaxIneligibleReasonEnum("ineligibleReason"),
+    // 閉鎖期 & 退稅
+    lockupYears: integer("lockupYears").default(2),                 // 2 or 3 years
+    lockupEndDate: date("lockupEndDate"),                           // investmentDate + lockupYears
+    taxFilingYear: integer("taxFilingYear"),                         // 閉鎖到期次年
+    deductionRate: decimal("deductionRate", { precision: 4, scale: 2 }).default("0.50"), // 50%
+    maxDeductionNtd: decimal("maxDeductionNtd", { precision: 20, scale: 2 }),  // investmentAmount × 50%
+    // 狀態追蹤
+    status: angelTaxStatusEnum("status").default("pending").notNull(),
+    filingDate: date("filingDate"),
+    filingReference: varchar("filingReference", { length: 100 }),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type AngelTaxDeduction = typeof angelTaxDeductions.$inferSelect;
+export type InsertAngelTaxDeduction = typeof angelTaxDeductions.$inferInsert;
+
 // ─── Closed Company Provisions (閉鎖性公司 — 台灣法規) ────────────────────────
 export const transferRestrictionEnum = pgEnum("transfer_restriction", ["none", "board_approval", "shareholder_approval", "custom"]);
 export const parValueTypeEnum = pgEnum("par_value_type", ["par", "no_par"]);

@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.43.0",
+    date: "2026-05-07",
+    type: "minor",
+    title: "Angel Investor Tax Deduction Tracker (§23-2)",
+    description: "新增天使投資人租稅優惠追蹤功能（產創條例 §23-2）。包含 DB schema、後端 tRPC routes、前端頁面（摘要卡片 + 篩選 + 資料表格）、Sidebar 導航、i18n、13 筆 demo seed data（8 適用 + 5 不適用）。支援閉鎖期倒數、退稅年度計算、投資人提醒功能。",
+  },
+  {
     version: "2.42.0",
     date: "2026-05-07",
     type: "minor",

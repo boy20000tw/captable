@@ -32,6 +32,7 @@ import Election83bPage from "./pages/Election83b";
 import ShareTransfersPage from "./pages/ShareTransfers";
 import TechShareTaxPage from "./pages/TechShareTax";
 import ClosedCompanyPage from "./pages/ClosedCompany";
+import AngelTaxDeductionPage from "./pages/AngelTaxDeduction";
 import AdminOverviewPage from "./pages/admin/AdminOverview";
 import AdminCompaniesPage from "./pages/admin/AdminCompanies";
 import AdminActivityPage from "./pages/admin/AdminActivity";
@@ -78,6 +79,7 @@ function Router() {
       <Route path="/transfers" component={ShareTransfersPage} />
       <Route path="/tech-share-tax" component={TechShareTaxPage} />
       <Route path="/closed-company" component={ClosedCompanyPage} />
+      <Route path="/angel-tax" component={AngelTaxDeductionPage} />
 
       {/* Subscription */}
       <Route path="/subscription" component={SubscriptionPage} />

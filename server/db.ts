@@ -39,6 +39,7 @@ import {
   notifications, InsertNotification,
   shareTransfers, InsertShareTransfer,
   techShareTaxRecords, InsertTechShareTaxRecord,
+  angelTaxDeductions, InsertAngelTaxDeduction,
   closedCompanyProvisions, InsertClosedCompanyProvision,
   closedCompanyShareRights, InsertClosedCompanyShareRight,
   supportTickets, InsertSupportTicket,
@@ -2574,6 +2575,63 @@ export async function deleteTechShareTaxRecord(companyId: number, id: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(techShareTaxRecords).where(and(eq(techShareTaxRecords.id, id), eq(techShareTaxRecords.companyId, companyId)));
+}
+
+// ─── Angel Investor Tax Deduction (天使投資人租稅優惠 — 產創條例 §23-2) ───────────
+
+export async function getAngelTaxDeductions(companyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(angelTaxDeductions)
+    .where(eq(angelTaxDeductions.companyId, companyId))
+    .orderBy(asc(angelTaxDeductions.taxFilingYear), asc(angelTaxDeductions.lockupEndDate));
+}
+
+export async function getAngelTaxDeductionById(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(angelTaxDeductions)
+    .where(and(eq(angelTaxDeductions.id, id), eq(angelTaxDeductions.companyId, companyId)));
+  return row ?? null;
+}
+
+/** Get deductions that will become eligible soon (lockup ending within N days). */
+export async function getUpcomingAngelTaxDeductions(companyId: number, withinDays = 90) {
+  const db = await getDb();
+  if (!db) return [];
+  const deadline = new Date(Date.now() + withinDays * 86400000).toISOString().slice(0, 10);
+  return db.select().from(angelTaxDeductions)
+    .where(and(
+      eq(angelTaxDeductions.companyId, companyId),
+      eq(angelTaxDeductions.isEligible, true),
+      eq(angelTaxDeductions.status, "pending"),
+      isNotNull(angelTaxDeductions.lockupEndDate),
+      sql`${angelTaxDeductions.lockupEndDate} <= ${deadline}`,
+    ))
+    .orderBy(asc(angelTaxDeductions.lockupEndDate));
+}
+
+export async function createAngelTaxDeduction(data: InsertAngelTaxDeduction) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.insert(angelTaxDeductions).values(data).returning();
+  return row;
+}
+
+export async function updateAngelTaxDeduction(companyId: number, id: number, data: Partial<InsertAngelTaxDeduction>) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.update(angelTaxDeductions)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(angelTaxDeductions.id, id), eq(angelTaxDeductions.companyId, companyId)))
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteAngelTaxDeduction(companyId: number, id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(angelTaxDeductions).where(and(eq(angelTaxDeductions.id, id), eq(angelTaxDeductions.companyId, companyId)));
 }
 
 // ─── Closed Company Provisions (閉鎖性公司 — 台灣法規) ─────────────────────────

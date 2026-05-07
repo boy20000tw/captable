@@ -3,12 +3,13 @@
  * ───────────────────────────────
  * Run: DATABASE_URL=... npx tsx scripts/seed-analysis-demo.ts
  *
- * Seeds demo data for the 5 Analysis pages:
+ * Seeds demo data for Analysis pages + Compliance:
  *   1. Financial Projections (Biotech SaaS assumptions)
  *   2. Projection Scenarios (Base / Optimistic / Conservative)
  *   3. Comps Peers (5 Taiwan-listed biotech companies)
  *   4. Liquidation Preferences (per funding round)
  *   5. Anti-Dilution Provisions (BBWA + Full Ratchet)
+ *   6. Angel Tax Deductions (產創條例 §23-2, 13 records)
  */
 import { neon } from "@neondatabase/serverless";
 
@@ -383,6 +384,261 @@ async function main() {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 6: Angel Tax Deductions (產創條例 §23-2)
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log("\n━━━ Step 6: Angel Tax Deductions ━━━");
+
+  // 13 records from shareholder register:
+  // 8 eligible individuals, 5 not eligible (founders / entities / foreign)
+  const angelTaxRecords = [
+    // ── Eligible investors ──
+    {
+      investorName: "Tsai XX",
+      roundName: "Seed",
+      investmentDate: "2023-11-10",
+      investmentAmountNtd: "4500000.00",
+      sharesAcquired: 450000,
+      pricePerShareNtd: "10.000000",
+      isEligible: true,
+      ineligibleReason: null,
+      lockupYears: 2,
+      lockupEndDate: "2025-11-10",
+      taxFilingYear: 2026,
+      maxDeductionNtd: "2250000.00",
+      status: "eligible",
+      notes: "Pre-2025 investment, 2-year lock-up. Eligible to file in 2026 tax season.",
+    },
+    {
+      investorName: "Liu XX",
+      roundName: "Seed+",
+      investmentDate: "2024-01-30",
+      investmentAmountNtd: "4480000.00",
+      sharesAcquired: 448000,
+      pricePerShareNtd: "10.000000",
+      isEligible: true,
+      ineligibleReason: null,
+      lockupYears: 2,
+      lockupEndDate: "2026-01-30",
+      taxFilingYear: 2027,
+      maxDeductionNtd: "2240000.00",
+      status: "pending",
+      notes: "Pre-2025 investment, 2-year lock-up. Lock-up ends Jan 2026.",
+    },
+    {
+      investorName: "Shen XX",
+      roundName: "Pre-A",
+      investmentDate: "2024-09-02",
+      investmentAmountNtd: "4910000.00",
+      sharesAcquired: 245500,
+      pricePerShareNtd: "20.000000",
+      isEligible: true,
+      ineligibleReason: null,
+      lockupYears: 2,
+      lockupEndDate: "2026-09-02",
+      taxFilingYear: 2027,
+      maxDeductionNtd: "2455000.00",
+      status: "pending",
+      notes: "Pre-2025 investment, 2-year lock-up. Lock-up ends Sep 2026.",
+    },
+    {
+      investorName: "Wang XX",
+      roundName: "Pre-A",
+      investmentDate: "2025-01-03",
+      investmentAmountNtd: "8190000.00",
+      sharesAcquired: 409500,
+      pricePerShareNtd: "20.000000",
+      isEligible: true,
+      ineligibleReason: null,
+      lockupYears: 3,
+      lockupEndDate: "2028-01-03",
+      taxFilingYear: 2029,
+      maxDeductionNtd: "4095000.00",
+      status: "pending",
+      notes: "Post-2025 investment, 3-year lock-up.",
+    },
+    {
+      investorName: "Dai XX (1)",
+      roundName: "Pre-A",
+      investmentDate: "2025-03-15",
+      investmentAmountNtd: "9830000.00",
+      sharesAcquired: 491500,
+      pricePerShareNtd: "20.000000",
+      isEligible: true,
+      ineligibleReason: null,
+      lockupYears: 3,
+      lockupEndDate: "2028-03-15",
+      taxFilingYear: 2029,
+      maxDeductionNtd: "4915000.00",
+      status: "pending",
+      notes: "Post-2025 investment, 3-year lock-up. Same investor, tranche 1.",
+    },
+    {
+      investorName: "Dai XX (2)",
+      roundName: "Pre-A",
+      investmentDate: "2025-06-20",
+      investmentAmountNtd: "3100000.00",
+      sharesAcquired: 155000,
+      pricePerShareNtd: "20.000000",
+      isEligible: true,
+      ineligibleReason: null,
+      lockupYears: 3,
+      lockupEndDate: "2028-06-20",
+      taxFilingYear: 2029,
+      maxDeductionNtd: "1550000.00",
+      status: "pending",
+      notes: "Post-2025 investment, 3-year lock-up. Same investor, tranche 2.",
+    },
+    {
+      investorName: "Liu XX (Pre-A)",
+      roundName: "Pre-A",
+      investmentDate: "2026-02-24",
+      investmentAmountNtd: "3080000.00",
+      sharesAcquired: 154000,
+      pricePerShareNtd: "20.000000",
+      isEligible: true,
+      ineligibleReason: null,
+      lockupYears: 3,
+      lockupEndDate: "2029-02-24",
+      taxFilingYear: 2030,
+      maxDeductionNtd: "1540000.00",
+      status: "pending",
+      notes: "Post-2025 investment, 3-year lock-up.",
+    },
+    {
+      investorName: "XX Su",
+      roundName: "Pre-A",
+      investmentDate: "2026-04-10",
+      investmentAmountNtd: "9240000.00",
+      sharesAcquired: 462000,
+      pricePerShareNtd: "20.000000",
+      isEligible: true,
+      ineligibleReason: null,
+      lockupYears: 3,
+      lockupEndDate: "2029-04-10",
+      taxFilingYear: 2030,
+      maxDeductionNtd: "4620000.00",
+      status: "pending",
+      notes: "Post-2025 investment, 3-year lock-up.",
+    },
+    // ── Not eligible ──
+    {
+      investorName: "Dai XX (Founder)",
+      roundName: "Founder",
+      investmentDate: "2023-06-01",
+      investmentAmountNtd: "5000000.00",
+      sharesAcquired: 5000000,
+      pricePerShareNtd: "1.000000",
+      isEligible: false,
+      ineligibleReason: "founder",
+      lockupYears: null,
+      lockupEndDate: null,
+      taxFilingYear: null,
+      maxDeductionNtd: null,
+      status: "not_applicable",
+      notes: "Founder — not eligible for angel investor tax deduction.",
+    },
+    {
+      investorName: "Kao XX (Founder)",
+      roundName: "Founder",
+      investmentDate: "2023-06-01",
+      investmentAmountNtd: "5000000.00",
+      sharesAcquired: 5000000,
+      pricePerShareNtd: "1.000000",
+      isEligible: false,
+      ineligibleReason: "founder",
+      lockupYears: null,
+      lockupEndDate: null,
+      taxFilingYear: null,
+      maxDeductionNtd: null,
+      status: "not_applicable",
+      notes: "Founder — not eligible for angel investor tax deduction.",
+    },
+    {
+      investorName: "XX Corp. Ltd.",
+      roundName: "Pre-A",
+      investmentDate: "2025-02-15",
+      investmentAmountNtd: "15000000.00",
+      sharesAcquired: 750000,
+      pricePerShareNtd: "20.000000",
+      isEligible: false,
+      ineligibleReason: "entity",
+      lockupYears: null,
+      lockupEndDate: null,
+      taxFilingYear: null,
+      maxDeductionNtd: null,
+      status: "not_applicable",
+      notes: "Corporate entity (法人) — not eligible per §23-2.",
+    },
+    {
+      investorName: "XX Holdings Co.",
+      roundName: "Pre-A",
+      investmentDate: "2025-04-10",
+      investmentAmountNtd: "10000000.00",
+      sharesAcquired: 500000,
+      pricePerShareNtd: "20.000000",
+      isEligible: false,
+      ineligibleReason: "entity",
+      lockupYears: null,
+      lockupEndDate: null,
+      taxFilingYear: null,
+      maxDeductionNtd: null,
+      status: "not_applicable",
+      notes: "Corporate entity (法人) — not eligible per §23-2.",
+    },
+    {
+      investorName: "XX Ong",
+      roundName: "Pre-A",
+      investmentDate: "2025-05-20",
+      investmentAmountNtd: "6000000.00",
+      sharesAcquired: 300000,
+      pricePerShareNtd: "20.000000",
+      isEligible: false,
+      ineligibleReason: "foreign",
+      lockupYears: null,
+      lockupEndDate: null,
+      taxFilingYear: null,
+      maxDeductionNtd: null,
+      status: "not_applicable",
+      notes: "Foreign national — not eligible per §23-2.",
+    },
+  ];
+
+  for (const rec of angelTaxRecords) {
+    const existing = await sql`
+      SELECT id FROM angel_tax_deductions
+      WHERE "companyId" = ${companyId} AND "investorName" = ${rec.investorName}
+        AND "roundName" = ${rec.roundName}
+    `;
+    if (existing.length > 0) {
+      console.log(`  ℹ️ ${rec.investorName} (${rec.roundName}) already exists, skipping`);
+      continue;
+    }
+
+    const [created] = await sql`
+      INSERT INTO angel_tax_deductions (
+        "companyId", "investorName", "roundName",
+        "investmentDate", "investmentAmountNtd", "sharesAcquired", "pricePerShareNtd",
+        "isEligible", "ineligibleReason",
+        "lockupYears", "lockupEndDate", "taxFilingYear",
+        "deductionRate", "maxDeductionNtd",
+        status, notes
+      ) VALUES (
+        ${companyId}, ${rec.investorName}, ${rec.roundName},
+        ${rec.investmentDate}, ${rec.investmentAmountNtd}, ${rec.sharesAcquired}, ${rec.pricePerShareNtd},
+        ${rec.isEligible}, ${rec.ineligibleReason},
+        ${rec.lockupYears}, ${rec.lockupEndDate}, ${rec.taxFilingYear},
+        '0.50', ${rec.maxDeductionNtd},
+        ${rec.status}, ${rec.notes}
+      )
+      RETURNING id
+    `;
+    const label = rec.isEligible
+      ? `✅ ${rec.investorName} (${rec.roundName}) — NT$${(parseFloat(rec.investmentAmountNtd) / 1e6).toFixed(1)}M, lockup→${rec.lockupEndDate}, tax year ${rec.taxFilingYear}`
+      : `⬚ ${rec.investorName} (${rec.roundName}) — N/A (${rec.ineligibleReason})`;
+    console.log(`  ${label} (id=${created.id})`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // Summary
   // ═══════════════════════════════════════════════════════════════════════════
   console.log("\n━━━ Verification ━━━");
@@ -391,12 +647,14 @@ async function main() {
   const finalComps = await sql`SELECT count(*) as cnt FROM comps_peers WHERE "companyId" = ${companyId}`;
   const finalLiqPrefs = await sql`SELECT count(*) as cnt FROM liquidation_preferences WHERE "companyId" = ${companyId}`;
   const finalAntiDil = await sql`SELECT count(*) as cnt FROM anti_dilution_provisions WHERE "companyId" = ${companyId}`;
+  const finalAngelTax = await sql`SELECT count(*) as cnt FROM angel_tax_deductions WHERE "companyId" = ${companyId}`;
 
   console.log(`  Financial Projections: ${finalProjections[0].cnt}`);
   console.log(`  Projection Scenarios: ${finalScenarios[0].cnt}`);
   console.log(`  Comps Peers: ${finalComps[0].cnt}`);
   console.log(`  Liquidation Preferences: ${finalLiqPrefs[0].cnt}`);
   console.log(`  Anti-Dilution Provisions: ${finalAntiDil[0].cnt}`);
+  console.log(`  Angel Tax Deductions: ${finalAngelTax[0].cnt}`);
   console.log("\n🎉 Analysis demo data seeding complete!");
 }
 

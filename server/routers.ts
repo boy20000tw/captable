@@ -68,6 +68,8 @@ import {
   // Tech Share Tax (TW)
   getTechShareTaxRecords, getTechShareTaxRecordById, getDeferralExpiringRecords,
   createTechShareTaxRecord, updateTechShareTaxRecord, deleteTechShareTaxRecord,
+  getAngelTaxDeductions, getAngelTaxDeductionById, getUpcomingAngelTaxDeductions,
+  createAngelTaxDeduction, updateAngelTaxDeduction, deleteAngelTaxDeduction,
   // Closed Company (TW)
   getClosedCompanyProvision, upsertClosedCompanyProvision,
   getClosedCompanyShareRights, getClosedCompanyShareRightById,
@@ -2761,6 +2763,90 @@ const techShareTaxRouter = router({
   }),
 });
 
+// ─── Angel Tax Deduction Router (天使投資人租稅優惠 — 產創條例 §23-2) ─────────
+const angelTaxRouter = router({
+  list: companyProcedure.use(requireFeature("compliance.techShareTax")).query(({ ctx }) => getAngelTaxDeductions(ctx.companyId)),
+
+  get: companyProcedure
+    .input(z.object({ id: z.number() }))
+    .query(({ input, ctx }) => getAngelTaxDeductionById(ctx.companyId, input.id)),
+
+  upcoming: companyProcedure
+    .input(z.object({ withinDays: z.number().default(90) }).optional())
+    .query(({ input, ctx }) => getUpcomingAngelTaxDeductions(ctx.companyId, input?.withinDays ?? 90)),
+
+  create: companyEditorProcedure.input(z.object({
+    investorId: z.number().optional(),
+    investorName: z.string().min(1),
+    roundName: z.string().optional(),
+    investmentDate: z.string(),
+    investmentAmountNtd: z.string(),
+    sharesAcquired: z.number().int().positive(),
+    pricePerShareNtd: z.string().optional(),
+    isEligible: z.boolean().default(false),
+    ineligibleReason: z.enum(["founder", "entity", "foreign", "holding_period", "other"]).optional(),
+    lockupYears: z.number().int().min(2).max(5).optional(),
+    lockupEndDate: z.string().optional(),
+    taxFilingYear: z.number().int().optional(),
+    deductionRate: z.string().optional(),
+    maxDeductionNtd: z.string().optional(),
+    status: z.enum(["pending", "eligible", "filed", "expired", "not_applicable"]).default("pending"),
+    filingDate: z.string().optional(),
+    filingReference: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await createAngelTaxDeduction({ ...input, companyId: ctx.companyId });
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "create", resourceType: "angel_tax_deduction",
+      resourceName: `Angel Tax: ${input.investorName}`,
+      changesAfter: JSON.stringify(input),
+    });
+    return result;
+  }),
+
+  update: companyEditorProcedure.input(z.object({
+    id: z.number(),
+    data: z.object({
+      investorName: z.string().optional(),
+      roundName: z.string().optional(),
+      investmentDate: z.string().optional(),
+      investmentAmountNtd: z.string().optional(),
+      sharesAcquired: z.number().int().positive().optional(),
+      pricePerShareNtd: z.string().optional(),
+      isEligible: z.boolean().optional(),
+      ineligibleReason: z.enum(["founder", "entity", "foreign", "holding_period", "other"]).nullish(),
+      lockupYears: z.number().int().optional(),
+      lockupEndDate: z.string().optional(),
+      taxFilingYear: z.number().int().optional(),
+      deductionRate: z.string().optional(),
+      maxDeductionNtd: z.string().optional(),
+      status: z.enum(["pending", "eligible", "filed", "expired", "not_applicable"]).optional(),
+      filingDate: z.string().optional(),
+      filingReference: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+  })).mutation(async ({ input, ctx }) => {
+    const result = await updateAngelTaxDeduction(ctx.companyId, input.id, input.data as any);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "update", resourceType: "angel_tax_deduction", resourceId: input.id,
+      resourceName: `Angel Tax #${input.id}`, changesAfter: JSON.stringify(input.data),
+    });
+    return result;
+  }),
+
+  delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    await deleteAngelTaxDeduction(ctx.companyId, input.id);
+    await createAuditLog({
+      companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
+      action: "delete", resourceType: "angel_tax_deduction", resourceId: input.id,
+      resourceName: `Angel Tax #${input.id}`,
+    });
+    return { success: true };
+  }),
+});
+
 // ─── Closed Company Router (閉鎖性公司 — 台灣法規) ───────────────────────────
 const closedCompanyRouter = router({
   // Company-level provisions (single record per company)
@@ -2923,6 +3009,7 @@ export const appRouter = router({
   notifications: notificationsRouter,
   shareTransfers: shareTransfersRouter,
   techShareTax: techShareTaxRouter,
+  angelTax: angelTaxRouter,
   closedCompany: closedCompanyRouter,
   v1: router({
     investors: v1InvestorsRouter,

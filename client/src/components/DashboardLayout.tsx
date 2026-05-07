@@ -66,6 +66,7 @@ import {
   X,
   Receipt,
   Landmark,
+  CalendarClock,
   HelpCircle,
   Gavel,
 } from "lucide-react";
@@ -158,6 +159,7 @@ function buildNavStructure(t: TFunction<"nav">, companyRole: CompanyRole | null)
       items: [
         { icon: Receipt,         label: t("compliance.tw.techShare"),     path: "/tech-share-tax",  section: t("compliance.tw") },
         { icon: Landmark,        label: t("compliance.tw.closedCompany"), path: "/closed-company" },
+        { icon: CalendarClock,   label: t("compliance.tw.angelTax"),      path: "/angel-tax" },
         { icon: DollarSign,      label: t("compliance.us.409a"),          path: "/409a",            section: t("compliance.us") },
         { icon: FileCheck,       label: t("compliance.us.83b"),           path: "/83b" },
         { icon: ArrowRightLeft,  label: t("compliance.us.transfers"),     path: "/transfers" },
