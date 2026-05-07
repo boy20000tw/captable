@@ -192,37 +192,54 @@ function DashboardContent() {
   }
 
   return (
-    <div className="p-8 max-w-[1440px] mx-auto space-y-10">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="h-px bg-foreground/20 w-16 mb-4" />
-          <h1
-            className="text-3xl font-bold tracking-tight"
-            style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
-          >
-            {t("home.title")}
-          </h1>
-          <p
-            className="text-sm text-muted-foreground"
-            style={{ letterSpacing: "0.05em" }}
-          >
-            {hasData
-              ? activeRound
-                ? t("home.activeRoundLabelDate", {name: activeRound.name, date: activeRound.roundDate ? formatDate(activeRound.roundDate) : ""})
-                : t("home.overview")
-              : t("home.noDataYet")}
-          </p>
-        </div>
-        {hasData && <CurrencyToggle />}
-      </div>
-
+    <div className="pl-8 pt-8 pb-8 pr-0 space-y-10">
       {!hasData ? (
-        <EmptyState setLocation={setLocation} />
+        <div className="pr-8 max-w-7xl mx-auto space-y-10">
+          {/* Header — empty state */}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="h-px bg-foreground/20 w-16 mb-4" />
+              <h1
+                className="text-3xl font-bold tracking-tight"
+                style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
+              >
+                {t("home.title")}
+              </h1>
+              <p
+                className="text-sm text-muted-foreground"
+                style={{ letterSpacing: "0.05em" }}
+              >
+                {t("home.noDataYet")}
+              </p>
+            </div>
+          </div>
+          <EmptyState setLocation={setLocation} />
+        </div>
       ) : (
         <div className="flex gap-6">
         {/* ─── Main content (left) ──────────────────────────────── */}
         <div className="flex-1 min-w-0 space-y-10">
+          {/* Header */}
+          <div className="pr-8 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="h-px bg-foreground/20 w-16 mb-4" />
+              <h1
+                className="text-3xl font-bold tracking-tight"
+                style={{ fontFamily: "'Poppins', Inter, system-ui, sans-serif" }}
+              >
+                {t("home.title")}
+              </h1>
+              <p
+                className="text-sm text-muted-foreground"
+                style={{ letterSpacing: "0.05em" }}
+              >
+                {activeRound
+                  ? t("home.activeRoundLabelDate", {name: activeRound.name, date: activeRound.roundDate ? formatDate(activeRound.roundDate) : ""})
+                  : t("home.overview")}
+              </p>
+            </div>
+            <CurrencyToggle />
+          </div>
           {/* ─── KPI row ─────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
@@ -598,8 +615,8 @@ function DashboardContent() {
         </div>
 
         {/* ─── Right sidebar: Upcoming Deadlines ─────────────────── */}
-        <div className="hidden xl:block w-80 shrink-0">
-          <div className="sticky top-8 space-y-4">
+        <div className="hidden xl:block w-80 shrink-0 pr-4">
+          <div className="sticky top-[72px] space-y-4">
             <UpcomingDeadlinesCard
               items={deadlines.data ?? []}
               onNavigate={setLocation}
