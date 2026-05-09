@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.51.0",
+    date: "2026-05-09",
+    type: "minor",
+    title: "Vercel Speed Insights 整合",
+    description: "安裝 @vercel/speed-insights 套件並在 App.tsx 加入 <SpeedInsights/> 元件，啟用 Real Experience Score（FCP、LCP、INP、CLS）效能追蹤。同步在 Vercel Dashboard 啟用 Landing Page Web Analytics 及 App Speed Insights。",
+  },
+  {
     version: "2.50.1",
     date: "2026-05-07",
     type: "patch",

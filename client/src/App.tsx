@@ -1,4 +1,5 @@
 import "./i18n"; // i18n must initialize before any component renders
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -117,6 +118,7 @@ function App() {
         <CurrencyProvider>
           <TooltipProvider>
             <Toaster />
+            <SpeedInsights />
             <RoleGuard>
               <Router />
             </RoleGuard>
