@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.53.2",
+    date: "2026-05-10",
+    type: "patch",
+    title: "修正 Deadline 函數 12 處 TypeScript 型別錯誤",
+    description: "getUpcomingDeadlines 中的 shareholderName / employeeName / instrumentName / instrumentType / signerName 全部替換為實際 schema 欄位（holderName, name, type, title, shareholderId），消除所有 TypeScript 編譯錯誤。",
+  },
+  {
     version: "2.53.1",
     date: "2026-05-10",
     type: "patch",

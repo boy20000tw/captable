@@ -3455,8 +3455,8 @@ export async function getUpcomingDeadlines(companyId: number, withinDays = 180):
       items.push({
         id: `techShare:${r.id}`, type: "techShare",
         titleEn: "Tech share deferral expiring", titleZh: "技術股緩課即將到期",
-        descEn: `${r.shareholderName} — deferral ends in ${days} days`,
-        descZh: `${r.shareholderName} — 緩課 ${days} 天後到期`,
+        descEn: `${r.holderName} — deferral ends in ${days} days`,
+        descZh: `${r.holderName} — 緩課 ${days} 天後到期`,
         dueDate: r.deferralExpiryDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/tech-share-tax",
       });
     }
@@ -3498,8 +3498,8 @@ export async function getUpcomingDeadlines(companyId: number, withinDays = 180):
       items.push({
         id: `esopExpiry:${r.id}`, type: "esopExpiry",
         titleEn: "Option grant expiring", titleZh: "期權即將到期",
-        descEn: `${r.employeeName} — ${r.sharesGranted?.toLocaleString()} options, ${days} days left`,
-        descZh: `${r.employeeName} — ${r.sharesGranted?.toLocaleString()} 份期權，剩 ${days} 天`,
+        descEn: `Grant #${r.id} — ${r.sharesGranted?.toLocaleString()} options, ${days} days left`,
+        descZh: `授予 #${r.id} — ${r.sharesGranted?.toLocaleString()} 份期權，剩 ${days} 天`,
         dueDate: r.expiryDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/esop",
       });
     }
@@ -3518,8 +3518,8 @@ export async function getUpcomingDeadlines(companyId: number, withinDays = 180):
       items.push({
         id: `lockup:${r.id}`, type: "lockup",
         titleEn: "Share lock-up ending", titleZh: "股份鎖定期即將結束",
-        descEn: `${r.shareholderName || "Shareholder"} — lock-up ends in ${days} days`,
-        descZh: `${r.shareholderName || "股東"} — 鎖定期 ${days} 天後結束`,
+        descEn: `Shareholder #${r.shareholderId} — lock-up ends in ${days} days`,
+        descZh: `股東 #${r.shareholderId} — 鎖定期 ${days} 天後結束`,
         dueDate: r.lockUpEndDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/register",
       });
     }
@@ -3539,8 +3539,8 @@ export async function getUpcomingDeadlines(companyId: number, withinDays = 180):
       items.push({
         id: `maturity:${r.id}`, type: "maturity",
         titleEn: "Instrument maturing", titleZh: "可轉換工具即將到期",
-        descEn: `${r.instrumentName || r.instrumentType} — matures in ${days} days`,
-        descZh: `${r.instrumentName || r.instrumentType} — ${days} 天後到期`,
+        descEn: `${r.name || r.type} — matures in ${days} days`,
+        descZh: `${r.name || r.type} — ${days} 天後到期`,
         dueDate: r.maturityDate!, daysLeft: days, severity: deadlineSeverity(days), path: "/instruments",
       });
     }
@@ -3582,8 +3582,8 @@ export async function getUpcomingDeadlines(companyId: number, withinDays = 180):
       items.push({
         id: `esign:${r.id}`, type: "esign",
         titleEn: "Signing request expiring", titleZh: "簽署請求即將到期",
-        descEn: `${r.signerName || "Signer"} — expires in ${days} days`,
-        descZh: `${r.signerName || "簽署人"} — ${days} 天後到期`,
+        descEn: `${r.title || "Signing request"} — expires in ${days} days`,
+        descZh: `${r.title || "簽署請求"} — ${days} 天後到期`,
         dueDate: expiryDate, daysLeft: days, severity: deadlineSeverity(days), path: "/esign",
       });
     }
