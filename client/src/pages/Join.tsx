@@ -25,7 +25,7 @@ export default function Join() {
   }, []);
 
   // Step 1: validate the token (public, read-only)
-  const { data: inviteData, isLoading: inviteLoading } = trpc.invitations.accept.useQuery(
+  const { data: inviteData, isLoading: inviteLoading, isError: inviteError } = trpc.invitations.accept.useQuery(
     { token: token! },
     { enabled: !!token }
   );
@@ -78,6 +78,18 @@ export default function Join() {
     return (
       <div className="min-h-screen bg-[#FBF9F6] flex items-center justify-center">
         <div className="text-muted-foreground">{t("join.verifying")}</div>
+      </div>
+    );
+  }
+
+  if (inviteError) {
+    return (
+      <div className="min-h-screen bg-[#FBF9F6] flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center space-y-4">
+          <X className="h-12 w-12 text-red-400 mx-auto" />
+          <h1 className="font-serif text-2xl font-bold">{t("join.unavailable")}</h1>
+          <p className="text-muted-foreground">{t("join.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+        </div>
       </div>
     );
   }

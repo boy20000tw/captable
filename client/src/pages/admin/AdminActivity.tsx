@@ -33,7 +33,15 @@ export default function AdminActivityPage() {
 function AdminActivityContent() {
   const { t: tPages } = useTranslation("pages");
   const { t } = useTranslation("admin");
-  const { data: logs, isLoading } = trpc.admin.adminAuditLogs.useQuery({ limit: 200, offset: 0 });
+  const { data: logs, isLoading, isError } = trpc.admin.adminAuditLogs.useQuery({ limit: 200, offset: 0 });
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("activity.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">

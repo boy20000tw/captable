@@ -67,7 +67,7 @@ function ShareTransfersContent() {
   const { t: tPage } = useTranslation("pages");
   const { t } = useTranslation("compliance");
   const utils = trpc.useUtils();
-  const { data: transfers, isLoading } = trpc.shareTransfers.list.useQuery();
+  const { data: transfers, isLoading, isError } = trpc.shareTransfers.list.useQuery();
   const { data: investors } = trpc.v1.investors.list.useQuery();
   const createMut = trpc.shareTransfers.create.useMutation({ onSuccess: () => { utils.shareTransfers.invalidate(); setDialogOpen(false); } });
   const updateMut = trpc.shareTransfers.update.useMutation({ onSuccess: () => { utils.shareTransfers.invalidate(); setDialogOpen(false); } });
@@ -185,6 +185,14 @@ function ShareTransfersContent() {
       return updated;
     });
   };
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("shared.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">

@@ -1452,10 +1452,18 @@ export async function updateAllocation(companyId: number, id: number, data: Part
     .where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
 }
 export async function deleteAllocation(companyId: number, id: number) {
-  // ⚠️ CASCADE RISK: Deleting an allocation will orphan related transaction, grant, and snapshot records if they reference this allocation.
-  // Verify no related records exist before deletion or implement cascade delete in schema.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  // Pre-delete guard: check for child share register entries
+  const regEntries = await db.select({ id: shareRegisterEntries.id })
+    .from(shareRegisterEntries)
+    .where(and(eq(shareRegisterEntries.allocationId, id), eq(shareRegisterEntries.companyId, companyId)))
+    .limit(1);
+  if (regEntries.length > 0) {
+    throw new Error("Cannot delete allocation: it has associated share register entries. Remove or reassign them first.");
+  }
+
   await db.delete(allocations).where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
 }
 

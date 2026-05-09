@@ -87,6 +87,10 @@ function DashboardContent() {
     capTable.isLoading || investors.isLoading || allocations.isLoading ||
     register.isLoading || esopSummary.isLoading || rounds.isLoading;
 
+  const isError =
+    capTable.isError || investors.isError || allocations.isError ||
+    register.isError || esopSummary.isError || rounds.isError;
+
   // ── Derived metrics ─────────────────────────────────────────────────────
   const totalShares = capTable.data?.totalIssuedShares ?? capTable.data?.totalShares ?? 0;
   const holdings = capTable.data?.holdings ?? [];
@@ -176,6 +180,14 @@ function DashboardContent() {
             <div key={i} className="h-28 bg-muted animate-pulse rounded" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("home.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
       </div>
     );
   }

@@ -114,7 +114,7 @@ function CompanySettingsContent() {
       utils.companies.get.invalidate();
       utils.companies.active.invalidate();
       utils.companies.myCompanies.invalidate();
-      toast.success("Company profile updated");
+      toast.success(t("settings:companySettings.profileUpdated"));
     },
     onError: (e) => toast.error(e.message),
   });
@@ -122,7 +122,7 @@ function CompanySettingsContent() {
   const uploadLogoMut = trpc.companies.uploadLogo.useMutation({
     onSuccess: () => {
       utils.companies.get.invalidate();
-      toast.success("Logo uploaded");
+      toast.success(t("settings:companySettings.logoUploaded"));
     },
     onError: (e) => toast.error(e.message),
   });
@@ -155,7 +155,7 @@ function CompanySettingsContent() {
 
   function handleSave() {
     if (!form.name.trim()) {
-      toast.error("Company name is required");
+      toast.error(t("settings:companySettings.nameRequired"));
       return;
     }
     updateMut.mutate({
@@ -180,11 +180,11 @@ function CompanySettingsContent() {
 
   async function handleLogoUpload(file: File) {
     if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file");
+      toast.error(t("settings:companySettings.invalidImage"));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("File too large (max 5 MB)");
+      toast.error(t("settings:companySettings.fileTooLarge"));
       return;
     }
     const reader = new FileReader();
@@ -226,7 +226,7 @@ function CompanySettingsContent() {
       {isLoading ? (
         <Card>
           <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            Loading…
+            {t("settings:companySettings.loading")}
           </CardContent>
         </Card>
       ) : (
@@ -238,16 +238,16 @@ function CompanySettingsContent() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Basic Information
+                  {t("settings:companySettings.basicInformation")}
                 </CardTitle>
                 <CardDescription>
-                  Used in contracts, exported reports, and the platform header.
+                  {t("settings:companySettings.basicInformationDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Company Name *</Label>
+                    <Label htmlFor="name">{t("settings:companySettings.companyName")}</Label>
                     <Input
                       id="name"
                       placeholder="e.g. 台灣生醫科技股份有限公司"
@@ -257,7 +257,7 @@ function CompanySettingsContent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nameEn">Company Name (English)</Label>
+                    <Label htmlFor="nameEn">{t("settings:companySettings.companyNameEn")}</Label>
                     <Input
                       id="nameEn"
                       placeholder="e.g. Taiwan BioMed Tech Co., Ltd."
@@ -270,7 +270,7 @@ function CompanySettingsContent() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="taxId">Unified Business Number / Tax ID</Label>
+                    <Label htmlFor="taxId">{t("settings:companySettings.taxId")}</Label>
                     <Input
                       id="taxId"
                       placeholder="e.g. 12345678"
@@ -280,7 +280,7 @@ function CompanySettingsContent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
+                    <Label htmlFor="website">{t("settings:companySettings.website")}</Label>
                     <Input
                       id="website"
                       placeholder="https://example.com"
@@ -292,7 +292,7 @@ function CompanySettingsContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
+                  <Label htmlFor="address">{t("settings:companySettings.address")}</Label>
                   <Input
                     id="address"
                     placeholder="e.g. 新竹縣竹北市…"
@@ -304,7 +304,7 @@ function CompanySettingsContent() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="contactEmail">Contact Email</Label>
+                    <Label htmlFor="contactEmail">{t("settings:companySettings.contactEmail")}</Label>
                     <Input
                       id="contactEmail"
                       type="email"
@@ -315,7 +315,7 @@ function CompanySettingsContent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone">{t("settings:companySettings.phone")}</Label>
                     <Input
                       id="phone"
                       placeholder="+886-3-xxx-xxxx"
@@ -330,7 +330,7 @@ function CompanySettingsContent() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="defaultCurrency">Default Currency</Label>
+                    <Label htmlFor="defaultCurrency">{t("settings:companySettings.defaultCurrency")}</Label>
                     <Select
                       value={form.defaultCurrency}
                       onValueChange={(v) => handleChange("defaultCurrency", v as "NTD" | "USD")}
@@ -340,8 +340,8 @@ function CompanySettingsContent() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="NTD">NTD (New Taiwan Dollar)</SelectItem>
-                        <SelectItem value="USD">USD (US Dollar)</SelectItem>
+                        <SelectItem value="NTD">{t("settings:companySettings.currencyNTD")}</SelectItem>
+                        <SelectItem value="USD">{t("settings:companySettings.currencyUSD")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -351,15 +351,15 @@ function CompanySettingsContent() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Representative / Authorized Signatory</CardTitle>
+                <CardTitle>{t("settings:companySettings.representative")}</CardTitle>
                 <CardDescription>
-                  The person authorized to sign contracts on behalf of the company.
+                  {t("settings:companySettings.representativeDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="representativeName">Name</Label>
+                    <Label htmlFor="representativeName">{t("settings:companySettings.representativeName")}</Label>
                     <Input
                       id="representativeName"
                       placeholder="e.g. 王大明"
@@ -369,7 +369,7 @@ function CompanySettingsContent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="representativeTitle">Title</Label>
+                    <Label htmlFor="representativeTitle">{t("settings:companySettings.representativeTitle")}</Label>
                     <Input
                       id="representativeTitle"
                       placeholder="e.g. 董事長 / CEO"
@@ -393,9 +393,9 @@ function CompanySettingsContent() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Company Logo</CardTitle>
+                <CardTitle>{t("settings:companySettings.companyLogo")}</CardTitle>
                 <CardDescription>
-                  Shown on exported reports and eSignature templates.
+                  {t("settings:companySettings.companyLogoDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -404,14 +404,14 @@ function CompanySettingsContent() {
                     <div className="border rounded-lg p-4 bg-white w-full flex items-center justify-center">
                       <img
                         src={company.logoUrl}
-                        alt="Company Logo"
+                        alt={t("settings:companySettings.companyLogo")}
                         className="max-h-32 max-w-full object-contain"
                       />
                     </div>
                   ) : (
                     <div className="border-2 border-dashed rounded-lg p-8 bg-muted/50 w-full flex flex-col items-center justify-center text-muted-foreground">
                       <Building2 className="h-12 w-12 mb-2" />
-                      <span className="text-sm">No logo uploaded</span>
+                      <span className="text-sm">{t("settings:companySettings.noLogoUploaded")}</span>
                     </div>
                   )}
                   {canEdit && (
@@ -434,13 +434,12 @@ function CompanySettingsContent() {
                         disabled={uploadLogoMut.isPending}
                       >
                         <Upload className="h-4 w-4 mr-2" />
-                        {company?.logoUrl ? "Replace" : "Upload"} Logo
+                        {company?.logoUrl ? t("settings:companySettings.replaceLogo") : t("settings:companySettings.uploadLogo")}
                       </Button>
                     </>
                   )}
                   <p className="text-xs text-muted-foreground text-center">
-                    PNG, JPG, SVG, or WebP. Recommended: 400×400px or larger, square aspect
-                    ratio.
+                    {t("settings:companySettings.logoHint")}
                   </p>
                 </div>
               </CardContent>
@@ -470,7 +469,7 @@ function CompanySettingsContent() {
                   onClick={() => setDeleteDialogOpen(true)}
                   disabled={deleteAccountMut.isPending}
                 >
-                  {deleteAccountMut.isPending ? "Deleting..." : t("settings:companySettings.deleteAccountBtn")}
+                  {deleteAccountMut.isPending ? t("settings:companySettings.deleting") : t("settings:companySettings.deleteAccountBtn")}
                 </Button>
               </div>
             </CardContent>
@@ -510,7 +509,7 @@ function CompanySettingsContent() {
                   setDeleteConfirmEmail("");
                 }}
               >
-                Cancel
+                {t("settings:companySettings.cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -520,7 +519,7 @@ function CompanySettingsContent() {
                   deleteAccountMut.isPending
                 }
               >
-                {deleteAccountMut.isPending ? "Deleting..." : t("settings:companySettings.deleteAccountBtn")}
+                {deleteAccountMut.isPending ? t("settings:companySettings.deleting") : t("settings:companySettings.deleteAccountBtn")}
               </Button>
             </DialogFooter>
           </DialogContent>

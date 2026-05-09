@@ -47,7 +47,7 @@ export default function AngelTaxDeductionPage() {
   const { t } = useTranslation("compliance");
   const [filter, setFilter] = useState<"all" | "eligible" | "not_applicable">("all");
 
-  const { data: records = [], isLoading } = trpc.angelTax.list.useQuery();
+  const { data: records = [], isLoading, isError } = trpc.angelTax.list.useQuery();
   const { data: upcoming = [] } = trpc.angelTax.upcoming.useQuery({ withinDays: 180 });
 
   // Summary stats
@@ -102,6 +102,16 @@ export default function AngelTaxDeductionPage() {
     const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
     return diff;
   };
+
+  if (isError) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[200px]">
+          <p className="text-destructive">{t("angelTax.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

@@ -53,23 +53,23 @@ const emptyForm: ESignForm = {
   templateId: "",
 };
 
-const DOC_TYPE_LABELS: Record<DocType, string> = {
-  share_certificate: "Share Certificate",
-  safe_agreement: "SAFE Agreement",
-  convertible_note: "Convertible Note",
-  stock_option_grant: "Stock Option Grant",
-  board_resolution: "Board Resolution",
-  sha: "Shareholders' Agreement",
-  custom: "Custom Document",
+const DOC_TYPE_KEYS: Record<DocType, string> = {
+  share_certificate: "esign.docType.share_certificate",
+  safe_agreement: "esign.docType.safe_agreement",
+  convertible_note: "esign.docType.convertible_note",
+  stock_option_grant: "esign.docType.stock_option_grant",
+  board_resolution: "esign.docType.board_resolution",
+  sha: "esign.docType.sha",
+  custom: "esign.docType.custom",
 };
 
-const STATUS_CONFIG: Record<SigningStatus, { label: string; color: string; icon: typeof Clock }> = {
-  draft: { label: "Draft", color: "bg-gray-100 text-gray-700", icon: Clock },
-  pending: { label: "Pending", color: "bg-yellow-100 text-yellow-800", icon: Send },
-  viewed: { label: "Viewed", color: "bg-blue-100 text-blue-800", icon: Eye },
-  completed: { label: "Completed", color: "bg-green-100 text-green-800", icon: CheckCircle2 },
-  declined: { label: "Declined", color: "bg-red-100 text-red-800", icon: XCircle },
-  expired: { label: "Expired", color: "bg-gray-100 text-gray-500", icon: AlertTriangle },
+const STATUS_CONFIG: Record<SigningStatus, { labelKey: string; color: string; icon: typeof Clock }> = {
+  draft: { labelKey: "esign.status.draft", color: "bg-gray-100 text-gray-700", icon: Clock },
+  pending: { labelKey: "esign.status.pending", color: "bg-yellow-100 text-yellow-800", icon: Send },
+  viewed: { labelKey: "esign.status.viewed", color: "bg-blue-100 text-blue-800", icon: Eye },
+  completed: { labelKey: "esign.status.completed", color: "bg-green-100 text-green-800", icon: CheckCircle2 },
+  declined: { labelKey: "esign.status.declined", color: "bg-red-100 text-red-800", icon: XCircle },
+  expired: { labelKey: "esign.status.expired", color: "bg-gray-100 text-gray-500", icon: AlertTriangle },
 };
 
 // ─── Main entry point ─────────────────────────────────────────────────────
@@ -391,12 +391,12 @@ function DocuSealOnboarding({ onConnected }: { onConnected: () => void }) {
 // Section 1: Signing Requests
 // ════════════════════════════════════════════════════════════════════════════
 
-const REQUEST_TABS: Array<{ value: string; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "draft", label: "Draft" },
-  { value: "pending", label: "Pending" },
-  { value: "viewed", label: "Viewed" },
-  { value: "completed", label: "Completed" },
+const REQUEST_TAB_KEYS: Array<{ value: string; labelKey: string }> = [
+  { value: "all", labelKey: "esign.tab.all" },
+  { value: "draft", labelKey: "esign.tab.draft" },
+  { value: "pending", labelKey: "esign.tab.pending" },
+  { value: "viewed", labelKey: "esign.tab.viewed" },
+  { value: "completed", labelKey: "esign.tab.completed" },
 ];
 
 function RequestsSection() {
@@ -451,16 +451,16 @@ function RequestsSection() {
   }
 
   async function handleCreate() {
-    if (!form.title.trim()) { toast.error("Title is required"); return; }
+    if (!form.title.trim()) { toast.error(t("esign.titleRequired")); return; }
     const validSigners = form.signers.filter(s => s.email.trim());
-    if (validSigners.length === 0) { toast.error("At least one signer with email is required"); return; }
+    if (validSigners.length === 0) { toast.error(t("esign.signerEmailRequired")); return; }
 
-    if (docSource === "template" && !form.templateId) { toast.error("Select a template or switch to upload"); return; }
-    if (docSource === "upload" && !selectedFile) { toast.error("Select a file to upload or use a template"); return; }
+    if (docSource === "template" && !form.templateId) { toast.error(t("esign.selectTemplateOrUpload")); return; }
+    if (docSource === "upload" && !selectedFile) { toast.error(t("esign.selectFileOrTemplate")); return; }
 
     try {
       const selectedTemplate = docSource === "template" && form.templateId
-        ? templates?.find((t: any) => t.id === form.templateId)
+        ? templates?.find((tpl: any) => tpl.id === form.templateId)
         : null;
 
       const row = await createMut.mutateAsync({
@@ -541,39 +541,39 @@ function RequestsSection() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Document Type</label>
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.docTypeLabel")}</label>
               <select value={form.docType} onChange={e => setForm(prev => ({ ...prev, docType: e.target.value as DocType }))} className="w-full border rounded-lg px-3 py-2 text-sm bg-background">
-                {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {Object.entries(DOC_TYPE_KEYS).map(([k, key]) => <option key={k} value={k}>{t(key)}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Title *</label>
-              <input value={form.title} onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))} placeholder="e.g. Series A Share Certificate — John Doe" className="w-full border rounded-lg px-3 py-2 text-sm bg-background" />
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.titleLabel")}</label>
+              <input value={form.title} onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))} placeholder={t("esign.titlePlaceholder")} className="w-full border rounded-lg px-3 py-2 text-sm bg-background" />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</label>
-            <textarea value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} rows={2} placeholder="Optional notes" className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none" />
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.descriptionLabel")}</label>
+            <textarea value={form.description} onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))} rows={2} placeholder={t("esign.descPlaceholder")} className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none" />
           </div>
 
           {/* Document source: template or upload */}
           <div className="space-y-3">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Document Source</label>
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.docSourceLabel")}</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setDocSource("template")}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${docSource === "template" ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}
               >
                 <FolderOpen className="h-3.5 w-3.5 inline mr-1.5" />
-                From Template
+                {t("esign.fromTemplateBtn")}
               </button>
               <button
                 onClick={() => setDocSource("upload")}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${docSource === "upload" ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}
               >
                 <FileUp className="h-3.5 w-3.5 inline mr-1.5" />
-                Upload New
+                {t("esign.uploadNewBtn")}
               </button>
             </div>
 
@@ -584,24 +584,24 @@ function RequestsSection() {
                   onChange={e => setForm(prev => ({ ...prev, templateId: e.target.value ? Number(e.target.value) : "" }))}
                   className="w-full border rounded-lg px-3 py-2 text-sm bg-background"
                 >
-                  <option value="">Select a template…</option>
-                  {templates && (templates as any[]).filter((t: any) => t.scope === "platform").length > 0 && (
-                    <optgroup label="Platform Templates">
-                      {(templates as any[]).filter((t: any) => t.scope === "platform").map((t: any) => (
-                        <option key={t.id} value={t.id}>{t.name} — {DOC_TYPE_LABELS[t.docType as DocType] || t.docType}</option>
+                  <option value="">{t("esign.selectTemplate")}</option>
+                  {templates && (templates as any[]).filter((tpl: any) => tpl.scope === "platform").length > 0 && (
+                    <optgroup label={t("esign.platformTemplates")}>
+                      {(templates as any[]).filter((tpl: any) => tpl.scope === "platform").map((tpl: any) => (
+                        <option key={tpl.id} value={tpl.id}>{tpl.name} — {t(DOC_TYPE_KEYS[tpl.docType as DocType]) || tpl.docType}</option>
                       ))}
                     </optgroup>
                   )}
-                  {templates && (templates as any[]).filter((t: any) => t.scope === "company").length > 0 && (
-                    <optgroup label="Company Templates">
-                      {(templates as any[]).filter((t: any) => t.scope === "company").map((t: any) => (
-                        <option key={t.id} value={t.id}>{t.name} — {DOC_TYPE_LABELS[t.docType as DocType] || t.docType}</option>
+                  {templates && (templates as any[]).filter((tpl: any) => tpl.scope === "company").length > 0 && (
+                    <optgroup label={t("esign.companyTemplates")}>
+                      {(templates as any[]).filter((tpl: any) => tpl.scope === "company").map((tpl: any) => (
+                        <option key={tpl.id} value={tpl.id}>{tpl.name} — {t(DOC_TYPE_KEYS[tpl.docType as DocType]) || tpl.docType}</option>
                       ))}
                     </optgroup>
                   )}
                 </select>
                 {templates && (templates as any[]).length === 0 && (
-                  <p className="text-xs text-muted-foreground">No templates yet. Upload one in the Template Library tab, or switch to "Upload New".</p>
+                  <p className="text-xs text-muted-foreground">{t("esign.noTemplatesHint")}</p>
                 )}
               </div>
             )}
@@ -611,7 +611,7 @@ function RequestsSection() {
                 <input ref={fileRef} type="file" accept=".pdf,.docx" onChange={e => setSelectedFile(e.target.files?.[0] || null)} className="hidden" />
                 <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm hover:bg-muted transition-colors">
                   <FileUp className="h-4 w-4" />
-                  {selectedFile ? selectedFile.name : "Choose File (PDF / DOCX)"}
+                  {selectedFile ? selectedFile.name : t("esign.chooseFilePdfDocx")}
                 </button>
                 {selectedFile && <span className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(0)} KB</span>}
               </div>
@@ -621,22 +621,22 @@ function RequestsSection() {
           {/* Signers */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Signers</label>
-              <button onClick={addSigner} className="text-xs text-primary hover:underline">+ Add Signer</button>
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.signersLabel")}</label>
+              <button onClick={addSigner} className="text-xs text-primary hover:underline">{t("esign.addSignerBtn")}</button>
             </div>
             {form.signers.map((signer, i) => (
               <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground">Role</label>
-                  <input value={signer.role} onChange={e => updateSigner(i, "role", e.target.value)} placeholder="First Party" className="w-full border rounded px-2 py-1.5 text-sm bg-background" />
+                  <label className="text-[10px] text-muted-foreground">{t("esign.roleLabel")}</label>
+                  <input value={signer.role} onChange={e => updateSigner(i, "role", e.target.value)} placeholder={t("esign.rolePlaceholder")} className="w-full border rounded px-2 py-1.5 text-sm bg-background" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground">Name</label>
-                  <input value={signer.name} onChange={e => updateSigner(i, "name", e.target.value)} placeholder="John Doe" className="w-full border rounded px-2 py-1.5 text-sm bg-background" />
+                  <label className="text-[10px] text-muted-foreground">{t("esign.nameLabel")}</label>
+                  <input value={signer.name} onChange={e => updateSigner(i, "name", e.target.value)} placeholder={t("esign.namePlaceholder")} className="w-full border rounded px-2 py-1.5 text-sm bg-background" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground">Email *</label>
-                  <input type="email" value={signer.email} onChange={e => updateSigner(i, "email", e.target.value)} placeholder="john@example.com" className="w-full border rounded px-2 py-1.5 text-sm bg-background" />
+                  <label className="text-[10px] text-muted-foreground">{t("esign.emailLabel")}</label>
+                  <input type="email" value={signer.email} onChange={e => updateSigner(i, "email", e.target.value)} placeholder={t("esign.emailPlaceholder")} className="w-full border rounded px-2 py-1.5 text-sm bg-background" />
                 </div>
                 <div>
                   {form.signers.length > 1 && (
@@ -650,7 +650,7 @@ function RequestsSection() {
           {/* Expiry */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Expiry Date (optional)</label>
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.expiryDateLabel")}</label>
               <input type="date" value={form.expiresAt} onChange={e => setForm(prev => ({ ...prev, expiresAt: e.target.value }))} className="w-full border rounded-lg px-3 py-2 text-sm bg-background" />
             </div>
           </div>
@@ -658,18 +658,18 @@ function RequestsSection() {
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button onClick={handleCreate} disabled={createMut.isPending || uploadingFile} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
-              {createMut.isPending || uploadingFile ? "Creating…" : "Save & Upload"}
+              {createMut.isPending || uploadingFile ? t("esign.creating") : t("esign.saveAndUpload")}
             </button>
-            <button onClick={resetForm} className="px-4 py-2 border rounded-lg text-sm hover:bg-muted transition-colors">Cancel</button>
+            <button onClick={resetForm} className="px-4 py-2 border rounded-lg text-sm hover:bg-muted transition-colors">{t("esign.cancel")}</button>
           </div>
         </div>
       )}
 
       {/* Request filter tabs */}
       <div className="flex gap-1 border-b">
-        {REQUEST_TABS.map(t => (
-          <button key={t.value} onClick={() => setTab(t.value)} className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${tab === t.value ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-            {t.label}
+        {REQUEST_TAB_KEYS.map(rt => (
+          <button key={rt.value} onClick={() => setTab(rt.value)} className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${tab === rt.value ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            {t(rt.labelKey)}
           </button>
         ))}
       </div>
@@ -679,17 +679,17 @@ function RequestsSection() {
         <table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground uppercase tracking-wide">
-              <th className="py-3 pr-4">Title</th>
-              <th className="py-3 pr-4">Type</th>
-              <th className="py-3 pr-4">Signers</th>
-              <th className="py-3 pr-4">Status</th>
-              <th className="py-3 pr-4">Created</th>
-              <th className="py-3 text-right">Actions</th>
+              <th className="py-3 pr-4">{t("esign.tableTitle")}</th>
+              <th className="py-3 pr-4">{t("esign.tableType")}</th>
+              <th className="py-3 pr-4">{t("esign.tableSigners")}</th>
+              <th className="py-3 pr-4">{t("esign.tableStatus")}</th>
+              <th className="py-3 pr-4">{t("esign.tableCreated")}</th>
+              <th className="py-3 text-right">{t("esign.tableActions")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">No signing requests{tab !== "all" ? ` with status "${tab}"` : ""}.</td></tr>
+              <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">{tab !== "all" ? t("esign.noRequestsFiltered", { status: tab }) : t("esign.noRequests")}</td></tr>
             )}
             {filtered.map((req: any) => {
               const signers: Signer[] = req.signers ? JSON.parse(req.signers) : [];
@@ -702,24 +702,24 @@ function RequestsSection() {
                     <div className="font-medium">{req.title}</div>
                     {req.description && <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">{req.description}</div>}
                   </td>
-                  <td className="py-3 pr-4"><span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{DOC_TYPE_LABELS[req.docType as DocType] || req.docType}</span></td>
-                  <td className="py-3 pr-4"><span className="text-xs">{signedCount}/{signers.length} signed</span></td>
-                  <td className="py-3 pr-4"><span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${statusCfg.color}`}><StatusIcon className="h-3 w-3" />{statusCfg.label}</span></td>
+                  <td className="py-3 pr-4"><span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{t(DOC_TYPE_KEYS[req.docType as DocType]) || req.docType}</span></td>
+                  <td className="py-3 pr-4"><span className="text-xs">{t("esign.signedCount", { signed: signedCount, total: signers.length })}</span></td>
+                  <td className="py-3 pr-4"><span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${statusCfg.color}`}><StatusIcon className="h-3 w-3" />{t(statusCfg.labelKey)}</span></td>
                   <td className="py-3 pr-4 text-xs text-muted-foreground">{req.createdAt ? new Date(req.createdAt).toLocaleDateString() : "—"}</td>
                   <td className="py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       {canEdit && req.status === "draft" && req.docusealTemplateId && (
-                        <button onClick={() => handleSend(req.id)} disabled={sendingId === req.id} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50" title="Send for signing">
-                          <Send className="h-3 w-3" />{sendingId === req.id ? "Sending…" : "Send"}
+                        <button onClick={() => handleSend(req.id)} disabled={sendingId === req.id} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50" title={t("esign.sendForSigning")}>
+                          <Send className="h-3 w-3" />{sendingId === req.id ? t("esign.sending") : t("esign.send")}
                         </button>
                       )}
                       {req.status === "completed" && req.signedDocumentUrl && (
-                        <a href={req.signedDocumentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200" title="Download signed PDF">
+                        <a href={req.signedDocumentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200" title={t("esign.downloadSignedPdf")}>
                           <Download className="h-3 w-3" />PDF
                         </a>
                       )}
                       {canEdit && req.status === "draft" && (
-                        <button onClick={() => { if (confirm("Delete this signing request?")) deleteMut.mutate({ id: req.id }); }} disabled={deleteMut.isPending} className="p-1.5 text-destructive hover:text-destructive/80 disabled:opacity-50 disabled:pointer-events-none" aria-label="Delete request" title="Delete">
+                        <button onClick={() => { if (confirm(t("esign.deleteConfirm"))) deleteMut.mutate({ id: req.id }); }} disabled={deleteMut.isPending} className="p-1.5 text-destructive hover:text-destructive/80 disabled:opacity-50 disabled:pointer-events-none" aria-label={t("esign.deleteRequest")} title={t("esign.deleteLabel")}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -740,6 +740,7 @@ function RequestsSection() {
 // ════════════════════════════════════════════════════════════════════════════
 
 function TemplatesSection() {
+  const { t } = useTranslation("equity");
   const { canEdit } = usePermissions();
   const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery();
@@ -754,24 +755,24 @@ function TemplatesSection() {
   const uploadRef = useRef<HTMLInputElement>(null);
 
   const uploadCompanyMut = trpc.esign.uploadTemplate.useMutation({
-    onSuccess: () => { utils.esign.templates.invalidate(); setShowUpload(false); setUploadFile(null); setUploadForm({ name: "", description: "", docType: "custom" }); toast.success("Template uploaded"); },
+    onSuccess: () => { utils.esign.templates.invalidate(); setShowUpload(false); setUploadFile(null); setUploadForm({ name: "", description: "", docType: "custom" }); toast.success(t("esign.toastTemplateUploaded")); },
     onError: (e) => toast.error(e.message),
   });
   const uploadPlatformMut = trpc.esign.uploadPlatformTemplate.useMutation({
-    onSuccess: () => { utils.esign.templates.invalidate(); setShowUpload(false); setUploadFile(null); setUploadForm({ name: "", description: "", docType: "custom" }); toast.success("Platform template uploaded"); },
+    onSuccess: () => { utils.esign.templates.invalidate(); setShowUpload(false); setUploadFile(null); setUploadForm({ name: "", description: "", docType: "custom" }); toast.success(t("esign.toastPlatformTemplateUploaded")); },
     onError: (e) => toast.error(e.message),
   });
   const deleteTemplateMut = trpc.esign.deleteTemplate.useMutation({
-    onSuccess: () => { utils.esign.templates.invalidate(); toast.success("Template deleted"); },
+    onSuccess: () => { utils.esign.templates.invalidate(); toast.success(t("esign.toastTemplateDeleted")); },
     onError: (e) => toast.error(e.message),
   });
 
-  const platformTemplates = useMemo(() => (templates as any[] || []).filter((t: any) => t.scope === "platform"), [templates]);
-  const companyTemplates = useMemo(() => (templates as any[] || []).filter((t: any) => t.scope === "company"), [templates]);
+  const platformTemplates = useMemo(() => (templates as any[] || []).filter((tpl: any) => tpl.scope === "platform"), [templates]);
+  const companyTemplates = useMemo(() => (templates as any[] || []).filter((tpl: any) => tpl.scope === "company"), [templates]);
 
   async function handleUpload() {
-    if (!uploadForm.name.trim()) { toast.error("Template name is required"); return; }
-    if (!uploadFile) { toast.error("Select a file to upload"); return; }
+    if (!uploadForm.name.trim()) { toast.error(t("esign.templateNameRequired")); return; }
+    if (!uploadFile) { toast.error(t("esign.selectFileToUpload")); return; }
 
     const reader = new FileReader();
     reader.onload = async () => {
@@ -810,7 +811,7 @@ function TemplatesSection() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
           >
             <FileUp className="h-4 w-4" />
-            Upload Template
+            {t("esign.uploadTemplateBtn")}
           </button>
         </div>
       )}
@@ -818,18 +819,18 @@ function TemplatesSection() {
       {/* Upload form */}
       {showUpload && (
         <div className="border rounded-xl p-6 space-y-5 bg-card shadow-sm">
-          <h2 className="font-semibold text-lg">Upload Template</h2>
+          <h2 className="font-semibold text-lg">{t("esign.uploadTemplateTitle")}</h2>
 
           {/* Scope selector */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Template Scope</label>
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.templateScopeLabel")}</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setUploadScope("company")}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors flex items-center gap-1.5 ${uploadScope === "company" ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}
               >
                 <Building2 className="h-3.5 w-3.5" />
-                My Company Only
+                {t("esign.myCompanyOnly")}
               </button>
               {isAppAdmin && (
                 <button
@@ -837,42 +838,42 @@ function TemplatesSection() {
                   className={`px-3 py-1.5 text-sm rounded-lg border transition-colors flex items-center gap-1.5 ${uploadScope === "platform" ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}
                 >
                   <Globe className="h-3.5 w-3.5" />
-                  Platform (All Companies)
+                  {t("esign.platformAllCompanies")}
                 </button>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
               {uploadScope === "platform"
-                ? "This template will be available to all companies on the platform."
-                : "This template will only be available to your company."}
+                ? t("esign.scopePlatformDesc")
+                : t("esign.scopeCompanyDesc")}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Template Name *</label>
-              <input value={uploadForm.name} onChange={e => setUploadForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Standard SAFE Agreement" className="w-full border rounded-lg px-3 py-2 text-sm bg-background" />
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.templateNameLabel")}</label>
+              <input value={uploadForm.name} onChange={e => setUploadForm(p => ({ ...p, name: e.target.value }))} placeholder={t("esign.templateNamePlaceholder")} className="w-full border rounded-lg px-3 py-2 text-sm bg-background" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Document Type</label>
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.templateDocTypeLabel")}</label>
               <select value={uploadForm.docType} onChange={e => setUploadForm(p => ({ ...p, docType: e.target.value as DocType }))} className="w-full border rounded-lg px-3 py-2 text-sm bg-background">
-                {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {Object.entries(DOC_TYPE_KEYS).map(([k, key]) => <option key={k} value={k}>{t(key)}</option>)}
               </select>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</label>
-            <textarea value={uploadForm.description} onChange={e => setUploadForm(p => ({ ...p, description: e.target.value }))} rows={2} placeholder="Optional description of this template" className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none" />
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.templateDescLabel")}</label>
+            <textarea value={uploadForm.description} onChange={e => setUploadForm(p => ({ ...p, description: e.target.value }))} rows={2} placeholder={t("esign.templateDescPlaceholder")} className="w-full border rounded-lg px-3 py-2 text-sm bg-background resize-none" />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">File (PDF / DOCX) *</label>
+            <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("esign.fileLabel")}</label>
             <div className="flex items-center gap-3">
               <input ref={uploadRef} type="file" accept=".pdf,.docx" onChange={e => setUploadFile(e.target.files?.[0] || null)} className="hidden" />
               <button onClick={() => uploadRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm hover:bg-muted transition-colors">
                 <FileUp className="h-4 w-4" />
-                {uploadFile ? uploadFile.name : "Choose File"}
+                {uploadFile ? uploadFile.name : t("esign.chooseFile")}
               </button>
               {uploadFile && <span className="text-xs text-muted-foreground">{(uploadFile.size / 1024).toFixed(0)} KB</span>}
             </div>
@@ -880,9 +881,9 @@ function TemplatesSection() {
 
           <div className="flex gap-3 pt-2">
             <button onClick={handleUpload} disabled={uploadCompanyMut.isPending || uploadPlatformMut.isPending} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
-              {(uploadCompanyMut.isPending || uploadPlatformMut.isPending) ? "Uploading…" : "Upload Template"}
+              {(uploadCompanyMut.isPending || uploadPlatformMut.isPending) ? t("esign.uploading") : t("esign.uploadTemplateBtn")}
             </button>
-            <button onClick={() => { setShowUpload(false); setUploadFile(null); }} className="px-4 py-2 border rounded-lg text-sm hover:bg-muted transition-colors">Cancel</button>
+            <button onClick={() => { setShowUpload(false); setUploadFile(null); }} className="px-4 py-2 border rounded-lg text-sm hover:bg-muted transition-colors">{t("esign.cancel")}</button>
           </div>
         </div>
       )}
@@ -892,12 +893,12 @@ function TemplatesSection() {
         <div className="space-y-3">
           <h3 className="text-sm font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
             <Globe className="h-3.5 w-3.5" />
-            Platform Templates
+            {t("esign.platformTemplatesHeading")}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {platformTemplates.map((t: any) => (
-              <TemplateCard key={t.id} template={t} canDelete={isAppAdmin} onDelete={() => {
-                if (confirm("Delete this platform template?")) deleteTemplateMut.mutate({ id: t.id });
+            {platformTemplates.map((tpl: any) => (
+              <TemplateCard key={tpl.id} template={tpl} canDelete={isAppAdmin} onDelete={() => {
+                if (confirm(t("esign.deletePlatformTemplateConfirm"))) deleteTemplateMut.mutate({ id: tpl.id });
               }} />
             ))}
           </div>
@@ -908,19 +909,19 @@ function TemplatesSection() {
       <div className="space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
           <Building2 className="h-3.5 w-3.5" />
-          Company Templates
+          {t("esign.companyTemplatesHeading")}
         </h3>
         {companyTemplates.length === 0 ? (
           <div className="border rounded-xl p-8 text-center text-muted-foreground">
             <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No company templates yet.</p>
-            <p className="text-xs mt-1">Upload your own contract templates to reuse them across signing requests.</p>
+            <p className="text-sm">{t("esign.noCompanyTemplates")}</p>
+            <p className="text-xs mt-1">{t("esign.noCompanyTemplatesHint")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {companyTemplates.map((t: any) => (
-              <TemplateCard key={t.id} template={t} canDelete={canEdit} onDelete={() => {
-                if (confirm("Delete this template?")) deleteTemplateMut.mutate({ id: t.id });
+            {companyTemplates.map((tpl: any) => (
+              <TemplateCard key={tpl.id} template={tpl} canDelete={canEdit} onDelete={() => {
+                if (confirm(t("esign.deleteTemplateConfirm"))) deleteTemplateMut.mutate({ id: tpl.id });
               }} />
             ))}
           </div>
@@ -932,9 +933,9 @@ function TemplatesSection() {
         <div className="flex items-start gap-3">
           <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
           <div className="space-y-2 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">About Template Library</p>
-            <p><strong>Platform Templates</strong> are managed by platform admins and available to all companies. Good for standard contracts like SAFE agreements or share certificates.</p>
-            <p><strong>Company Templates</strong> are your own. Upload contracts you've customized with your legal team and reuse them for each signing request.</p>
+            <p className="font-semibold text-foreground">{t("esign.aboutTemplateLibrary")}</p>
+            <p>{t("esign.aboutPlatformTemplates")}</p>
+            <p>{t("esign.aboutCompanyTemplates")}</p>
           </div>
         </div>
       </div>
@@ -945,20 +946,21 @@ function TemplatesSection() {
 // ─── Template Card Component ────────────────────────────────────────────────
 
 function TemplateCard({ template, canDelete, onDelete }: { template: any; canDelete: boolean; onDelete: () => void }) {
+  const { t } = useTranslation("equity");
   return (
     <div className="border rounded-lg p-4 bg-card hover:shadow-sm transition-shadow">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="font-medium text-sm truncate">{template.name}</p>
           <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 mt-1 inline-block">
-            {DOC_TYPE_LABELS[template.docType as DocType] || template.docType}
+            {t(DOC_TYPE_KEYS[template.docType as DocType]) || template.docType}
           </span>
           {template.description && (
             <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{template.description}</p>
           )}
         </div>
         {canDelete && (
-          <button onClick={onDelete} className="p-1 text-destructive/60 hover:text-destructive shrink-0" aria-label="Delete template" title="Delete template">
+          <button onClick={onDelete} className="p-1 text-destructive/60 hover:text-destructive shrink-0" aria-label={t("esign.deleteTemplate")} title={t("esign.deleteTemplate")}>
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}

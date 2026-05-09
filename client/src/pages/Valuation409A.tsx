@@ -59,7 +59,7 @@ function Valuation409AContent() {
   const { t: tPage } = useTranslation("pages");
   const { t } = useTranslation("compliance");
   const utils = trpc.useUtils();
-  const { data: valuations, isLoading } = trpc.valuation409a.list.useQuery();
+  const { data: valuations, isLoading, isError } = trpc.valuation409a.list.useQuery();
   const { data: active } = trpc.valuation409a.active.useQuery();
   const createMut = trpc.valuation409a.create.useMutation({ onSuccess: () => { utils.valuation409a.invalidate(); setDialogOpen(false); } });
   const updateMut = trpc.valuation409a.update.useMutation({ onSuccess: () => { utils.valuation409a.invalidate(); setDialogOpen(false); } });
@@ -131,6 +131,14 @@ function Valuation409AContent() {
   const isExpiringSoon = active?.expiryDate
     ? (new Date(active.expiryDate).getTime() - Date.now()) < 60 * 86400000
     : false;
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("shared.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">

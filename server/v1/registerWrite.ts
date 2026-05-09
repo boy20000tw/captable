@@ -174,6 +174,7 @@ async function buildSnapshotName(
     cancellation:  "Cancellation for",
     reversal:      "Reversal for",
     esop_exercise: "ESOP exercise for",
+    rsu_settlement: "RSU settlement for",
   } as Record<string, string>)[input.eventType] ?? input.eventType;
   return `${verb} ${who} (${input.shares.toLocaleString()} ${input.shareClass}) on ${input.effectiveDate}`;
 }

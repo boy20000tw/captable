@@ -147,6 +147,10 @@
   "projections.sensitivityAnalysis": "Sensitivity Analysis (5×5)",
   "projections.sensitivityDesc": "Enterprise Value under varying WACC and terminal assumptions",
 
+  "waterfall.financialAnalysis": "Financial Analysis",
+  "waterfall.cappedParticipating": "Capped Participating",
+  "waterfall.validExitValue": "Please enter a valid exit value",
+  "waterfall.prefUpdated": "Preference updated",
   "waterfall.preferenceTranches": "Preference Tranches",
   "waterfall.remainingForCommon": "Remaining for Common",
   "waterfall.distributionByTranche": "Distribution by Tranche",

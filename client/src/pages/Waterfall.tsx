@@ -40,7 +40,7 @@ export default function Waterfall() {
   );
 
   const upsertPref = trpc.waterfall.upsertLiquidationPreference.useMutation({
-    onSuccess: () => { refetchPrefs(); refetch(); toast.success("Preference updated"); },
+    onSuccess: () => { refetchPrefs(); refetch(); toast.success(t("waterfall.prefUpdated")); },
   });
 
   const prefMap = useMemo(() => new Map(prefs.map(p => [p.fundingRoundId, p])), [prefs]);
@@ -48,12 +48,12 @@ export default function Waterfall() {
   const PREFERENCE_LABELS: Record<string, string> = {
     non_participating: t("waterfall.1xNonPart"),
     participating: t("waterfall.1xPart"),
-    capped_participating: "Capped Participating",
+    capped_participating: t("waterfall.cappedParticipating"),
   };
 
   const handleCompute = () => {
     const val = parseFloat(exitValueInput.replace(/,/g, ""));
-    if (isNaN(val) || val <= 0) { toast.error("Please enter a valid exit value"); return; }
+    if (isNaN(val) || val <= 0) { toast.error(t("waterfall.validExitValue")); return; }
     setExitValueNtd(val);
   };
 
@@ -101,7 +101,7 @@ export default function Waterfall() {
         <div className="mb-10 border-b border-stone-200 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div>
-              <p className="text-xs tracking-[0.2em] text-stone-400 uppercase mb-2">Financial Analysis</p>
+              <p className="text-xs tracking-[0.2em] text-stone-400 uppercase mb-2">{t("waterfall.financialAnalysis")}</p>
               <h1 className="font-display text-4xl font-bold text-stone-900">{tPages("waterfall.title")}</h1>
               <p className="text-stone-500 mt-2 text-sm">{tPages("waterfall.desc")}</p>
             </div>
@@ -171,7 +171,7 @@ export default function Waterfall() {
                           <SelectContent>
                             <SelectItem value="non_participating">{t("waterfall.1xNonPart")}</SelectItem>
                             <SelectItem value="participating">{t("waterfall.1xPart")}</SelectItem>
-                            <SelectItem value="capped_participating">Capped Participating</SelectItem>
+                            <SelectItem value="capped_participating">{t("waterfall.cappedParticipating")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export default function Waterfall() {
                       <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#78716c" }} />
                       <YAxis tickFormatter={v => `${(v / 1_000_000).toFixed(0)}M`} tick={{ fontSize: 11, fill: "#78716c" }} />
                       <Tooltip
-                        formatter={(value: number) => [formatNTD(value), "Amount"]}
+                        formatter={(value: number) => [formatNTD(value), t("waterfall.amount")]}
                         contentStyle={{ fontSize: 12, border: "1px solid #e7e5e4" }}
                       />
                       <Bar dataKey="amount" radius={[2, 2, 0, 0]}>
@@ -321,10 +321,10 @@ export default function Waterfall() {
                           <table className="w-full text-xs min-w-[640px]">
                             <thead>
                               <tr className="border-b border-stone-100">
-                                <th className="text-left px-4 py-2 text-stone-400 font-normal">Shareholder</th>
-                                <th className="text-right px-4 py-2 text-stone-400 font-normal">Shares</th>
-                                <th className="text-right px-4 py-2 text-stone-400 font-normal">Amount</th>
-                                <th className="text-right px-4 py-2 text-stone-400 font-normal">% of Exit</th>
+                                <th className="text-left px-4 py-2 text-stone-400 font-normal">{t("waterfall.shareholder")}</th>
+                                <th className="text-right px-4 py-2 text-stone-400 font-normal">{t("waterfall.shares")}</th>
+                                <th className="text-right px-4 py-2 text-stone-400 font-normal">{t("waterfall.amount")}</th>
+                                <th className="text-right px-4 py-2 text-stone-400 font-normal">{t("waterfall.percentOfExit")}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -367,10 +367,10 @@ export default function Waterfall() {
                   <table className="w-full text-sm min-w-[640px]">
                     <thead>
                       <tr className="border-b border-stone-200">
-                        <th className="text-left py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">Shareholder</th>
-                        <th className="text-right py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">Total Proceeds</th>
-                        <th className="text-right py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">% of Exit</th>
-                        <th className="text-right py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">USD Equivalent</th>
+                        <th className="text-left py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">{t("waterfall.shareholder")}</th>
+                        <th className="text-right py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">{t("waterfall.totalProceeds")}</th>
+                        <th className="text-right py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">{t("waterfall.percentOfExit")}</th>
+                        <th className="text-right py-3 text-xs tracking-widest uppercase text-stone-400 font-normal">{t("waterfall.usdEquivalent")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -395,7 +395,7 @@ export default function Waterfall() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t-2 border-stone-300">
-                        <td className="py-3 font-bold text-xs tracking-widest uppercase">Total</td>
+                        <td className="py-3 font-bold text-xs tracking-widest uppercase">{t("waterfall.total")}</td>
                         <td className="py-3 text-right font-bold font-mono">{formatNTD(exitValueNtd)}</td>
                         <td className="py-3 text-right font-bold">100.0%</td>
                         <td className="py-3 text-right font-bold font-mono text-stone-500">{formatUSD(exitValueNtd / 32)}</td>

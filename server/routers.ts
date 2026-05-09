@@ -130,7 +130,7 @@ const fundingRoundsRouter = router({
     postMoneyValuationNtd: z.string().optional(),
     exchangeRate: z.string().optional(),
     status: z.enum(["completed","projected","bridge"]).default("completed"),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
     sortOrder: z.number().default(0),
   })).mutation(async ({ input, ctx }) => {
     const result = await createFundingRound({ ...input, companyId: ctx.companyId, roundDate: input.roundDate ?? undefined });
@@ -148,7 +148,7 @@ const fundingRoundsRouter = router({
       postMoneyValuationNtd: z.string().optional(),
       exchangeRate: z.string().optional(),
       status: z.enum(["completed","projected","bridge"]).optional(),
-      notes: z.string().optional(),
+      notes: z.string().max(10000).optional(),
       sortOrder: z.number().optional(),
     }),
   })).mutation(async ({ input, ctx }) => {
@@ -177,7 +177,7 @@ const antiDilutionRouter = router({
     provisionType: z.enum(["full_ratchet", "broad_based_wa", "narrow_based_wa", "none"]).default("broad_based_wa"),
     originalPriceNtd: z.string(),
     originalShares: z.number(),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(({ input, ctx }) => createAntiDilutionProvision({ ...input, companyId: ctx.companyId })),
   update: companyEditorProcedure.input(z.object({
     id: z.number(),
@@ -186,7 +186,7 @@ const antiDilutionRouter = router({
       adjustedShares: z.number().optional(),
       triggerRoundId: z.number().optional(),
       status: z.enum(["active", "triggered", "waived", "expired"]).optional(),
-      notes: z.string().optional(),
+      notes: z.string().max(10000).optional(),
     }),
   })).mutation(({ input, ctx }) => updateAntiDilutionProvision(ctx.companyId, input.id, input.data)),
   delete: companyEditorProcedure.input(z.object({ id: z.number() })).mutation(({ input, ctx }) => deleteAntiDilutionProvision(ctx.companyId, input.id)),
@@ -424,7 +424,7 @@ const waterfallRouter = router({
     liquidationMultiple: z.string().default("1.00"),
     participationCap: z.string().optional(),
     seniorityRank: z.number().default(1),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(({ input, ctx }) => upsertLiquidationPreference({ ...input, companyId: ctx.companyId } as Parameters<typeof upsertLiquidationPreference>[0])),
 });
 // ─── Team / User Management Router ─────────────────────────────────────────
@@ -521,8 +521,8 @@ const invitationsRouter = router({
   create: companyOwnerAdminProcedure.input(z.object({
     email: z.string().email().optional(),
     appRole: z.enum(["admin", "cfo", "lawyer", "investor", "viewer"]).default("viewer"),
-    notes: z.string().optional(),
-    origin: z.string(),
+    notes: z.string().max(10000).optional(),
+    origin: z.string().max(500),
   })).mutation(async ({ input, ctx }) => {
     // Usage limit check: team members
     const members = await listCompanyMembers(ctx.companyId);
@@ -686,7 +686,7 @@ const scenarioRouter = router({
   create: companyEditorProcedure.input(z.object({
     projectionId: z.number(),
     name: z.string().min(1),
-    description: z.string().optional(),
+    description: z.string().max(10000).optional(),
     assumptions: ProjectionAssumptionsSchema,
     isBaseline: z.boolean().default(false),
   })).mutation(async ({ input, ctx }) => {
@@ -700,8 +700,8 @@ const scenarioRouter = router({
   update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
-      name: z.string().optional(),
-      description: z.string().optional(),
+      name: z.string().max(500).optional(),
+      description: z.string().max(10000).optional(),
       assumptions: ProjectionAssumptionsSchema.optional(),
       isBaseline: z.boolean().optional(),
     }),
@@ -904,14 +904,14 @@ const companiesRouter = router({
   update: companyEditorProcedure
     .input(z.object({
       name: z.string().min(1).max(255).optional(),
-      nameEn: z.string().nullable().optional(),
-      taxId: z.string().nullable().optional(),
-      address: z.string().nullable().optional(),
-      phone: z.string().nullable().optional(),
+      nameEn: z.string().max(500).nullable().optional(),
+      taxId: z.string().max(500).nullable().optional(),
+      address: z.string().max(500).nullable().optional(),
+      phone: z.string().max(500).nullable().optional(),
       contactEmail: z.string().email().or(z.literal("")).nullable().optional(),
       website: z.string().url().or(z.literal("")).nullable().optional(),
-      representativeName: z.string().nullable().optional(),
-      representativeTitle: z.string().nullable().optional(),
+      representativeName: z.string().max(500).nullable().optional(),
+      representativeTitle: z.string().max(500).nullable().optional(),
       defaultCurrency: z.enum(["NTD", "USD"]).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -995,13 +995,13 @@ const v1InvestorsRouter = router({
     name: z.string().min(1).max(255),
     entityKind: z.enum(["individual", "entity"]).default("individual"),
     email: z.string().email().optional(),
-    phone: z.string().optional(),
-    nationality: z.string().optional(),
+    phone: z.string().max(500).optional(),
+    nationality: z.string().max(500).optional(),
     status: z.enum(["prospect", "meeting", "term_sheet", "invested", "passed"]).default("prospect"),
-    aka: z.string().optional(),
-    website: z.string().optional(),
-    linkedinUrl: z.string().optional(),
-    notes: z.string().optional(),
+    aka: z.string().max(500).optional(),
+    website: z.string().max(500).optional(),
+    linkedinUrl: z.string().max(500).optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(async ({ ctx, input }) => {
     // Usage limit check: shareholders
     const existing = await getAllInvestors(ctx.companyId);
@@ -1019,13 +1019,13 @@ const v1InvestorsRouter = router({
       name: z.string().min(1).optional(),
       entityKind: z.enum(["individual", "entity"]).optional(),
       email: z.string().email().optional().nullable(),
-      phone: z.string().optional().nullable(),
-      nationality: z.string().optional().nullable(),
+      phone: z.string().max(500).optional().nullable(),
+      nationality: z.string().max(500).optional().nullable(),
       status: z.enum(["prospect", "meeting", "term_sheet", "invested", "passed"]).optional(),
-      aka: z.string().optional().nullable(),
-      website: z.string().optional().nullable(),
-      linkedinUrl: z.string().optional().nullable(),
-      notes: z.string().optional().nullable(),
+      aka: z.string().max(500).optional().nullable(),
+      website: z.string().max(500).optional().nullable(),
+      linkedinUrl: z.string().max(500).optional().nullable(),
+      notes: z.string().max(10000).optional().nullable(),
     }),
   })).mutation(async ({ ctx, input }) => {
     await updateInvestor(ctx.companyId, input.id, input.data);
@@ -1062,7 +1062,7 @@ const v1AllocationsRouter = router({
     termSheetUrl: z.string().optional(),
     skipTermSheet: z.boolean().optional(),
     agreementUrl: z.string().optional(),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(async ({ ctx, input }) => {
     const created = await createAllocation({
       ...input, companyId: ctx.companyId,
@@ -1088,7 +1088,7 @@ const v1AllocationsRouter = router({
       termSheetUrl: z.string().optional().nullable(),
       skipTermSheet: z.boolean().optional(),
       agreementUrl: z.string().optional().nullable(),
-      notes: z.string().optional().nullable(),
+      notes: z.string().max(10000).optional().nullable(),
     }),
   })).mutation(async ({ ctx, input }) => {
     await updateAllocation(ctx.companyId, input.id, input.data);
@@ -1223,7 +1223,7 @@ const v1RegisterRouter = router({
     fxToNtd: z.string().default("1"),
     totalAmount: z.string().optional(),
     reversedEntryId: z.number().optional(),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(async ({ ctx, input }) => {
     const result = await writeRegisterEntry(ctx.companyId, ctx.user!.id, input);
     await createAuditLog({
@@ -1245,7 +1245,7 @@ const v1RegisterRouter = router({
       pricePerShare: z.string().optional().nullable(),
       currency: z.string().optional(),
       totalAmount: z.string().optional().nullable(),
-      notes: z.string().optional().nullable(),
+      notes: z.string().max(10000).optional().nullable(),
     }),
   })).mutation(async ({ ctx, input }) => {
     const { getDb } = await import("./db");
@@ -1277,7 +1277,7 @@ const v1SnapshotsRouter = router({
   list: companyProcedure.use(requireFeature("snapshots")).query(({ ctx }) => getAllSnapshotsV1(ctx.companyId)),
   createManual: companyEditorProcedure.input(z.object({
     name: z.string().min(1).max(255),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(async ({ ctx, input }) => {
     return createManualSnapshot(ctx.companyId, ctx.user!.id, input.name, input.notes ?? null);
   }),
@@ -1292,7 +1292,7 @@ const v1EsopRouter = router({
     name: z.string().min(1).max(255),
     fundingRoundId: z.number().nullable().optional(),
     totalShares: z.number().positive(),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(async ({ ctx, input }) => {
     const created = await createEsopPoolV1({ ...input, companyId: ctx.companyId });
     await createAuditLog({
@@ -1307,7 +1307,7 @@ const v1EsopRouter = router({
       name: z.string().min(1).optional(),
       totalShares: z.number().positive().optional(),
       fundingRoundId: z.number().nullable().optional(),
-      notes: z.string().optional().nullable(),
+      notes: z.string().max(10000).optional().nullable(),
     }),
   })).mutation(async ({ ctx, input }) => {
     await updateEsopPoolV1(ctx.companyId, input.id, input.data);
@@ -1346,7 +1346,7 @@ const v1EsopRouter = router({
     vestingCliffMonths: z.number().default(12),
     vestingTotalMonths: z.number().default(48),
     expiryDate: z.string().optional(),                      // Options only; RSU omit
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(async ({ ctx, input }) => {
     // Guard: pool must have enough unallocated shares
     const pool = await getEsopPoolV1ById(ctx.companyId, input.poolId);
@@ -1382,7 +1382,7 @@ const v1EsopRouter = router({
       vestingTotalMonths: z.number().optional(),
       status: z.enum(["active", "fully_vested", "exercised", "cancelled", "settled"]).optional(),
       expiryDate: z.string().optional().nullable(),
-      notes: z.string().optional().nullable(),
+      notes: z.string().max(10000).optional().nullable(),
     }),
   })).mutation(async ({ ctx, input }) => {
     await updateEsopGrantV1(ctx.companyId, input.id, input.data);
@@ -1590,7 +1590,7 @@ const instrumentsRouter = router({
       interestRate: z.string().optional(),
       maturityDate: z.string().optional(),
       // Meta
-      notes: z.string().optional(),
+      notes: z.string().max(10000).optional(),
       boardApprovalDate: z.string().optional(),
       documentUrl: z.string().optional(),
     }))
@@ -1632,7 +1632,7 @@ const instrumentsRouter = router({
         conversionDate: z.string().optional().nullable(),
         conversionPriceNtd: z.string().optional().nullable(),
         conversionShares: z.number().optional().nullable(),
-        notes: z.string().optional().nullable(),
+        notes: z.string().max(10000).optional().nullable(),
         boardApprovalDate: z.string().optional().nullable(),
         documentUrl: z.string().optional().nullable(),
       }),
@@ -1802,9 +1802,9 @@ const shareClassRouter = router({
       dividendRate: z.string().optional(),
       votingMultiplier: z.string().optional(),
       boardSeats: z.number().optional(),
-      protectiveProvisions: z.string().optional(),
+      protectiveProvisions: z.string().max(10000).optional(),
       fundingRoundId: z.number().optional(),
-      notes: z.string().optional(),
+      notes: z.string().max(10000).optional(),
       sortOrder: z.number().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -1841,9 +1841,9 @@ const shareClassRouter = router({
         dividendRate: z.string().nullable().optional(),
         votingMultiplier: z.string().optional(),
         boardSeats: z.number().optional(),
-        protectiveProvisions: z.string().nullable().optional(),
+        protectiveProvisions: z.string().max(10000).nullable().optional(),
         fundingRoundId: z.number().nullable().optional(),
-        notes: z.string().nullable().optional(),
+        notes: z.string().max(10000).nullable().optional(),
         sortOrder: z.number().optional(),
       }),
     }))
@@ -1894,9 +1894,9 @@ const esignRouter = router({
   create: companyEditorProcedure
     .input(z.object({
       docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]),
-      title: z.string().min(1),
-      description: z.string().optional(),
-      linkedResourceType: z.string().optional(),
+      title: z.string().min(1).max(500),
+      description: z.string().max(10000).optional(),
+      linkedResourceType: z.string().max(500).optional(),
       linkedResourceId: z.number().optional(),
       sourceDocumentUrl: z.string().optional(),
       signers: z.string().optional(),
@@ -1924,8 +1924,8 @@ const esignRouter = router({
     .input(z.object({
       id: z.number(),
       data: z.object({
-        title: z.string().optional(),
-        description: z.string().optional(),
+        title: z.string().max(500).optional(),
+        description: z.string().max(10000).optional(),
         status: z.enum(["draft", "pending", "viewed", "completed", "declined", "expired"]).optional(),
         signers: z.string().optional(),
         signedDocumentUrl: z.string().optional(),
@@ -1989,7 +1989,7 @@ const esignRouter = router({
   send: companyEditorProcedure
     .input(z.object({
       signingRequestId: z.number(),
-      message: z.string().optional(),
+      message: z.string().max(10000).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const req = await getSigningRequestById(ctx.companyId, input.signingRequestId);
@@ -2057,9 +2057,9 @@ const esignRouter = router({
   uploadTemplate: companyEditorProcedure
     .input(z.object({
       docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]),
-      name: z.string().min(1),
-      description: z.string().optional(),
-      fileName: z.string(),
+      name: z.string().min(1).max(500),
+      description: z.string().max(10000).optional(),
+      fileName: z.string().max(500),
       fileBase64: z.string().max(10_000_000),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -2106,9 +2106,9 @@ const esignRouter = router({
       docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]),
       category: z.enum(["shareholder_agreement", "investment_agreement", "employee_contract", "board_resolution", "equity_certificate", "esop_grant", "nda", "other"]).default("other"),
       minPlan: z.enum(["starter", "standard", "plus", "enterprise"]).default("starter"),
-      name: z.string().min(1),
-      description: z.string().optional(),
-      fileName: z.string(),
+      name: z.string().min(1).max(500),
+      description: z.string().max(10000).optional(),
+      fileName: z.string().max(500),
       fileBase64: z.string().max(10_000_000),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -2154,7 +2154,7 @@ const esignRouter = router({
       id: z.number(),
       data: z.object({
         name: z.string().min(1).optional(),
-        description: z.string().nullable().optional(),
+        description: z.string().max(10000).nullable().optional(),
         category: z.enum(["shareholder_agreement", "investment_agreement", "employee_contract", "board_resolution", "equity_certificate", "esop_grant", "nda", "other"]).optional(),
         minPlan: z.enum(["starter", "standard", "plus", "enterprise"]).optional(),
         docType: z.enum(["share_certificate", "safe_agreement", "convertible_note", "stock_option_grant", "board_resolution", "sha", "custom"]).optional(),
@@ -2405,7 +2405,7 @@ const valuation409aRouter = router({
     reportUrl: z.string().optional(),
     method: z.enum(["dcf", "market_comparable", "asset_based", "409a_safe_harbor", "other"]).default("dcf"),
     relatedRoundId: z.number().optional(),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(async ({ input, ctx }) => {
     const result = await create409aValuation({
       ...input,
@@ -2443,7 +2443,7 @@ const valuation409aRouter = router({
       reportUrl: z.string().optional(),
       method: z.enum(["dcf", "market_comparable", "asset_based", "409a_safe_harbor", "other"]).optional(),
       relatedRoundId: z.number().optional(),
-      notes: z.string().optional(),
+      notes: z.string().max(10000).optional(),
     }),
   })).mutation(async ({ input, ctx }) => {
     const updateData: any = { ...input.data };
@@ -2504,7 +2504,7 @@ const election83bRouter = router({
     filedDate: z.string().optional(),
     irsConfirmationDate: z.string().optional(),
     employerCopyDate: z.string().optional(),
-    notes: z.string().optional(),
+    notes: z.string().max(10000).optional(),
   })).mutation(async ({ input, ctx }) => {
     const result = await create83bElection({
       ...input,

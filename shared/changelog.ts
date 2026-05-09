@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.54.0",
+    date: "2026-05-10",
+    type: "minor",
+    title: "QA Round 5 — 安全防護 + i18n + 錯誤處理 + 資料完整性",
+    description: "deleteAllocation 加入子記錄防護防止孤立帳本、ESign/CompanySettings/Waterfall 全面 i18n 遷移（~60+ 處）、11 個頁面補齊 isError 錯誤處理、自由文字 Zod 欄位加 .max() 限制、capTable 過濾負數持股、buildSnapshotName 補齊 rsu_settlement 動詞。",
+  },
+  {
     version: "2.53.2",
     date: "2026-05-10",
     type: "patch",

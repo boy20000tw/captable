@@ -41,6 +41,10 @@ export default function AdminTicketsPage() {
 
         {tickets.isLoading ? (
           <div className="text-sm text-muted-foreground py-12 text-center">Loading...</div>
+        ) : tickets.isError ? (
+          <div className="flex items-center justify-center min-h-[200px]">
+            <p className="text-destructive">{t("admin.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+          </div>
         ) : !tickets.data || tickets.data.length === 0 ? (
           <div className="text-sm text-muted-foreground py-12 text-center">{t("admin.noTickets")}</div>
         ) : (

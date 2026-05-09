@@ -109,7 +109,7 @@ function TechShareTaxContent() {
   const { t } = useTranslation("compliance");
   const { t: tPages } = useTranslation("pages");
   const utils = trpc.useUtils();
-  const { data: records, isLoading } = trpc.techShareTax.list.useQuery();
+  const { data: records, isLoading, isError } = trpc.techShareTax.list.useQuery();
   const { data: expiring } = trpc.techShareTax.expiring.useQuery({ withinDays: 60 });
   const createMut = trpc.techShareTax.create.useMutation({ onSuccess: () => { utils.techShareTax.invalidate(); setDialogOpen(false); } });
   const updateMut = trpc.techShareTax.update.useMutation({ onSuccess: () => { utils.techShareTax.invalidate(); setDialogOpen(false); } });
@@ -250,6 +250,14 @@ function TechShareTaxContent() {
     const d = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
     return d;
   };
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("shared.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6">

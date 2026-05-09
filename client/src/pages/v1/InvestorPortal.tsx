@@ -30,8 +30,8 @@ export default function InvestorPortalPage() {
 
 function InvestorPortalContent() {
   const { t } = useTranslation("pages");
-  const { data: profile, isLoading: profileLoading } = trpc.investorPortal.myProfile.useQuery();
-  const { data: holdingsData, isLoading: holdingsLoading } = trpc.investorPortal.myHoldings.useQuery();
+  const { data: profile, isLoading: profileLoading, isError: profileError } = trpc.investorPortal.myProfile.useQuery();
+  const { data: holdingsData, isLoading: holdingsLoading, isError: holdingsError } = trpc.investorPortal.myHoldings.useQuery();
   const { data: grants, isLoading: grantsLoading } = trpc.investorPortal.myGrants.useQuery();
   const { data: documents, isLoading: docsLoading } = trpc.investorPortal.myDocuments.useQuery();
   const { data: registerEntries } = trpc.investorPortal.myRegisterEntries.useQuery();
@@ -55,10 +55,20 @@ function InvestorPortalContent() {
     );
   }, [registerEntries]);
 
+  const isError = profileError || holdingsError;
+
   if (isLoading) {
     return (
       <div className="p-8 max-w-5xl mx-auto space-y-4">
         {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("investorPortal.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
       </div>
     );
   }

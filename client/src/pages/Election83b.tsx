@@ -63,7 +63,7 @@ function Election83bContent() {
   const { t: tPage } = useTranslation("pages");
   const { t } = useTranslation("compliance");
   const utils = trpc.useUtils();
-  const { data: elections, isLoading } = trpc.election83b.list.useQuery();
+  const { data: elections, isLoading, isError } = trpc.election83b.list.useQuery();
   const { data: pending } = trpc.election83b.pending.useQuery();
   const createMut = trpc.election83b.create.useMutation({ onSuccess: () => { utils.election83b.invalidate(); setDialogOpen(false); } });
   const updateMut = trpc.election83b.update.useMutation({ onSuccess: () => { utils.election83b.invalidate(); setDialogOpen(false); } });
@@ -149,6 +149,14 @@ function Election83bContent() {
     const d = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
     return d;
   };
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("shared.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">

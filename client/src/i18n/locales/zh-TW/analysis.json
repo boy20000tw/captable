@@ -146,6 +146,10 @@
   "projections.sensitivityAnalysis": "敏感度分析 (5×5)",
   "projections.sensitivityDesc": "不同 WACC 與終端假設下的企業價值",
 
+  "waterfall.financialAnalysis": "財務分析",
+  "waterfall.cappedParticipating": "上限參與 (Capped Participating)",
+  "waterfall.validExitValue": "請輸入有效的退出價值",
+  "waterfall.prefUpdated": "偏好已更新",
   "waterfall.preferenceTranches": "優先權分期",
   "waterfall.remainingForCommon": "普通股剩餘額",
   "waterfall.distributionByTranche": "按分期分配",

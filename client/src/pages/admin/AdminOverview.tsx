@@ -40,7 +40,7 @@ function AdminOverviewContent() {
   const { t: tPages } = useTranslation("pages");
   const { t } = useTranslation("admin");
   const [, setLocation] = useLocation();
-  const { data: stats, isLoading } = trpc.admin.platformStats.useQuery();
+  const { data: stats, isLoading, isError } = trpc.admin.platformStats.useQuery();
   const { data: companies } = trpc.admin.listCompanies.useQuery({});
   const { data: logs } = trpc.admin.adminAuditLogs.useQuery({ limit: 5, offset: 0 });
   const { data: tickets } = trpc.admin.adminTickets.useQuery(undefined, { retry: false });
@@ -54,6 +54,14 @@ function AdminOverviewContent() {
     return (
       <div className="p-8 max-w-6xl mx-auto space-y-4">
         {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("overview.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
       </div>
     );
   }

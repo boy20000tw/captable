@@ -92,7 +92,7 @@ export async function deriveCapTable(companyId: number): Promise<CapTable> {
   for (const r of rows) {
     // drizzle's sum() returns string | null for numeric/bigint. Coerce.
     const shares = Number(r.total ?? 0);
-    if (shares === 0) continue;   // skip fully-drained rows
+    if (shares <= 0) continue;    // skip fully-drained or negative rows
     const inv = investorMap.get(r.investorId);
     const entry = perInvestor.get(r.investorId) ?? {
       investorId: r.investorId,
