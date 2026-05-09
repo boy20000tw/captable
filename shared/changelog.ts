@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.53.0",
+    date: "2026-05-09",
+    type: "minor",
+    title: "安全性 & 資料完整性修復 — 後端 API 掃描",
+    description: "修復 9 項安全與資料一致性問題：PII 欄位讀取時自動解密（shareholders/investors/company）、companies.get 與 auth.me 移除敏感欄位回傳、delete investor/round/shareholder 加入子記錄防護、fileBase64 加入 10MB 上限、auditLog limit 加入 max(500)、deleteAccountCascade 補齊 auditLogs/supportTickets 清理、truncateAllBusinessData 補 supportTickets、PLATFORM_OWNER_EMAIL 改用環境變數。",
+  },
+  {
     version: "2.52.0",
     date: "2026-05-09",
     type: "minor",

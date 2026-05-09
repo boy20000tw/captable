@@ -93,7 +93,7 @@ import { deriveCapTable } from "./v1/capTable";
 import { planLimit, type PlanKey, type UsageLimitKey } from "../shared/plans";
 
 // Platform owner — auto-promoted to super_admin on login
-const PLATFORM_OWNER_EMAIL = "boy20000tw@gmail.com";
+const PLATFORM_OWNER_EMAIL = process.env.PLATFORM_OWNER_EMAIL ?? "boy20000tw@gmail.com";
 
 /**
  * Check usage limit before a create operation.
@@ -373,7 +373,7 @@ const importRouter = router({
   logs: companyProcedure.query(({ ctx }) => getAllImportLogs(ctx.companyId)),
   excel: companyEditorProcedure
     .input(z.object({
-      fileBase64: z.string(),
+      fileBase64: z.string().max(10_000_000),
       fileName: z.string(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -638,7 +638,7 @@ const invitationsRouter = router({
 // ─── Audit Log Router ─────────────────────────────────────────────────────────
 const auditLogRouter = router({
   list: companyProcedure.input(z.object({
-    limit: z.number().default(100),
+    limit: z.number().min(1).max(500).default(100),
     offset: z.number().default(0),
   })).query(({ input, ctx }) => getAuditLogs(ctx.companyId, input.limit, input.offset)),
   byResource: companyProcedure.input(z.object({
@@ -839,7 +839,9 @@ const companiesRouter = router({
 
   // Get the currently active company
   active: companyProcedure.query(async ({ ctx }) => {
-    const company = await getCompanyById(ctx.companyId);
+    const raw = await getCompanyById(ctx.companyId);
+    if (!raw) return { company: null, role: ctx.companyRole };
+    const { docusealTenantApiKey, docusealWebhookSecret, docusealTenantApiKeyEnc, docusealWebhookSecretEnc, ...company } = raw as any;
     return { company, role: ctx.companyRole };
   }),
 
@@ -890,7 +892,11 @@ const companiesRouter = router({
   // Returns the full company row (all profile + branding fields) for the
   // currently active company.
   get: companyProcedure.query(async ({ ctx }) => {
-    return (await getCompanyById(ctx.companyId)) ?? null;
+    const company = await getCompanyById(ctx.companyId);
+    if (!company) return null;
+    // Strip sensitive fields before sending to client
+    const { docusealTenantApiKey, docusealWebhookSecret, docusealTenantApiKeyEnc, docusealWebhookSecretEnc, ...safe } = company as any;
+    return safe;
   }),
 
   // Update any combination of profile / contact / representative fields.
@@ -931,7 +937,7 @@ const companiesRouter = router({
   uploadLogo: companyEditorProcedure
     .input(z.object({
       fileName: z.string(),
-      fileBase64: z.string(),
+      fileBase64: z.string().max(10_000_000),
       contentType: z.string(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -958,7 +964,7 @@ const companiesRouter = router({
   uploadSignature: companyEditorProcedure
     .input(z.object({
       fileName: z.string(),
-      fileBase64: z.string(),
+      fileBase64: z.string().max(10_000_000),
       contentType: z.string(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -1959,7 +1965,7 @@ const esignRouter = router({
     .input(z.object({
       signingRequestId: z.number(),
       fileName: z.string(),
-      fileBase64: z.string(),
+      fileBase64: z.string().max(10_000_000),
     }))
     .mutation(async ({ ctx, input }) => {
       const { createTemplateFromPdf, createTemplateFromDocx } = await import("./docuseal");
@@ -2054,7 +2060,7 @@ const esignRouter = router({
       name: z.string().min(1),
       description: z.string().optional(),
       fileName: z.string(),
-      fileBase64: z.string(),
+      fileBase64: z.string().max(10_000_000),
     }))
     .mutation(async ({ ctx, input }) => {
       // 1. Store file in Vercel Blob
@@ -2103,7 +2109,7 @@ const esignRouter = router({
       name: z.string().min(1),
       description: z.string().optional(),
       fileName: z.string(),
-      fileBase64: z.string(),
+      fileBase64: z.string().max(10_000_000),
     }))
     .mutation(async ({ ctx, input }) => {
       const { storagePut } = await import("./storage");
@@ -3081,8 +3087,10 @@ export const appRouter = router({
       // Spread user fields so existing frontend code (me.id, me.name, me.email, me.appRole)
       // keeps working; add `companies` for the company switcher.
       // `companyRole` = the role for the currently active company (from context).
+      // Strip internal fields before sending to client
+      const { openId, nameEnc, emailEnc, emailBi, ...safeUser } = user as any;
       return {
-        ...user,
+        ...safeUser,
         companies: memberships,
         companyRole: opts.ctx.companyRole,
       };
@@ -3171,7 +3179,7 @@ export const appRouter = router({
 
     // ─── Demo Data Pack: Import ────────────────────────────────────────────
     importDemoPack: companyOwnerAdminProcedure
-      .input(z.object({ fileBase64: z.string() }))
+      .input(z.object({ fileBase64: z.string().max(10_000_000) }))
       .mutation(async ({ input, ctx }) => {
         const buffer = Buffer.from(input.fileBase64, "base64");
         const result = await importDemoPack(ctx.companyId, ctx.user!.id, buffer);

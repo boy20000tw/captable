@@ -72,7 +72,17 @@ export async function getCompanyById(id: number): Promise<Company | undefined> {
   const db = await getDb();
   if (!db) return undefined;
   const rows = await db.select().from(companies).where(eq(companies.id, id)).limit(1);
-  return rows[0];
+  if (!rows[0]) return undefined;
+  // Decrypt company PII fields
+  try {
+    const dek = await resolveCompanyDek(id);
+    const row = { ...rows[0] } as any;
+    if (row.contactEmailEnc) row.contactEmail = decryptField(row.contactEmailEnc, dek);
+    if (row.representativeNameEnc) row.representativeName = decryptField(row.representativeNameEnc, dek);
+    return row;
+  } catch {
+    return rows[0];
+  }
 }
 
 export async function createCompany(data: InsertCompany): Promise<Company> {
@@ -295,10 +305,11 @@ export async function getUserByOpenId(openId: string) {
 export async function getAllShareholders(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(shareholders)
+  const rows = await db.select().from(shareholders)
     .where(eq(shareholders.companyId, companyId))
     .orderBy(asc(shareholders.id))
     .limit(1000);
+  return Promise.all(rows.map(row => decryptContactPii(row, companyId)));
 }
 
 export async function getShareholderById(companyId: number, id: number) {
@@ -307,7 +318,8 @@ export async function getShareholderById(companyId: number, id: number) {
   const result = await db.select().from(shareholders)
     .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)))
     .limit(1);
-  return result[0];
+  if (!result[0]) return undefined;
+  return decryptContactPii(result[0], companyId);
 }
 
 export async function createShareholder(data: InsertShareholder) {
@@ -331,16 +343,15 @@ export async function updateShareholder(companyId: number, id: number, data: Par
     .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)));
 }
 
-// TODO: Check for related records before deletion:
-// - shareHoldings (by shareholderId)
-// - shareTransactions (by shareholderId)
-// - antiDilutionProvisions (by shareholderId)
-// - shareholderDocuments (by shareholderId)
-// - valuations409a (by shareholderId)
-// May need to cascade delete or prevent deletion if related records exist.
 export async function deleteShareholder(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Check for child records
+  const childHoldings = await db.select({ id: shareHoldings.id }).from(shareHoldings)
+    .where(and(eq(shareHoldings.shareholderId, id), eq(shareHoldings.companyId, companyId))).limit(1);
+  if (childHoldings.length > 0) {
+    throw new Error("Cannot delete shareholder: share holdings exist. Remove holdings first.");
+  }
   return db.delete(shareholders)
     .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)));
 }
@@ -443,14 +454,15 @@ export async function updateFundingRound(companyId: number, id: number, data: Pa
     .where(and(eq(fundingRounds.id, id), eq(fundingRounds.companyId, companyId)));
 }
 
-// TODO: Check for related records before deletion:
-// - allocations (by fundingRoundId)
-// - shareHoldings (by fundingRoundId)
-// - shareTransactions (by fundingRoundId)
-// Should prevent deletion if allocations or transactions exist.
 export async function deleteFundingRound(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Check for child allocations
+  const childAllocations = await db.select({ id: allocations.id }).from(allocations)
+    .where(and(eq(allocations.fundingRoundId, id), eq(allocations.companyId, companyId))).limit(1);
+  if (childAllocations.length > 0) {
+    throw new Error("Cannot delete funding round: allocations exist. Remove allocations first.");
+  }
   return db.delete(fundingRounds)
     .where(and(eq(fundingRounds.id, id), eq(fundingRounds.companyId, companyId)));
 }
@@ -1192,6 +1204,11 @@ export async function deleteAccountCascade(userId: number): Promise<void> {
     // Remove user from all company memberships
     await db.delete(companyMembers).where(eq(companyMembers.userId, userId));
 
+    // Delete audit logs referencing this user
+    await db.delete(auditLogs).where(eq(auditLogs.userId, userId));
+    // Delete support tickets by this user
+    await db.delete(supportTickets).where(eq(supportTickets.userId, userId));
+
     // Delete the user record
     await db.delete(users).where(eq(users.id, userId));
   } catch (error) {
@@ -1349,13 +1366,15 @@ export async function deleteCompsPeer(companyId: number, id: number) {
 export async function getAllInvestors(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(investors).where(eq(investors.companyId, companyId)).orderBy(asc(investors.name));
+  const rows = await db.select().from(investors).where(eq(investors.companyId, companyId)).orderBy(asc(investors.name));
+  return Promise.all(rows.map(row => decryptContactPii(row, companyId)));
 }
 export async function getInvestorById(companyId: number, id: number) {
   const db = await getDb();
   if (!db) return undefined;
   const rows = await db.select().from(investors).where(and(eq(investors.id, id), eq(investors.companyId, companyId))).limit(1);
-  return rows[0];
+  if (!rows[0]) return undefined;
+  return decryptContactPii(rows[0], companyId);
 }
 export async function createInvestor(data: InsertInvestor) {
   const db = await getDb();
@@ -1374,10 +1393,26 @@ export async function updateInvestor(companyId: number, id: number, data: Partia
     .where(and(eq(investors.id, id), eq(investors.companyId, companyId)));
 }
 export async function deleteInvestor(companyId: number, id: number) {
-  // ⚠️ CASCADE RISK: Deleting an investor will orphan all allocations referencing this investor (investorId FK).
-  // Consider checking if allocations exist before deletion, or implement cascade delete in schema.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Check for child records before deletion
+  const childAllocations = await db.select({ id: allocations.id }).from(allocations)
+    .where(and(eq(allocations.investorId, id), eq(allocations.companyId, companyId))).limit(1);
+  if (childAllocations.length > 0) {
+    throw new Error("Cannot delete investor: active allocations exist. Remove allocations first.");
+  }
+  const childInstruments = await db.select({ id: instruments.id }).from(instruments)
+    .where(and(eq(instruments.investorId, id), eq(instruments.companyId, companyId))).limit(1);
+  if (childInstruments.length > 0) {
+    throw new Error("Cannot delete investor: active instruments exist. Remove instruments first.");
+  }
+  const childEntries = await db.select({ id: shareRegisterEntries.id }).from(shareRegisterEntries)
+    .where(and(eq(shareRegisterEntries.investorId, id), eq(shareRegisterEntries.companyId, companyId))).limit(1);
+  if (childEntries.length > 0) {
+    throw new Error("Cannot delete investor: share register entries exist. Remove entries first.");
+  }
+  // Clean up activities (safe to cascade)
+  await db.delete(investorActivities).where(and(eq(investorActivities.investorId, id), eq(investorActivities.companyId, companyId)));
   await db.delete(investors).where(and(eq(investors.id, id), eq(investors.companyId, companyId)));
 }
 
@@ -1719,6 +1754,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
     ["investors", investors, investors.companyId],
     ["esop_grants_v1", esopGrantsV1, esopGrantsV1.companyId],
     ["esop_pools_v1", esopPoolsV1, esopPoolsV1.companyId],
+    ["support_tickets", supportTickets, supportTickets.companyId],
   ];
   for (const [name, table, companyIdCol] of countable) {
     try {
@@ -1771,6 +1807,7 @@ export async function truncateAllBusinessData(companyId: number): Promise<Record
   await db.delete(shareholders).where(eq(shareholders.companyId, companyId));
   await db.delete(fundingRounds).where(eq(fundingRounds.companyId, companyId));
   await db.delete(userInvitations).where(eq(userInvitations.companyId, companyId));
+  await db.delete(supportTickets).where(eq(supportTickets.companyId, companyId));
 
   return counts;
 }
@@ -2340,6 +2377,26 @@ async function encryptContactPii(values: Record<string, any>, companyId: number)
   }
   if (values.phone) {
     values.phoneEnc = encryptField(values.phone, dek);
+  }
+}
+
+/**
+ * Decrypt PII fields on a contact row (shareholder / investor).
+ * Returns a shallow copy with plaintext fields restored from _enc columns.
+ */
+async function decryptContactPii<T extends Record<string, any>>(row: T, companyId: number): Promise<T> {
+  if (!row) return row;
+  try {
+    const dek = await resolveCompanyDek(companyId);
+    const result = { ...row } as any;
+    if (result.nameEnc) result.name = decryptField(result.nameEnc, dek);
+    if (result.emailEnc) result.email = decryptField(result.emailEnc, dek);
+    if (result.phoneEnc) result.phone = decryptField(result.phoneEnc, dek);
+    if (result.addressEnc) result.address = decryptField(result.addressEnc, dek);
+    if (result.contactPersonEnc) result.contactPerson = decryptField(result.contactPersonEnc, dek);
+    return result;
+  } catch {
+    return row; // encryption not configured
   }
 }
 
