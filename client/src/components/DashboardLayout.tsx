@@ -232,6 +232,8 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const { t: tNav } = useTranslation("nav");
+  const { t: tLegalOuter } = useTranslation("legal");
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -263,16 +265,16 @@ export default function DashboardLayout({
             </div>
           </div>
           <p className="text-sm text-muted-foreground text-center leading-relaxed max-w-xs">
-            A precision instrument for equity management. Sign in to access your cap table.
+            {tNav("signIn.tagline")}
           </p>
           <SignIn routing="hash" />
           {/* Legal footer */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <a href="/privacy" className="hover:text-foreground transition-colors">Privacy</a>
+            <a href="/privacy" className="hover:text-foreground transition-colors">{tLegalOuter("footer.privacy")}</a>
             <span>·</span>
-            <a href="/terms" className="hover:text-foreground transition-colors">Terms</a>
+            <a href="/terms" className="hover:text-foreground transition-colors">{tLegalOuter("footer.terms")}</a>
             <span>·</span>
-            <span>© {new Date().getFullYear()} Caploom</span>
+            <span>{tLegalOuter("footer.copyright", { year: new Date().getFullYear() })}</span>
           </div>
         </div>
       </div>
@@ -594,7 +596,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   className="flex items-center gap-2 rounded-md text-xs transition-colors px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-accent"
                 >
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span>Admin Panel</span>
+                  <span>{t("adminPanel")}</span>
                 </button>
               )}
               <LanguageToggle />

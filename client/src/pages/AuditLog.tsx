@@ -78,7 +78,7 @@ function AuditLogContent() {
   const [filterResource, setFilterResource] = useState("all");
   const [limit] = useState(200);
 
-  const { data: logs, isLoading } = trpc.auditLog.list.useQuery({ limit, offset: 0 });
+  const { data: logs, isLoading, isError } = trpc.auditLog.list.useQuery({ limit, offset: 0 });
 
   // Move ACTION_CONFIG inside component to use t()
   const ACTION_CONFIG: Record<string, { label: string; icon: React.ComponentType<any>; color: string }> = {
@@ -212,6 +212,10 @@ function AuditLogContent() {
       {isLoading ? (
         <div className="border border-border rounded-sm p-8 text-center text-muted-foreground text-sm">
           {t("auditLog.loading")}
+        </div>
+      ) : isError ? (
+        <div className="border border-destructive/30 bg-destructive/5 rounded-sm p-8 text-center text-destructive text-sm">
+          {t("auditLog.error", { defaultValue: "Failed to load audit log. Please try again." })}
         </div>
       ) : !filtered.length ? (
         <div className="border border-border rounded-sm p-12 text-center">

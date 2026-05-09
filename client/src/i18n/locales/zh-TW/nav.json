@@ -44,6 +44,9 @@
   "settings.subscription": "訂閱方案",
   "settings.help": "說明與支援",
 
+  "signIn.tagline": "精準的股權管理工具。登入以存取您的股權結構表。",
+  "adminPanel": "管理後台",
+
   "searchPlaceholder": "搜尋選單...",
   "more": "更多",
   "signOut": "登出"

@@ -204,7 +204,7 @@ function ShareTransfersContent() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">{t("transfers.totalTransfers")}</p>

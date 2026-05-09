@@ -811,7 +811,7 @@ function UpcomingDeadlinesCard({
   items: DeadlineRow[];
   onNavigate: (path: string) => void;
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("pages");
   const isZh = i18n.language.startsWith("zh");
 
   const urgentCount = items.filter(i => i.severity === "urgent").length;
@@ -835,19 +835,19 @@ function UpcomingDeadlinesCard({
         <div className="flex items-center gap-2">
           <Bell className={`h-4 w-4 ${urgentCount > 0 ? "text-red-500" : "text-amber-500"}`} />
           <h3 className="text-sm font-semibold">
-            {isZh ? "待處理事項" : "Action Items"}
+            {t("home.actionItems")}
           </h3>
         </div>
         {items.length > 0 && (
           <div className="flex gap-2 mt-2">
             {urgentCount > 0 && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
-                {urgentCount} {isZh ? "緊急" : "urgent"}
+                {t("home.urgentCount", { count: urgentCount })}
               </span>
             )}
             {warningCount > 0 && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-                {warningCount} {isZh ? "注意" : "warning"}
+                {t("home.warningCount", { count: warningCount })}
               </span>
             )}
           </div>
@@ -859,7 +859,7 @@ function UpcomingDeadlinesCard({
         <div className="px-4 py-6 text-center">
           <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
           <p className="text-xs text-muted-foreground">
-            {isZh ? "180 天內無待處理事項" : "All clear for the next 180 days"}
+            {t("home.allClear180")}
           </p>
         </div>
       ) : (
@@ -883,8 +883,8 @@ function UpcomingDeadlinesCard({
                         : "text-muted-foreground"
                     }`}>
                       {item.daysLeft <= 0
-                        ? (isZh ? "已到期" : "Overdue")
-                        : `${item.daysLeft}${isZh ? "天" : "d"}`}
+                        ? t("home.overdue")
+                        : t("home.daysShort", { count: item.daysLeft })}
                     </span>
                   </div>
                   <p className="text-xs font-medium truncate mt-0.5">
@@ -905,7 +905,7 @@ function UpcomingDeadlinesCard({
       {items.length > 10 && (
         <div className="px-4 py-2 border-t border-border text-center">
           <span className="text-[11px] text-muted-foreground">
-            {isZh ? `還有 ${items.length - 10} 個項目` : `+${items.length - 10} more`}
+            {t("home.moreItems", { count: items.length - 10 })}
           </span>
         </div>
       )}
@@ -938,7 +938,7 @@ function UpcomingActivitiesCard({
   items: any[];
   onNavigate: (path: string) => void;
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("pages");
   const isZh = i18n.language.startsWith("zh");
 
   if (items.length === 0) return null;
@@ -952,22 +952,22 @@ function UpcomingActivitiesCard({
         <div className="flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-blue-500" />
           <h3 className="text-sm font-semibold">
-            {isZh ? "投資人跟進" : "Investor Follow-ups"}
+            {t("home.investorFollowups")}
           </h3>
         </div>
         <div className="flex gap-2 mt-2">
           {overdueCount > 0 && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
-              {overdueCount} {isZh ? "逾期" : "overdue"}
+              {t("home.overdueCount", { count: overdueCount })}
             </span>
           )}
           {highCount > 0 && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">
-              {highCount} {isZh ? "高優先" : "high priority"}
+              {t("home.highPriority", { count: highCount })}
             </span>
           )}
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
-            {items.length} {isZh ? "項待辦" : "pending"}
+            {t("home.pendingCount", { count: items.length })}
           </span>
         </div>
       </div>
@@ -1016,7 +1016,7 @@ function UpcomingActivitiesCard({
             onClick={() => onNavigate("/investors")}
             className="text-[11px] text-primary hover:underline"
           >
-            {isZh ? `查看全部 ${items.length} 項` : `View all ${items.length} items`} →
+            {t("home.viewAllItems", { count: items.length })} →
           </button>
         </div>
       )}

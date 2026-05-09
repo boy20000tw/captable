@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.52.0",
+    date: "2026-05-09",
+    type: "minor",
+    title: "QA 修復 — XSS 消除、i18n 遷移、響應式 & error state 補齊",
+    description: "移除 Join/AllocationDialog/EstimatedValuation 的 dangerouslySetInnerHTML 改用 Trans 元件；AngelTaxDeduction 全頁遷移至 t() 系統（43 keys）；Home.tsx sidebar cards i18n 化（12 keys）；AuditLog/Waterfall 加入 error state；ShareTransfers 響應式修復；DashboardLayout 硬編碼字串 i18n 化。",
+  },
+  {
     version: "2.51.0",
     date: "2026-05-09",
     type: "minor",

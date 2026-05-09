@@ -35,17 +35,16 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
   not_applicable: { icon: Ban,            color: "bg-red-100 text-red-600 border-transparent" },
 };
 
-const REASON_LABELS: Record<string, { en: string; zh: string }> = {
-  founder:        { en: "Founder",           zh: "創辦人" },
-  entity:         { en: "Corporate entity",  zh: "法人" },
-  foreign:        { en: "Foreign national",  zh: "外國人" },
-  holding_period: { en: "Holding period",    zh: "持有期間不足" },
-  other:          { en: "Other",             zh: "其他" },
+const REASON_KEYS: Record<string, string> = {
+  founder:        "angelTax.reasonFounder",
+  entity:         "angelTax.reasonEntity",
+  foreign:        "angelTax.reasonForeign",
+  holding_period: "angelTax.reasonHoldingPeriod",
+  other:          "angelTax.reasonOther",
 };
 
 export default function AngelTaxDeductionPage() {
-  const { t, i18n } = useTranslation("compliance");
-  const isZh = i18n.language.startsWith("zh");
+  const { t } = useTranslation("compliance");
   const [filter, setFilter] = useState<"all" | "eligible" | "not_applicable">("all");
 
   const { data: records = [], isLoading } = trpc.angelTax.list.useQuery();
@@ -79,16 +78,21 @@ export default function AngelTaxDeductionPage() {
     return records;
   }, [records, filter]);
 
+  const STATUS_LABEL_KEYS: Record<string, string> = {
+    pending: "angelTax.statusPending",
+    eligible: "angelTax.statusEligible",
+    filed: "angelTax.statusFiled",
+    expired: "angelTax.statusExpired",
+    not_applicable: "angelTax.statusNA",
+  };
+
   const getStatusBadge = (status: string) => {
     const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
     const Icon = cfg.icon;
-    const label = isZh
-      ? { pending: "等待中", eligible: "可退稅", filed: "已申報", expired: "已過期", not_applicable: "不適用" }[status]
-      : { pending: "Pending", eligible: "Eligible", filed: "Filed", expired: "Expired", not_applicable: "N/A" }[status];
     return (
       <Badge className={`gap-1 ${cfg.color}`}>
         <Icon className="h-3 w-3" />
-        {label}
+        {t(STATUS_LABEL_KEYS[status] || "angelTax.statusPending")}
       </Badge>
     );
   };
@@ -106,12 +110,10 @@ export default function AngelTaxDeductionPage() {
           {/* Header */}
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {isZh ? "天使投資人租稅優惠" : "Angel Investor Tax Deduction"}
+              {t("angelTax.title")}
             </h1>
             <p className="text-muted-foreground">
-              {isZh
-                ? "產創條例 §23-2 — 追蹤投資人閉鎖期、退稅資格與申報狀態"
-                : "Innovation Act §23-2 — Track lock-up periods, eligibility & filing status"}
+              {t("angelTax.subtitle")}
             </p>
           </div>
 
@@ -121,11 +123,11 @@ export default function AngelTaxDeductionPage() {
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">{isZh ? "總投資筆數" : "Total Records"}</p>
+                  <p className="text-xs text-muted-foreground">{t("angelTax.totalRecords")}</p>
                 </div>
                 <p className="text-2xl font-bold mt-1">{stats.total}</p>
                 <p className="text-xs text-muted-foreground">
-                  {stats.eligible} {isZh ? "適用" : "eligible"} / {stats.notApplicable} {isZh ? "不適用" : "N/A"}
+                  {stats.eligible} {t("angelTax.eligible")} / {stats.notApplicable} {t("angelTax.na")}
                 </p>
               </CardContent>
             </Card>
@@ -134,7 +136,7 @@ export default function AngelTaxDeductionPage() {
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-green-600" />
-                  <p className="text-xs text-muted-foreground">{isZh ? "最高可退稅總額" : "Max Total Deduction"}</p>
+                  <p className="text-xs text-muted-foreground">{t("angelTax.maxTotalDeduction")}</p>
                 </div>
                 <p className="text-2xl font-bold mt-1 text-green-700">
                   {formatCurrency(stats.totalDeduction, "NTD", 0)}
@@ -146,7 +148,7 @@ export default function AngelTaxDeductionPage() {
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                  <p className="text-xs text-muted-foreground">{isZh ? "已申報" : "Filed"}</p>
+                  <p className="text-xs text-muted-foreground">{t("angelTax.filed")}</p>
                 </div>
                 <p className="text-2xl font-bold mt-1">
                   {stats.filedCount} / {stats.eligible}
@@ -161,11 +163,11 @@ export default function AngelTaxDeductionPage() {
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2">
                   <CalendarClock className="h-4 w-4 text-amber-600" />
-                  <p className="text-xs text-muted-foreground">{isZh ? "即將到期 (180天內)" : "Upcoming (180d)"}</p>
+                  <p className="text-xs text-muted-foreground">{t("angelTax.upcoming180d")}</p>
                 </div>
                 <p className="text-2xl font-bold mt-1 text-amber-700">{stats.upcomingCount}</p>
                 <p className="text-xs text-muted-foreground">
-                  {isZh ? "提醒投資人準備退稅" : "Remind investors to file"}
+                  {t("angelTax.remindInvestors")}
                 </p>
               </CardContent>
             </Card>
@@ -175,22 +177,14 @@ export default function AngelTaxDeductionPage() {
           <Card className="border-blue-200 bg-blue-50/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">
-                {isZh ? "產創條例 §23-2 退稅規則" : "Innovation Act §23-2 Rules"}
+                {t("angelTax.rulesTitle")}
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground space-y-1">
-              <p>{isZh
-                ? "1. 個人投資人（非法人）投入高風險新創事業，持有股份滿閉鎖期後，可申請所得稅扣抵。"
-                : "1. Individual investors (not entities) in high-risk startups can claim tax deduction after the lock-up period."}</p>
-              <p>{isZh
-                ? "2. 2025 年前投資：閉鎖期 2 年。2025 年後投資：閉鎖期 3 年。"
-                : "2. Pre-2025 investments: 2-year lock-up. Post-2025: 3-year lock-up."}</p>
-              <p>{isZh
-                ? "3. 閉鎖期滿次年的報稅季可申報，最高扣抵投資金額的 50%。"
-                : "3. File in the tax year after lock-up ends. Max deduction: 50% of investment amount."}</p>
-              <p>{isZh
-                ? "4. 法人（公司）、外國籍投資人不適用。"
-                : "4. Corporate entities and foreign nationals are not eligible."}</p>
+              <p>{t("angelTax.rule1")}</p>
+              <p>{t("angelTax.rule2")}</p>
+              <p>{t("angelTax.rule3")}</p>
+              <p>{t("angelTax.rule4")}</p>
             </CardContent>
           </Card>
 
@@ -203,9 +197,9 @@ export default function AngelTaxDeductionPage() {
                 size="sm"
                 onClick={() => setFilter(f)}
               >
-                {f === "all" && (isZh ? "全部" : "All")}
-                {f === "eligible" && (isZh ? "適用" : "Eligible")}
-                {f === "not_applicable" && (isZh ? "不適用" : "Not Eligible")}
+                {f === "all" && t("angelTax.filterAll")}
+                {f === "eligible" && t("angelTax.filterEligible")}
+                {f === "not_applicable" && t("angelTax.filterNotEligible")}
                 <span className="ml-1 text-xs opacity-70">
                   ({f === "all" ? stats.total : f === "eligible" ? stats.eligible : stats.notApplicable})
                 </span>
@@ -220,28 +214,28 @@ export default function AngelTaxDeductionPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{isZh ? "投資人" : "Investor"}</TableHead>
-                      <TableHead>{isZh ? "輪次" : "Round"}</TableHead>
-                      <TableHead className="text-right">{isZh ? "投資額" : "Amount"}</TableHead>
-                      <TableHead className="text-right">{isZh ? "股數" : "Shares"}</TableHead>
-                      <TableHead>{isZh ? "適用" : "Eligible"}</TableHead>
-                      <TableHead>{isZh ? "閉鎖到期" : "Lock-up End"}</TableHead>
-                      <TableHead>{isZh ? "退稅年度" : "Tax Year"}</TableHead>
-                      <TableHead className="text-right">{isZh ? "退稅額 (50%)" : "Deduction"}</TableHead>
-                      <TableHead>{isZh ? "狀態" : "Status"}</TableHead>
+                      <TableHead>{t("angelTax.colInvestor")}</TableHead>
+                      <TableHead>{t("angelTax.colRound")}</TableHead>
+                      <TableHead className="text-right">{t("angelTax.colAmount")}</TableHead>
+                      <TableHead className="text-right">{t("angelTax.colShares")}</TableHead>
+                      <TableHead>{t("angelTax.colEligible")}</TableHead>
+                      <TableHead>{t("angelTax.colLockupEnd")}</TableHead>
+                      <TableHead>{t("angelTax.colTaxYear")}</TableHead>
+                      <TableHead className="text-right">{t("angelTax.colDeduction")}</TableHead>
+                      <TableHead>{t("angelTax.colStatus")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                          {isZh ? "載入中..." : "Loading..."}
+                          {t("angelTax.loading")}
                         </TableCell>
                       </TableRow>
                     ) : filtered.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                          {isZh ? "尚無記錄" : "No records yet"}
+                          {t("angelTax.noRecords")}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -270,13 +264,11 @@ export default function AngelTaxDeductionPage() {
                             <TableCell>
                               {row.isEligible ? (
                                 <Badge className="bg-green-100 text-green-700 border-transparent text-xs">
-                                  {isZh ? "適用" : "Yes"}
+                                  {t("angelTax.eligibleYes")}
                                 </Badge>
                               ) : (
                                 <Badge variant="outline" className="text-xs text-muted-foreground">
-                                  {isZh
-                                    ? REASON_LABELS[row.ineligibleReason]?.zh || "不適用"
-                                    : REASON_LABELS[row.ineligibleReason]?.en || "N/A"}
+                                  {t(REASON_KEYS[row.ineligibleReason] || "angelTax.reasonDefault")}
                                 </Badge>
                               )}
                             </TableCell>
@@ -288,16 +280,16 @@ export default function AngelTaxDeductionPage() {
                                     <p className="text-xs text-muted-foreground">
                                       {days <= 180 ? (
                                         <span className="text-amber-600 font-medium">
-                                          {isZh ? `${days} 天後到期` : `${days}d left`}
+                                          {t("angelTax.daysLeft", { days })}
                                         </span>
                                       ) : (
-                                        <span>{isZh ? `剩 ${days} 天` : `${days}d`}</span>
+                                        <span>{t("angelTax.daysRemaining", { days })}</span>
                                       )}
                                     </p>
                                   )}
                                   {days !== null && days <= 0 && row.isEligible && row.status === "pending" && (
                                     <p className="text-xs text-green-600 font-medium">
-                                      {isZh ? "已到期，可退稅" : "Eligible now"}
+                                      {t("angelTax.eligibleNow")}
                                     </p>
                                   )}
                                 </div>

@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { formatShares, formatValuation, formatDate, getRoundLabel, getRoundColor } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { TrendingUp, Calculator, Users, ChevronDown, ChevronUp, Info } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
@@ -419,7 +419,7 @@ export function EstimatedValuationContent() {
             {/* Info note */}
             <div className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/30 rounded-sm p-3">
               <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              <span dangerouslySetInnerHTML={{__html: t("ev.infoNote", {shares: formatShares(totalFullyDiluted)})}} />
+              <span><Trans i18nKey="ev.infoNote" ns="pages" values={{shares: formatShares(totalFullyDiluted)}} components={{strong: <strong />}} /></span>
             </div>
           </div>
         )}

@@ -161,6 +161,8 @@
   "waterfall.noShareholderData": "無股東資料。請先匯入股權表資料。",
   "waterfall.enterExitValue": "輸入退出價值並點擊執行分析以計算瀑布分配。",
   "waterfall.computing": "計算瀑布",
+  "waterfall.errorTitle": "瀑布計算失敗",
+  "waterfall.errorDesc": "計算瀑布分配時發生錯誤，請重試。",
 
   "antiDilution.addProvision": "新增條款",
   "antiDilution.allProvisions": "所有反稀釋條款",

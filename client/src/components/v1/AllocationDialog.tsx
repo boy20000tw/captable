@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { toast } from "sonner";
 import { Check, ArrowRight, Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -526,10 +526,9 @@ export default function AllocationDialog({
         </div>
 
         {!isEdit && (
-          <div
-            className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/20 border border-border rounded-sm p-2"
-            dangerouslySetInnerHTML={{ __html: t("allocation.newInfo") }}
-          />
+          <div className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/20 border border-border rounded-sm p-2">
+            <Trans i18nKey="allocation.newInfo" ns="common" components={{strong: <strong />}} />
+          </div>
         )}
 
         <div className="flex justify-end gap-2 pt-2">

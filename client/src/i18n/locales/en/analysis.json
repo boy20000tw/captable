@@ -162,6 +162,8 @@
   "waterfall.noShareholderData": "No shareholder data available. Import cap table data first.",
   "waterfall.enterExitValue": "Enter an exit value and click Run Analysis to compute the waterfall distribution.",
   "waterfall.computing": "Computing waterfall",
+  "waterfall.errorTitle": "Failed to compute waterfall",
+  "waterfall.errorDesc": "An error occurred while computing the waterfall distribution. Please try again.",
 
   "antiDilution.addProvision": "Add Provision",
   "antiDilution.allProvisions": "All Anti-Dilution Provisions",

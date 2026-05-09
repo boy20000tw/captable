@@ -34,7 +34,7 @@ export default function Waterfall() {
 
   const { data: rounds = [] } = trpc.fundingRounds.list.useQuery();
   const { data: prefs = [], refetch: refetchPrefs } = trpc.waterfall.getLiquidationPreferences.useQuery();
-  const { data: waterfallData, isLoading, refetch } = trpc.waterfall.compute.useQuery(
+  const { data: waterfallData, isLoading, isError, refetch } = trpc.waterfall.compute.useQuery(
     { exitValueNtd },
     { enabled: exitValueNtd > 0 }
   );
@@ -214,6 +214,13 @@ export default function Waterfall() {
 
         {isLoading && (
           <div className="text-center py-20 text-stone-400">{t("waterfall.computing")}</div>
+        )}
+
+        {isError && (
+          <div className="text-center py-20">
+            <p className="text-red-600 font-medium">{t("waterfall.errorTitle")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("waterfall.errorDesc")}</p>
+          </div>
         )}
 
         {waterfallData && !isLoading && (

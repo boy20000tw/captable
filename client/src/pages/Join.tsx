@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useClerk } from "@clerk/clerk-react";
@@ -145,9 +145,9 @@ export default function Join() {
               <Check className="h-8 w-8 text-green-600" />
             </div>
             <h1 className="font-serif text-2xl font-bold">{t("join.youreIn")}</h1>
-            <p className="text-muted-foreground" dangerouslySetInnerHTML={{
-              __html: t("join.accessConfigured", {role: ROLE_LABELS[invitation.appRole] ?? invitation.appRole})
-            }} />
+            <p className="text-muted-foreground">
+              <Trans i18nKey="join.accessConfigured" ns="pages" values={{role: ROLE_LABELS[invitation.appRole] ?? invitation.appRole}} components={{strong: <strong />}} />
+            </p>
           </div>
           <div className="border border-border rounded-sm p-4 bg-white space-y-2">
             <div className="flex items-center gap-2 text-sm">
@@ -182,9 +182,9 @@ export default function Join() {
             <Shield className="h-8 w-8 text-primary" />
           </div>
           <h1 className="font-serif text-2xl font-bold">{t("join.youveBeenInvited")}</h1>
-          <p className="text-muted-foreground" dangerouslySetInnerHTML={{
-            __html: t("join.invitedAs", {role: ROLE_LABELS[invitation.appRole] ?? invitation.appRole})
-          }} />
+          <p className="text-muted-foreground">
+            <Trans i18nKey="join.invitedAs" ns="pages" values={{role: ROLE_LABELS[invitation.appRole] ?? invitation.appRole}} components={{strong: <strong />}} />
+          </p>
         </div>
         <div className="border border-border rounded-sm p-4 bg-white space-y-2">
           <div className="flex items-center gap-2 text-sm">

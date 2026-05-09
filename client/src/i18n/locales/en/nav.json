@@ -44,6 +44,9 @@
   "settings.subscription": "Subscription",
   "settings.help": "Help & Support",
 
+  "signIn.tagline": "A precision instrument for equity management. Sign in to access your cap table.",
+  "adminPanel": "Admin Panel",
+
   "searchPlaceholder": "Search menu...",
   "more": "More",
   "signOut": "Sign out"
