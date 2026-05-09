@@ -1213,7 +1213,7 @@ const v1RegisterRouter = router({
   // Direct register write — for manual issuances, transfers, cancellations
   write: companyEditorProcedure.input(z.object({
     investorId: z.number(),
-    eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal", "esop_exercise"]),
+    eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal", "esop_exercise", "rsu_settlement"]),
     shareClass: z.string().min(1),
     shares: z.number().int().positive(),
     effectiveDate: z.string(),
@@ -1239,7 +1239,7 @@ const v1RegisterRouter = router({
     id: z.number(),
     data: z.object({
       effectiveDate: z.string().optional(),
-      eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal", "esop_exercise"]).optional(),
+      eventType: z.enum(["issuance", "transfer_in", "transfer_out", "cancellation", "reversal", "esop_exercise", "rsu_settlement"]).optional(),
       shareClass: z.string().min(1).optional(),
       shares: z.number().int().optional(),
       pricePerShare: z.string().optional().nullable(),
@@ -1432,7 +1432,7 @@ const v1EsopRouter = router({
       // 2. Write Common shares to share register (ESOP exercises into Common)
       const { entry, snapshot } = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
         investorId: grant.investorId,
-        eventType: "esop_exercise" as any,
+        eventType: "esop_exercise",
         shareClass: "common" as any,
         shares: input.sharesToExercise,
         effectiveDate,
@@ -1495,7 +1495,7 @@ const v1EsopRouter = router({
       // 2. Write Common shares to share register (RSU settlement → auto-deliver)
       const { entry, snapshot } = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
         investorId: grant.investorId,
-        eventType: "rsu_settlement" as any,
+        eventType: "rsu_settlement",
         shareClass: "common" as any,
         shares: input.sharesToSettle,
         effectiveDate,

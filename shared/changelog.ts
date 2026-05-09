@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.53.1",
+    date: "2026-05-10",
+    type: "patch",
+    title: "RegisterEntryInput eventType 同步 rsu_settlement",
+    description: "RegisterEntryInput 型別新增 rsu_settlement，signedShareCount switch 補齊對應 case，移除 routers.ts 中 eventType 的 as any 強制轉型。",
+  },
+  {
     version: "2.53.0",
     date: "2026-05-09",
     type: "minor",

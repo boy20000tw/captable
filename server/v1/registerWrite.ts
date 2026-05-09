@@ -28,7 +28,7 @@ import {
 export type RegisterEntryInput = {
   // Required
   investorId: number;
-  eventType: "issuance" | "transfer_in" | "transfer_out" | "cancellation" | "reversal" | "esop_exercise";
+  eventType: "issuance" | "transfer_in" | "transfer_out" | "cancellation" | "reversal" | "esop_exercise" | "rsu_settlement";
   shareClass: string;
   shares: number;               // positive integer; sign convention handled per event type
   effectiveDate: string;        // YYYY-MM-DD
@@ -141,6 +141,7 @@ function signedShareCount(
     case "issuance":
     case "transfer_in":
     case "esop_exercise":
+    case "rsu_settlement":
       return shares;
     case "transfer_out":
     case "cancellation":
