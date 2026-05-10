@@ -1652,10 +1652,16 @@ export async function updateEsopPoolV1(companyId: number, id: number, data: Part
     .where(and(eq(esopPoolsV1.id, id), eq(esopPoolsV1.companyId, companyId)));
 }
 export async function deleteEsopPoolV1(companyId: number, id: number) {
-  // ⚠️ CASCADE RISK: Deleting an ESOP pool will orphan all grants associated with this pool.
-  // Verify all grants are removed or migrated before deleting the pool.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Pre-delete guard: check for child grants
+  const childGrants = await db.select({ id: esopGrantsV1.id })
+    .from(esopGrantsV1)
+    .where(and(eq(esopGrantsV1.poolId, id), eq(esopGrantsV1.companyId, companyId)))
+    .limit(1);
+  if (childGrants.length > 0) {
+    throw new Error("Cannot delete ESOP pool: it has associated grants. Remove or reassign grants first.");
+  }
   await db.delete(esopPoolsV1).where(and(eq(esopPoolsV1.id, id), eq(esopPoolsV1.companyId, companyId)));
 }
 
@@ -1687,10 +1693,24 @@ export async function updateEsopGrantV1(companyId: number, id: number, data: Par
     .where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId)));
 }
 export async function deleteEsopGrantV1(companyId: number, id: number) {
-  // ⚠️ CASCADE RISK: Deleting an ESOP grant will orphan any vest schedules, exercises, or issued shares tied to this grant.
-  // Verify grant has no vested or exercised shares, and no dependent records before deletion.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Pre-delete guard: check for 83(b) elections linked to this grant
+  const linked83b = await db.select({ id: elections83b.id })
+    .from(elections83b)
+    .where(and(eq(elections83b.grantId, id), eq(elections83b.companyId, companyId)))
+    .limit(1);
+  if (linked83b.length > 0) {
+    throw new Error("Cannot delete ESOP grant: it has associated 83(b) election records.");
+  }
+  // Check if grant has exercised or settled shares (already issued)
+  const grant = await db.select({ sharesExercised: esopGrantsV1.sharesExercised, sharesSettled: esopGrantsV1.sharesSettled })
+    .from(esopGrantsV1)
+    .where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId)))
+    .limit(1);
+  if (grant[0] && (grant[0].sharesExercised > 0 || grant[0].sharesSettled > 0)) {
+    throw new Error("Cannot delete ESOP grant: shares have already been exercised or settled.");
+  }
   await db.delete(esopGrantsV1).where(and(eq(esopGrantsV1.id, id), eq(esopGrantsV1.companyId, companyId)));
 }
 
@@ -1908,10 +1928,20 @@ export async function updateInstrument(companyId: number, id: number, data: Part
 }
 
 export async function deleteInstrument(companyId: number, id: number) {
-  // ⚠️ CASCADE RISK: Deleting an instrument (SAFE, convertible note, etc.) may affect cap table calculations and valuations.
-  // Verify no allocations or cap table entries reference this instrument before deletion.
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Pre-delete guard: check for signing requests linked to this instrument
+  const linkedSigning = await db.select({ id: signingRequests.id })
+    .from(signingRequests)
+    .where(and(
+      eq(signingRequests.companyId, companyId),
+      eq(signingRequests.linkedResourceType, "instrument"),
+      eq(signingRequests.linkedResourceId, id),
+    ))
+    .limit(1);
+  if (linkedSigning.length > 0) {
+    throw new Error("Cannot delete instrument: it has associated signing requests.");
+  }
   await db.delete(instruments)
     .where(and(eq(instruments.id, id), eq(instruments.companyId, companyId)));
 }
@@ -2080,6 +2110,22 @@ export async function updateShareClass(companyId: number, id: number, data: Part
 export async function deleteShareClass(companyId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Pre-delete guard: check for allocations using this share class
+  const linkedAllocations = await db.select({ id: allocations.id })
+    .from(allocations)
+    .where(and(eq(allocations.shareClassId, id), eq(allocations.companyId, companyId)))
+    .limit(1);
+  if (linkedAllocations.length > 0) {
+    throw new Error("Cannot delete share class: it is used by existing allocations.");
+  }
+  // Check share register entries
+  const linkedRegEntries = await db.select({ id: shareRegisterEntries.id })
+    .from(shareRegisterEntries)
+    .where(and(eq(shareRegisterEntries.shareClassId, id), eq(shareRegisterEntries.companyId, companyId)))
+    .limit(1);
+  if (linkedRegEntries.length > 0) {
+    throw new Error("Cannot delete share class: it is referenced by share register entries.");
+  }
   await db.delete(shareClasses)
     .where(and(eq(shareClasses.companyId, companyId), eq(shareClasses.id, id)));
 }

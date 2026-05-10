@@ -80,6 +80,9 @@ function percentile(sorted: number[], p: number): number {
 }
 
 function computeStats(label: string, values: number[]): CompsStats {
+  if (values.length === 0) {
+    return { metric: label, min: 0, q1: 0, median: 0, mean: 0, q3: 0, max: 0 };
+  }
   const sorted = [...values].sort((a, b) => a - b);
   const mean = sorted.reduce((s, v) => s + v, 0) / sorted.length;
   return {

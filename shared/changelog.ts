@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.55.0",
+    date: "2026-05-10",
+    type: "minor",
+    title: "QA Round 6 — Delete 函數防護 + 計算引擎防護",
+    description: "deleteEsopPoolV1/deleteEsopGrantV1/deleteInstrument/deleteShareClass 加入子記錄 pre-delete guard 防止孤立資料、compsCalc computeStats 空陣列除零防護。",
+  },
+  {
     version: "2.54.0",
     date: "2026-05-10",
     type: "minor",
