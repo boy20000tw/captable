@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.57.0",
+    date: "2026-05-10",
+    type: "minor",
+    title: "QA Round 8 — 殘留 i18n 清理",
+    description: "Import.tsx 4 處 + AdminTemplates.tsx 3 處 toast 錯誤訊息遷移至 t()，新增 EN/zh-TW 翻譯鍵。",
+  },
+  {
     version: "2.56.0",
     date: "2026-05-10",
     type: "minor",

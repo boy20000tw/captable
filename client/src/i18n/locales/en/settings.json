@@ -217,6 +217,11 @@
   "import.importErrors": "Import completed with errors.",
   "import.fileReadError": "File read error",
   "import.uploadExcelOnly": "Please upload an Excel file (.xlsx or .xls)",
+  "import.exportFailed": "Export failed",
+  "import.importFailed": "Import failed",
+  "import.analysisUnavailable": "Analysis unavailable",
+  "import.analysisFailed": "Analysis failed",
+  "import.fileReadRetry": "Failed to read file. Please try again.",
 
   "companySettings.basicInformation": "Basic Information",
   "companySettings.basicInformationDesc": "Used in contracts, exported reports, and the platform header.",

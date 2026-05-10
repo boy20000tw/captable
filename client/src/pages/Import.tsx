@@ -63,7 +63,7 @@ function ImportContent() {
       toast.success(t("import.demoExported"));
     },
     onError: (e) => {
-      toast.error("Export failed: " + e.message);
+      toast.error(t("import.exportFailed") + ": " + e.message);
       setExporting(false);
     },
   });
@@ -87,7 +87,7 @@ function ImportContent() {
     },
     onError: (e) => {
       setDemoResult({ success: false, sheetsImported: [], totalRecords: 0, errors: [e.message] });
-      toast.error("Import failed: " + e.message);
+      toast.error(t("import.importFailed") + ": " + e.message);
       setDemoImporting(false);
     },
   });
@@ -104,7 +104,7 @@ function ImportContent() {
       const fileBase64 = btoa(binary);
       importDemoPackMut.mutate({ fileBase64 });
     } catch {
-      setDemoResult({ success: false, sheetsImported: [], totalRecords: 0, errors: ["Failed to read file"] });
+      setDemoResult({ success: false, sheetsImported: [], totalRecords: 0, errors: [t("import.fileReadError")] });
       setDemoImporting(false);
     }
   }
@@ -139,19 +139,19 @@ function ImportContent() {
     },
     onError: (e) => {
       setResult({ success: false, message: e.message });
-      toast.error("Import failed: " + e.message);
+      toast.error(t("import.importFailed") + ": " + e.message);
       setImporting(false);
     },
   });
 
   const analyzeRounds = trpc.analysis.analyze.useMutation({
     onSuccess: (data) => {
-      const text = typeof data.analysis === "string" ? data.analysis : "Analysis unavailable";
+      const text = typeof data.analysis === "string" ? data.analysis : t("import.analysisUnavailable");
       setAnalysisText(text);
       setAnalyzing(false);
     },
     onError: (e: { message: string }) => {
-      toast.error("Analysis failed: " + e.message);
+      toast.error(t("import.analysisFailed") + ": " + e.message);
       setAnalyzing(false);
     },
   });
@@ -171,7 +171,7 @@ function ImportContent() {
 
       importExcel.mutate({ fileBase64, fileName: file.name });
     } catch (err) {
-      setResult({ success: false, message: "Failed to read file. Please try again." });
+      setResult({ success: false, message: t("import.fileReadRetry") });
       toast.error(t("import.fileReadError"));
       setImporting(false);
     }

@@ -217,6 +217,11 @@
   "import.importErrors": "匯入完成但有錯誤。",
   "import.fileReadError": "檔案讀取錯誤",
   "import.uploadExcelOnly": "請上傳 Excel 檔案（.xlsx 或 .xls）",
+  "import.exportFailed": "匯出失敗",
+  "import.importFailed": "匯入失敗",
+  "import.analysisUnavailable": "分析不可用",
+  "import.analysisFailed": "分析失敗",
+  "import.fileReadRetry": "檔案讀取失敗，請重試。",
 
   "companySettings.basicInformation": "基本資訊",
   "companySettings.basicInformationDesc": "用於合約、匯出報告及平台標題。",

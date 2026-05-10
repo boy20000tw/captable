@@ -86,7 +86,7 @@ function AdminTemplatesContent() {
       utils.esign.platformTemplates.invalidate();
       setUploadOpen(false);
     },
-    onError: (err) => toast.error(err.message || "Upload failed"),
+    onError: (err) => toast.error(err.message || t("templates.uploadFailed")),
   });
 
   const updateMut = trpc.esign.updatePlatformTemplate.useMutation({
@@ -95,7 +95,7 @@ function AdminTemplatesContent() {
       utils.esign.platformTemplates.invalidate();
       setEditOpen(false);
     },
-    onError: (err) => toast.error(err.message || "Update failed"),
+    onError: (err) => toast.error(err.message || t("templates.updateFailed")),
   });
 
   const deleteMut = trpc.esign.deletePlatformTemplate.useMutation({
@@ -105,7 +105,7 @@ function AdminTemplatesContent() {
       setDeleteOpen(false);
       setSelectedTemplate(null);
     },
-    onError: (err) => toast.error(err.message || "Delete failed"),
+    onError: (err) => toast.error(err.message || t("templates.deleteFailed")),
   });
 
   // Filter templates
