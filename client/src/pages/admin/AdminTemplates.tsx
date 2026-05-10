@@ -183,6 +183,7 @@ function AdminTemplatesContent() {
                 : t("templates.empty")}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -245,6 +246,7 @@ function AdminTemplatesContent() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -208,6 +208,7 @@ function Election83bContent() {
               {t("e83b.emptyState")}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -275,6 +276,7 @@ function Election83bContent() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

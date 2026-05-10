@@ -78,7 +78,7 @@ function SnapshotsContent() {
   const createSnapshot = trpc.v1.snapshots.createManual.useMutation({
     onSuccess: () => {
       utils.v1.snapshots.list.invalidate();
-      toast.success("Snapshot captured");
+      toast.success(t("snapshots.captured"));
       setShowCreateForm(false);
       setCreateForm({ name: "", notes: "" });
     },
@@ -87,7 +87,7 @@ function SnapshotsContent() {
 
   function handleCreate() {
     if (!createForm.name.trim()) {
-      toast.error("Please enter a snapshot name");
+      toast.error(t("snapshots.enterName"));
       return;
     }
     createSnapshot.mutate({

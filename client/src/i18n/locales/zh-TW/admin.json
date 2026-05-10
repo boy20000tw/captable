@@ -303,5 +303,7 @@
   "notifications.history": "廣播歷史",
   "notifications.loading": "載入中...",
   "notifications.empty": "尚未發送任何廣播。",
-  "notifications.companies": "間公司"
+  "notifications.companies": "間公司",
+
+  "tickets.ticketUpdated": "工單已更新"
 }

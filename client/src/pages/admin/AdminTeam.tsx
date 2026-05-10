@@ -166,6 +166,7 @@ function AdminTeamContent() {
           ) : !team || team.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground text-center">{t("team.noMembers")}</div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -225,6 +226,7 @@ function AdminTeamContent() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

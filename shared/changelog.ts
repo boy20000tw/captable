@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.56.0",
+    date: "2026-05-10",
+    type: "minor",
+    title: "QA Round 7 — i18n 遷移 + 響應式表格修復",
+    description: "AntiDilution/Instruments/Import/Snapshots/AuditLog/RoundDetail/AdminTickets 共 ~35 處硬編碼英文字串遷移至 t()、7 個頁面表格加入 overflow-x-auto 手機適配。",
+  },
+  {
     version: "2.55.0",
     date: "2026-05-10",
     type: "minor",

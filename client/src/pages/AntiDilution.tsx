@@ -148,7 +148,7 @@ function AntiDilutionContent() {
       utils.antiDilution.list.invalidate();
       setShowForm(false);
       setForm(emptyForm);
-      toast.success("Anti-dilution provision added");
+      toast.success(t("antiDilution.provisionCreated"));
     },
     onError: (err) => toast.error(err.message),
   });
@@ -156,7 +156,7 @@ function AntiDilutionContent() {
   const deleteProvision = trpc.antiDilution.delete.useMutation({
     onSuccess: () => {
       utils.antiDilution.list.invalidate();
-      toast.success("Provision deleted");
+      toast.success(t("antiDilution.provisionDeleted"));
     },
     onError: (err) => toast.error(err.message),
   });
@@ -164,7 +164,7 @@ function AntiDilutionContent() {
   const triggerProvisions = trpc.antiDilution.trigger.useMutation({
     onSuccess: (r) => {
       utils.antiDilution.list.invalidate();
-      toast.success(`Triggered ${r.count} provision${r.count === 1 ? "" : "s"}`);
+      toast.success(t("antiDilution.triggeredCount", { count: r.count }));
       setSimResults(null);
       setShowSimulator(false);
     },
@@ -208,7 +208,7 @@ function AntiDilutionContent() {
 
   async function handleCreate() {
     if (!form.shareholderId || !form.fundingRoundId || !form.originalPriceNtd || !form.originalShares) {
-      toast.error("Please fill in all required fields");
+      toast.error(t("antiDilution.fillRequiredFields"));
       return;
     }
     await createProvision.mutateAsync({
@@ -223,7 +223,7 @@ function AntiDilutionContent() {
 
   async function handleSimulate() {
     if (!simInput.newRoundPriceNtd || !simInput.newRoundSharesIssued || !simInput.newRoundMoneyRaisedNtd) {
-      toast.error("Please fill in all simulation fields");
+      toast.error(t("antiDilution.fillSimulationFields"));
       return;
     }
     setSimulating(true);
@@ -235,7 +235,7 @@ function AntiDilutionContent() {
       });
       setSimResults(result);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Simulation failed";
+      const msg = err instanceof Error ? err.message : t("antiDilution.simulationFailed");
       toast.error(msg);
     } finally {
       setSimulating(false);
@@ -246,17 +246,15 @@ function AntiDilutionContent() {
     if (!simResults) return;
     const triggered = simResults.results.filter((r) => r.triggered);
     if (triggered.length === 0) {
-      toast.error("No provisions are triggered by this scenario");
+      toast.error(t("antiDilution.noProvisionsTriggered"));
       return;
     }
     if (!simInput.triggerRoundId) {
-      toast.error("Please select the triggering round before committing");
+      toast.error(t("antiDilution.selectTriggeringRoundBeforeCommit"));
       return;
     }
     const confirmed = window.confirm(
-      `Commit this down-round adjustment to ${triggered.length} provision${
-        triggered.length === 1 ? "" : "s"
-      }? This cannot be undone.`,
+      t("antiDilution.confirmCommit", { count: triggered.length }),
     );
     if (!confirmed) return;
     setTriggering(true);
@@ -391,7 +389,7 @@ function AntiDilutionContent() {
                 type="number"
                 step="0.000001"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                placeholder="e.g. 10.000000"
+                placeholder={t("antiDilution.pricePlaceholder")}
                 value={form.originalPriceNtd}
                 onChange={(e) => setForm({ ...form, originalPriceNtd: e.target.value })}
               />
@@ -402,7 +400,7 @@ function AntiDilutionContent() {
               <input
                 type="number"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                placeholder="e.g. 1000000"
+                placeholder={t("antiDilution.sharesPlaceholder")}
                 value={form.originalShares}
                 onChange={(e) => setForm({ ...form, originalShares: e.target.value })}
               />
@@ -413,7 +411,7 @@ function AntiDilutionContent() {
               <input
                 type="text"
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                placeholder="Optional notes…"
+                placeholder={t("antiDilution.notesPlaceholder")}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
@@ -528,7 +526,7 @@ function AntiDilutionContent() {
                       {p.status === "active" && (
                         <button
                           onClick={() => {
-                            if (confirm("Delete this provision?")) {
+                            if (confirm(t("antiDilution.confirmDelete"))) {
                               deleteProvision.mutate({ id: p.id });
                             }
                           }}
@@ -577,7 +575,7 @@ function AntiDilutionContent() {
                     type="number"
                     step="0.000001"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                    placeholder="e.g. 5.00"
+                    placeholder={t("antiDilution.pricePlaceholder")}
                     value={simInput.newRoundPriceNtd}
                     onChange={(e) => setSimInput({ ...simInput, newRoundPriceNtd: e.target.value })}
                   />
@@ -587,7 +585,7 @@ function AntiDilutionContent() {
                   <input
                     type="number"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                    placeholder="e.g. 2000000"
+                    placeholder={t("antiDilution.sharesPlaceholder")}
                     value={simInput.newRoundSharesIssued}
                     onChange={(e) =>
                       setSimInput({ ...simInput, newRoundSharesIssued: e.target.value })
@@ -599,7 +597,7 @@ function AntiDilutionContent() {
                   <input
                     type="number"
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                    placeholder="e.g. 10000000"
+                    placeholder={t("antiDilution.amountPlaceholder")}
                     value={simInput.newRoundMoneyRaisedNtd}
                     onChange={(e) =>
                       setSimInput({ ...simInput, newRoundMoneyRaisedNtd: e.target.value })

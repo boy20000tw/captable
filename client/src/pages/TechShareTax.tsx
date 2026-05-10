@@ -349,6 +349,7 @@ function TechShareTaxContent() {
               {t("techShare.emptyState")}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -421,6 +422,7 @@ function TechShareTaxContent() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

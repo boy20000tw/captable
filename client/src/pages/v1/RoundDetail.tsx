@@ -165,7 +165,7 @@ function V1RoundDetailContent() {
   const deleteMut = trpc.v1.allocations.delete.useMutation({
     onSuccess: () => {
       utils.v1.allocations.list.invalidate();
-      toast.success("Allocation deleted");
+      toast.success(t("rounds.allocationDeleted"));
     },
     onError: (e) => toast.error(e.message),
   });

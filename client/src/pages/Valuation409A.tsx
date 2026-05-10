@@ -215,6 +215,7 @@ function Valuation409AContent() {
               {t("v409a.emptyState")}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -268,6 +269,7 @@ function Valuation409AContent() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

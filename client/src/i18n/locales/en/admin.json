@@ -303,5 +303,7 @@
   "notifications.history": "Broadcast History",
   "notifications.loading": "Loading broadcasts...",
   "notifications.empty": "No broadcasts sent yet.",
-  "notifications.companies": "companies"
+  "notifications.companies": "companies",
+
+  "tickets.ticketUpdated": "Ticket updated"
 }

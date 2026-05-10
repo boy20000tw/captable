@@ -238,6 +238,13 @@
   "instruments.sharesLabel": "Shares",
   "instruments.sharesFormula": "shares = floor(principal / conv_price). Convertible-note principal = investment + accrued interest.",
   "instruments.conversionSuccess": "Instruments converted successfully",
+  "instruments.fillRequired": "Name, investor, and investment amount are required",
+  "instruments.fillSimFields": "Please fill in all simulation fields",
+  "instruments.simFailed": "Simulation failed",
+  "instruments.selectConversionRound": "Select the conversion round first",
+  "instruments.confirmConvert": "Convert selected instruments into equity? This cannot be undone.",
+  "instruments.edit": "Edit",
+  "instruments.delete": "Delete",
 
   "activities.timelineTitle": "Activity Timeline",
   "activities.addActivity": "Add Activity",
@@ -296,5 +303,7 @@
   "board.boardView": "Board",
   "board.calendarView": "Calendar",
   "board.emptyColumn": "No investors",
-  "board.advanceTo": "Advance to"
+  "board.advanceTo": "Advance to",
+
+  "rounds.allocationDeleted": "Allocation deleted"
 }

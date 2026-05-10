@@ -60,7 +60,7 @@ function ImportContent() {
       a.click();
       URL.revokeObjectURL(url);
       setExporting(false);
-      toast.success("Demo Data Pack exported!");
+      toast.success(t("import.demoExported"));
     },
     onError: (e) => {
       toast.error("Export failed: " + e.message);
@@ -81,7 +81,7 @@ function ImportContent() {
         utils.v1.esop.pools.invalidate();
         utils.v1.esop.grants.invalidate();
       } else {
-        toast.error("Import completed with errors.");
+        toast.error(t("import.importErrors"));
       }
       setDemoImporting(false);
     },
@@ -133,7 +133,7 @@ function ImportContent() {
         utils.v1.esop.pools.invalidate();
         utils.v1.esop.grants.invalidate();
       } else {
-        toast.error("Import completed with errors.");
+        toast.error(t("import.importErrors"));
       }
       setImporting(false);
     },
@@ -172,7 +172,7 @@ function ImportContent() {
       importExcel.mutate({ fileBase64, fileName: file.name });
     } catch (err) {
       setResult({ success: false, message: "Failed to read file. Please try again." });
-      toast.error("File read error");
+      toast.error(t("import.fileReadError"));
       setImporting(false);
     }
   }
@@ -185,7 +185,7 @@ function ImportContent() {
       setFile(dropped);
       setResult(null);
     } else {
-      toast.error("Please upload an Excel file (.xlsx or .xls)");
+      toast.error(t("import.uploadExcelOnly"));
     }
   }
 

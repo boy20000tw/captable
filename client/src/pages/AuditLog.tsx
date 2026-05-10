@@ -133,7 +133,7 @@ function AuditLogContent() {
         </div>
         <button
           onClick={() => {
-            const headers = ["Timestamp", "User", "Action", "Resource Type", "Resource ID", "Resource Name", "IP Address"];
+            const headers = [t("auditLog.csvTimestamp"), t("auditLog.csvUser"), t("auditLog.csvAction"), t("auditLog.csvResourceType"), t("auditLog.csvResourceId"), t("auditLog.csvResourceName"), t("auditLog.csvIpAddress")];
             const rows = filtered.map(log => [
               log.createdAt ? new Date(log.createdAt as any).toISOString() : "",
               log.userName ?? "",
@@ -204,7 +204,7 @@ function AuditLogContent() {
           </select>
         </div>
         <div className="text-sm text-muted-foreground">
-          {filtered.length} event{filtered.length !== 1 ? "s" : ""}
+          {t("auditLog.eventCount", { count: filtered.length })}
         </div>
       </div>
 
@@ -257,7 +257,7 @@ function AuditLogContent() {
                     <ActionBadge action={log.action} actionConfig={ACTION_CONFIG} />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-xs font-medium">{RESOURCE_LABELS[log.resourceType ?? ""] ?? log.resourceType ?? "Unknown"}</div>
+                    <div className="text-xs font-medium">{RESOURCE_LABELS[log.resourceType ?? ""] ?? log.resourceType ?? t("auditLog.unknown")}</div>
                     {log.resourceName && (
                       <div className="text-xs text-muted-foreground">{log.resourceName}</div>
                     )}

@@ -106,6 +106,7 @@ function CompanyListView({
               {t("companies.noCompanies")}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -158,6 +159,7 @@ function CompanyListView({
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -313,6 +315,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
           <CardDescription>{t("companies.memberCount", { count: members.length })}</CardDescription>
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -335,6 +338,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -352,6 +356,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
           ) : !auditLogs || auditLogs.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground">{t("companies.noActivity")}</div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -378,6 +383,7 @@ function CompanyDetailView({ companyId, onBack }: { companyId: number; onBack: (
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

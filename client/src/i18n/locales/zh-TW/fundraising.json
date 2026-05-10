@@ -240,6 +240,13 @@
   "instruments.sharesLabel": "股數",
   "instruments.sharesFormula": "股數 = floor(本金 / 轉換價)。可轉換債本金 = 投資金額 + 應計利息。",
   "instruments.conversionSuccess": "可轉換工具已成功轉換",
+  "instruments.fillRequired": "名稱、投資人和投資金額為必填",
+  "instruments.fillSimFields": "請填寫所有模擬欄位",
+  "instruments.simFailed": "模擬失敗",
+  "instruments.selectConversionRound": "請先選擇轉換輪次",
+  "instruments.confirmConvert": "確定將選取的工具轉換為股權？此操作無法復原。",
+  "instruments.edit": "編輯",
+  "instruments.delete": "刪除",
 
   "activities.timelineTitle": "活動時間軸",
   "activities.addActivity": "新增活動",
@@ -298,5 +305,7 @@
   "board.boardView": "看板",
   "board.calendarView": "日曆",
   "board.emptyColumn": "尚無投資人",
-  "board.advanceTo": "推進至"
+  "board.advanceTo": "推進至",
+
+  "rounds.allocationDeleted": "配股已刪除"
 }

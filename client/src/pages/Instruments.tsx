@@ -284,7 +284,7 @@ function InstrumentsContent() {
 
   async function handleSave() {
     if (!form.name || !form.investorId || !form.investmentAmountNtd) {
-      toast.error("Name, investor, and investment amount are required");
+      toast.error(t("instruments.fillRequired"));
       return;
     }
 
@@ -328,7 +328,7 @@ function InstrumentsContent() {
 
   async function handleSimulate() {
     if (!simInput.nextRoundPricePerShareNtd || !simInput.nextRoundPreMoneyValuationNtd || !simInput.nextRoundPostMoneyValuationNtd) {
-      toast.error("Please fill in all simulation fields");
+      toast.error(t("instruments.fillSimFields"));
       return;
     }
     setSimulating(true);
@@ -340,7 +340,7 @@ function InstrumentsContent() {
       });
       setSimResults(result as SimResponse);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Simulation failed";
+      const msg = err instanceof Error ? err.message : t("instruments.simFailed");
       toast.error(msg);
     } finally {
       setSimulating(false);
@@ -350,12 +350,10 @@ function InstrumentsContent() {
   async function handleExecute() {
     if (!simResults || simResults.results.length === 0) return;
     if (!simInput.conversionRoundId) {
-      toast.error("Select the conversion round first");
+      toast.error(t("instruments.selectConversionRound"));
       return;
     }
-    const confirmed = window.confirm(
-      `Convert ${simResults.results.length} instrument${simResults.results.length === 1 ? "" : "s"} into equity at the selected round? This cannot be undone.`,
-    );
+    const confirmed = window.confirm(t("instruments.confirmConvert"));
     if (!confirmed) return;
     setExecuting(true);
     try {
@@ -751,7 +749,7 @@ function InstrumentsContent() {
                         <button
                           onClick={() => openEditForm(inst)}
                           className="text-muted-foreground hover:text-foreground"
-                          title="Edit"
+                          title={t("instruments.edit")}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -763,7 +761,7 @@ function InstrumentsContent() {
                               }
                             }}
                             className="text-muted-foreground hover:text-destructive"
-                            title="Delete"
+                            title={t("instruments.delete")}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

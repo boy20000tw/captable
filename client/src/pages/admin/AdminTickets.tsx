@@ -24,7 +24,7 @@ export default function AdminTicketsPage() {
   const updateTicket = trpc.admin.adminUpdateTicket.useMutation({
     onSuccess: () => {
       utils.admin.adminTickets.invalidate();
-      toast.success("Ticket updated");
+      toast.success(t("admin:tickets.ticketUpdated"));
     },
   });
   const [expandedId, setExpandedId] = useState<number | null>(null);

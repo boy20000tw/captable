@@ -249,6 +249,7 @@ function ShareTransfersContent() {
               {t("transfers.emptyState")}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -318,6 +319,7 @@ function ShareTransfersContent() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
