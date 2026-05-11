@@ -122,16 +122,17 @@ const fundingRoundsRouter = router({
   }),
   get: companyProcedure.use(requireFeature("fundraising.rounds")).input(z.object({ id: z.number() })).query(({ input, ctx }) => getFundingRoundById(ctx.companyId, input.id)),
   create: companyEditorProcedure.input(z.object({
-    name: z.string().min(1),
-    roundDate: z.string().optional(),
-    pricePerShareNtd: z.string().optional(),
-    moneyRaisedNtd: z.string().optional(),
-    preMoneyValuationNtd: z.string().optional(),
-    postMoneyValuationNtd: z.string().optional(),
-    exchangeRate: z.string().optional(),
+    name: z.string().min(1).max(128),
+    roundDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    // numeric monetary fields stored as decimal string: tolerate optional sign, decimals, up to 40 chars
+    pricePerShareNtd: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
+    moneyRaisedNtd: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
+    preMoneyValuationNtd: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
+    postMoneyValuationNtd: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
+    exchangeRate: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
     status: z.enum(["completed","projected","bridge"]).default("completed"),
     notes: z.string().max(10000).optional(),
-    sortOrder: z.number().default(0),
+    sortOrder: z.number().int().min(-1000000).max(1000000).default(0),
   })).mutation(async ({ input, ctx }) => {
     const result = await createFundingRound({ ...input, companyId: ctx.companyId, roundDate: input.roundDate ?? undefined });
     await createAuditLog({ companyId: ctx.companyId, userId: ctx.user!.id, userName: ctx.user!.name ?? undefined, action: "create", resourceType: "funding_round", resourceName: input.name, changesAfter: JSON.stringify(input) });
@@ -140,16 +141,16 @@ const fundingRoundsRouter = router({
   update: companyEditorProcedure.input(z.object({
     id: z.number(),
     data: z.object({
-      name: z.string().min(1).optional(),
-      roundDate: z.string().optional(),
-      pricePerShareNtd: z.string().optional(),
-      moneyRaisedNtd: z.string().optional(),
-      preMoneyValuationNtd: z.string().optional(),
-      postMoneyValuationNtd: z.string().optional(),
-      exchangeRate: z.string().optional(),
+      name: z.string().min(1).max(128).optional(),
+      roundDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      pricePerShareNtd: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
+      moneyRaisedNtd: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
+      preMoneyValuationNtd: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
+      postMoneyValuationNtd: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
+      exchangeRate: z.string().regex(/^-?\d+(\.\d+)?$/).max(40).optional(),
       status: z.enum(["completed","projected","bridge"]).optional(),
       notes: z.string().max(10000).optional(),
-      sortOrder: z.number().optional(),
+      sortOrder: z.number().int().min(-1000000).max(1000000).optional(),
     }),
   })).mutation(async ({ input, ctx }) => {
     const result = await updateFundingRound(ctx.companyId, input.id, { ...input.data, roundDate: input.data.roundDate ?? undefined });
@@ -383,18 +384,15 @@ const importRouter = router({
     }),
 });
 
-// ─── Analysis Router (placeholder - LLM not yet integrated) ─────────────────
+// ─── Analysis Router (LLM stub) ─────────────────────────────────────────────
 // Scoped to companyProcedure so only members of the active company can call.
-// When real LLM integration lands, server should re-fetch rounds/projections
-// from ctx.companyId rather than trusting client-provided arrays (prevents
-// cross-tenant data leak via crafted input).
+// TODO: Integrate with OpenAI or Claude API. When real LLM lands, fetch
+// rounds/projections from ctx.companyId server-side (don't trust client input).
+// Until then we return a placeholder string the client renders verbatim.
 const analysisRouter = router({
   analyze: companyProcedure
     .use(requireFeature("analysis.valuation"))
     .input(z.object({
-      // Optional client-provided context retained for backward compatibility,
-      // but capped to prevent oversized input. Will be ignored once server-side
-      // fetch is wired up.
       exchangeRate: z.number().default(0.0313),
     }).passthrough())
     .mutation(async () => {
@@ -1492,7 +1490,7 @@ const v1EsopRouter = router({
       if (grant.status === "cancelled") throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot settle a cancelled grant" });
       if (grant.status === "settled") throw new TRPCError({ code: "BAD_REQUEST", message: "Grant already fully settled" });
 
-      const settledSoFar = (grant as any).sharesSettled ?? 0;
+      const settledSoFar = grant.sharesSettled ?? 0;
       const settleable = grant.sharesGranted - settledSoFar - grant.sharesCancelled;
       if (input.sharesToSettle > settleable) {
         throw new TRPCError({ code: "BAD_REQUEST", message: `Only ${settleable} shares available to settle` });
@@ -3141,10 +3139,12 @@ export const appRouter = router({
       const memberships = await getUserCompanyMemberships(opts.ctx.user.id);
       const user = opts.ctx.user;
 
-      // Auto-promote platform owner to super_admin if not already set
+      // Auto-promote platform owner to super_admin if not already set.
+      // We mutate the local user object so the response reflects the new role
+      // without an extra round-trip.
       if (user.role === "admin" && user.email === PLATFORM_OWNER_EMAIL && user.adminRole !== "super_admin") {
-        try { await adminUpdateAdminRole(user.id, "super_admin"); } catch { /* ignore if column missing */ }
-        (user as any).adminRole = "super_admin";
+        try { await adminUpdateAdminRole(user.id, "super_admin"); } catch (err) { console.warn("[auth.me] adminUpdateAdminRole failed (column may be missing)", err); }
+        user.adminRole = "super_admin";
       }
 
       // Spread user fields so existing frontend code (me.id, me.name, me.email, me.appRole)
