@@ -326,7 +326,7 @@ export async function createShareholder(data: InsertShareholder) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const values: Record<string, any> = { ...data };
-  if (data.companyId) { try { await encryptContactPii(values, data.companyId); } catch { /* skip */ } }
+  if (data.companyId) { try { await encryptContactPii(values, data.companyId); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) } }
   const result = await db.insert(shareholders).values(values as InsertShareholder).returning({ id: shareholders.id });
   if (!result[0]) throw new Error("Failed to create shareholder: no result returned");
   const rows = await db.select().from(shareholders).where(eq(shareholders.id, result[0].id)).limit(1);
@@ -338,7 +338,7 @@ export async function updateShareholder(companyId: number, id: number, data: Par
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const values: Record<string, any> = { ...data };
-  try { await encryptContactPii(values, companyId); } catch { /* skip */ }
+  try { await encryptContactPii(values, companyId); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   return db.update(shareholders).set(values)
     .where(and(eq(shareholders.id, id), eq(shareholders.companyId, companyId)));
 }
@@ -1380,7 +1380,7 @@ export async function createInvestor(data: InsertInvestor) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const values: Record<string, any> = { ...data };
-  try { await encryptContactPii(values, data.companyId); } catch { /* skip */ }
+  try { await encryptContactPii(values, data.companyId); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   const rows = await db.insert(investors).values(values as InsertInvestor).returning();
   return rows[0];
 }
@@ -1388,7 +1388,7 @@ export async function updateInvestor(companyId: number, id: number, data: Partia
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const values: Record<string, any> = { ...data, updatedAt: new Date() };
-  try { await encryptContactPii(values, companyId); } catch { /* skip */ }
+  try { await encryptContactPii(values, companyId); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   await db.update(investors).set(values)
     .where(and(eq(investors.id, id), eq(investors.companyId, companyId)));
 }
@@ -1439,7 +1439,7 @@ export async function createAllocation(data: InsertAllocation) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const values: Record<string, any> = { ...data };
-  try { await encryptFinancialFields(values, data.companyId, ALLOCATION_FIN_FIELDS); } catch { /* skip */ }
+  try { await encryptFinancialFields(values, data.companyId, ALLOCATION_FIN_FIELDS); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   const rows = await db.insert(allocations).values(values as InsertAllocation).returning();
   return rows[0];
 }
@@ -1447,7 +1447,7 @@ export async function updateAllocation(companyId: number, id: number, data: Part
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const values: Record<string, any> = { ...data, updatedAt: new Date() };
-  try { await encryptFinancialFields(values, companyId, ALLOCATION_FIN_FIELDS); } catch { /* skip */ }
+  try { await encryptFinancialFields(values, companyId, ALLOCATION_FIN_FIELDS); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   await db.update(allocations).set(values)
     .where(and(eq(allocations.id, id), eq(allocations.companyId, companyId)));
 }
@@ -1557,7 +1557,7 @@ export async function autoSeedAllocationsForRound(companyId: number, roundId: nu
     };
 
     // Encrypt financial fields
-    try { await encryptFinancialFields(values, companyId, ALLOCATION_FIN_FIELDS); } catch { /* skip */ }
+    try { await encryptFinancialFields(values, companyId, ALLOCATION_FIN_FIELDS); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
 
     await db.insert(allocations).values(values as InsertAllocation);
   }
@@ -1912,7 +1912,7 @@ export async function createInstrument(data: InsertInstrument) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const values: Record<string, any> = { ...data };
-  try { await encryptFinancialFields(values, data.companyId, INSTRUMENT_FIN_FIELDS); } catch { /* skip */ }
+  try { await encryptFinancialFields(values, data.companyId, INSTRUMENT_FIN_FIELDS); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   const rows = await db.insert(instruments).values(values as InsertInstrument).returning();
   return rows[0];
 }
@@ -1921,7 +1921,7 @@ export async function updateInstrument(companyId: number, id: number, data: Part
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const values: Record<string, any> = { ...data, updatedAt: new Date() };
-  try { await encryptFinancialFields(values, companyId, INSTRUMENT_FIN_FIELDS); } catch { /* skip */ }
+  try { await encryptFinancialFields(values, companyId, INSTRUMENT_FIN_FIELDS); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   await db.update(instruments)
     .set(values)
     .where(and(eq(instruments.id, id), eq(instruments.companyId, companyId)));
@@ -2827,7 +2827,7 @@ export async function createShareTransfer(data: InsertShareTransfer) {
   const db = await getDb();
   if (!db) return null;
   const values: Record<string, any> = { ...data };
-  try { await encryptFinancialFields(values, data.companyId, TRANSFER_FIN_FIELDS); } catch { /* skip */ }
+  try { await encryptFinancialFields(values, data.companyId, TRANSFER_FIN_FIELDS); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   const [row] = await db.insert(shareTransfers).values(values as InsertShareTransfer).returning();
   return row;
 }
@@ -2837,7 +2837,7 @@ export async function updateShareTransfer(companyId: number, id: number, data: P
   const db = await getDb();
   if (!db) return null;
   const values: Record<string, any> = { ...data, updatedAt: new Date() };
-  try { await encryptFinancialFields(values, companyId, TRANSFER_FIN_FIELDS); } catch { /* skip */ }
+  try { await encryptFinancialFields(values, companyId, TRANSFER_FIN_FIELDS); } catch (err) { console.warn("[encryption] dual-write failed (non-fatal, plaintext column still written)", err) }
   const [row] = await db.update(shareTransfers)
     .set(values)
     .where(and(eq(shareTransfers.id, id), eq(shareTransfers.companyId, companyId)))

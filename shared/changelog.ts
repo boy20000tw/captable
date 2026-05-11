@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.58.0",
+    date: "2026-05-11",
+    type: "minor",
+    title: "QA Round 9 Critical — 補 migration、轉換失敗追蹤、advance compensating rollback、加密 logging",
+    description: "C1: 補生 0006_aberrant_triton.sql migration（angel_tax_deductions / comps_peers / investor_activities / projection_scenarios + platform_broadcast / broadcast_notification enum 值），新環境 deploy 不會再 boot 就炸。C2: executeConversion 改成 per-instrument 結果追蹤 + idempotency（已 converted 跳過）+ 部分失敗回傳可重試清單；advance issued 路徑加 compensating rollback（writeRegisterEntry 失敗時還原 allocation 狀態）。H3: analysisRouter.analyze 從 protectedProcedure 改 companyProcedure。H6: 11 處 PII 加密的 silent catch 全換成 console.warn 帶錯誤訊息。",
+  },
+  {
     version: "2.57.0",
     date: "2026-05-10",
     type: "minor",
