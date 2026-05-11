@@ -2610,6 +2610,7 @@ export async function broadcastNotification(data: {
     message: data.message ?? null,
     channel: data.channel ?? "in_app",
     linkUrl: data.linkUrl ?? null,
+    source: "broadcast",                           // indexed column
     metadata: JSON.stringify({ broadcast: true, broadcastAt: new Date().toISOString() }),
   }));
   await db.insert(notifications).values(rows);
@@ -2641,12 +2642,13 @@ export async function syncDeadlineNotifications(companyId: number, userId: numbe
     const deadlines = await getUpcomingDeadlines(companyId, 60); // only urgent + warning
     if (deadlines.length === 0) return 0;
 
-    // Get existing deadline notifications for this company (unread, recent 90 days)
+    // Get existing deadline notifications for this company (unread, recent 90 days).
+    // Uses the indexed `source` column instead of LIKE '%…%' over metadata.
     const existing = await db.select({ metadata: notifications.metadata })
       .from(notifications)
       .where(and(
         eq(notifications.companyId, companyId),
-        sql`${notifications.metadata} LIKE '%"source":"deadline"%'`,
+        eq(notifications.source, "deadline"),
         sql`${notifications.createdAt} > NOW() - INTERVAL '90 days'`,
       ));
 
@@ -2682,8 +2684,9 @@ export async function syncDeadlineNotifications(companyId: number, userId: numbe
         message: `${item.descZh} — ${dueZh}`,
         channel: "in_app",
         linkUrl: item.path,
+        source: "deadline",      // indexed column for dedup query
         metadata: JSON.stringify({
-          source: "deadline",
+          source: "deadline",    // retained in metadata for backward compat with older readers
           deadlineId: item.id,
           deadlineType: item.type,
           severity: item.severity,

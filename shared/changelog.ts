@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.58.2",
+    date: "2026-05-11",
+    type: "patch",
+    title: "QA Round 9 PR-2b — M10 通知查詢效能修正",
+    description: "syncDeadlineNotifications 過去用 LIKE 全表掃 metadata 來 dedup，table 一大就慢。新增 notifications.source 欄位 + (companyId, source, createdAt) 複合索引；查詢改為 source = 'deadline' 直接走 index。INSERT 端同步寫入 source 欄位（deadline / broadcast）。Migration 0007 包含 backfill：舊 row 依 metadata 內容自動補上 source。",
+  },
+  {
     version: "2.58.1",
     date: "2026-05-11",
     type: "patch",
