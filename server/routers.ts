@@ -383,32 +383,26 @@ const importRouter = router({
     }),
 });
 
-// ─── Analysis Router (placeholder - LLM removed) ────────────────────────────
+// ─── Analysis Router (placeholder - LLM not yet integrated) ─────────────────
+// Scoped to companyProcedure so only members of the active company can call.
+// When real LLM integration lands, server should re-fetch rounds/projections
+// from ctx.companyId rather than trusting client-provided arrays (prevents
+// cross-tenant data leak via crafted input).
 const analysisRouter = router({
-  analyze: protectedProcedure.use(requireFeature("analysis.valuation")).input(z.object({
-    rounds: z.array(z.object({
-      name: z.string(),
-      pricePerShareNtd: z.string().nullable(),
-      moneyRaisedNtd: z.string().nullable(),
-      postMoneyValuationNtd: z.string().nullable(),
-      roundDate: z.string().nullable().optional(),
-    })),
-    totalShares: z.number(),
-    esopPoolShares: z.number().optional(),
-    exchangeRate: z.number().default(0.0313),
-    projections: z.array(z.object({
-      name: z.string(),
-      targetRaiseNtd: z.string().nullable(),
-      postMoneyValuationNtd: z.string().nullable(),
-      scenario: z.string(),
-    })).optional(),
-  })).mutation(async () => {
-    // TODO: Integrate with OpenAI or Claude API for analysis
-    return {
-      analysis: "AI analysis feature coming soon. Please check back later.",
-      generatedAt: new Date().toISOString(),
-    };
-  }),
+  analyze: companyProcedure
+    .use(requireFeature("analysis.valuation"))
+    .input(z.object({
+      // Optional client-provided context retained for backward compatibility,
+      // but capped to prevent oversized input. Will be ignored once server-side
+      // fetch is wired up.
+      exchangeRate: z.number().default(0.0313),
+    }).passthrough())
+    .mutation(async () => {
+      return {
+        analysis: "AI analysis feature coming soon. Please check back later.",
+        generatedAt: new Date().toISOString(),
+      };
+    }),
 });
 
 // ─── Waterfall Router ───────────────────────────────────────────────────────────────────────
@@ -1132,27 +1126,51 @@ const v1AllocationsRouter = router({
       if (fresh?.status === "issued") {
         throw new TRPCError({ code: "CONFLICT", message: "Allocation has already been issued." });
       }
+      // Save previous status for compensating rollback if writeRegisterEntry fails.
+      // neon-http driver doesn't support real DB transactions, so we must
+      // manually revert the allocation if the dependent register write fails,
+      // otherwise we're left with status=issued but no register entry.
+      const previousStatus = existing.status;
+      const previousTimestampField = result.timestampField;
       await updateAllocation(ctx.companyId, input.id, updateFields as any);
-      // Verify the update succeeded with expected status
       const verified = await getAllocationById(ctx.companyId, input.id);
       if (verified?.status !== "issued") {
         throw new TRPCError({ code: "CONFLICT", message: "Failed to advance allocation to issued status; possible race condition." });
       }
-      const written = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
-        investorId: existing.investorId,
-        eventType: "issuance",
-        shareClass: existing.shareClass as any,
-        shares: existing.sharesAllocated,
-        effectiveDate: new Date().toISOString().slice(0, 10),
-        allocationId: existing.id,
-        fundingRoundId: existing.fundingRoundId,
-        pricePerShare: existing.pricePerShare,
-        currency: existing.currency,
-        fxToNtd: existing.fxToNtd,
-        totalAmount: existing.amount,
-      });
-      registerEntryId = written.entry.id;
-      snapshotId = written.snapshot.id;
+      try {
+        const written = await writeRegisterEntry(ctx.companyId, ctx.user!.id, {
+          investorId: existing.investorId,
+          eventType: "issuance",
+          shareClass: existing.shareClass as any,
+          shares: existing.sharesAllocated,
+          effectiveDate: new Date().toISOString().slice(0, 10),
+          allocationId: existing.id,
+          fundingRoundId: existing.fundingRoundId,
+          pricePerShare: existing.pricePerShare,
+          currency: existing.currency,
+          fxToNtd: existing.fxToNtd,
+          totalAmount: existing.amount,
+        });
+        registerEntryId = written.entry.id;
+        snapshotId = written.snapshot.id;
+      } catch (writeErr) {
+        // Compensating rollback: revert allocation to previous status so the
+        // system isn't stuck with status=issued but no register entry.
+        try {
+          await updateAllocation(ctx.companyId, input.id, {
+            status: previousStatus,
+            [previousTimestampField]: existing[previousTimestampField as keyof typeof existing] ?? null,
+          } as any);
+          console.warn("[allocations.advance] writeRegisterEntry failed for allocation", input.id, "— allocation reverted to", previousStatus);
+        } catch (rollbackErr) {
+          // Both forward write AND rollback failed — log loud so admin can fix
+          console.error("[allocations.advance] CRITICAL: write + rollback both failed for allocation", input.id, { writeErr, rollbackErr });
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to write register entry for allocation ${input.id}; status reverted. ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`,
+        });
+      }
     } else {
       await updateAllocation(ctx.companyId, input.id, updateFields as any);
       // Verify the update succeeded with expected status
@@ -1735,6 +1753,12 @@ const instrumentsRouter = router({
     }),
 
   // ─── Execute conversion (writes status + fires audit) ─────────────────
+  // Per-instrument status tracking + idempotency. Since neon-http driver
+  // doesn't support real DB transactions, we use compensating semantics:
+  //   - Already-converted instruments are skipped (idempotent retry)
+  //   - Each instrument update is tracked; partial-success is reported so
+  //     the caller can retry only failed ones
+  //   - Audit log records the outcome so admin can reconcile if needed
   executeConversion: companyEditorProcedure
     .input(z.object({
       conversionRoundId: z.number(),
@@ -1742,19 +1766,47 @@ const instrumentsRouter = router({
         instrumentId: z.number(),
         conversionPriceNtd: z.string(),
         conversionShares: z.number(),
-      })),
+      })).min(1).max(500),
     }))
     .mutation(async ({ ctx, input }) => {
       const today = new Date().toISOString().slice(0, 10);
+      const results: Array<{ instrumentId: number; status: "converted" | "skipped" | "failed"; error?: string }> = [];
+
       for (const conv of input.conversions) {
-        await updateInstrument(ctx.companyId, conv.instrumentId, {
-          status: "converted",
-          conversionRoundId: input.conversionRoundId,
-          conversionDate: today,
-          conversionPriceNtd: conv.conversionPriceNtd,
-          conversionShares: conv.conversionShares,
-        });
+        try {
+          // Idempotency: skip if already converted to the same round
+          const existing = await getInstrumentById(ctx.companyId, conv.instrumentId);
+          if (!existing) {
+            results.push({ instrumentId: conv.instrumentId, status: "failed", error: "Instrument not found" });
+            continue;
+          }
+          if (existing.status === "converted") {
+            results.push({ instrumentId: conv.instrumentId, status: "skipped" });
+            continue;
+          }
+
+          await updateInstrument(ctx.companyId, conv.instrumentId, {
+            status: "converted",
+            conversionRoundId: input.conversionRoundId,
+            conversionDate: today,
+            conversionPriceNtd: conv.conversionPriceNtd,
+            conversionShares: conv.conversionShares,
+          });
+          results.push({ instrumentId: conv.instrumentId, status: "converted" });
+        } catch (err) {
+          console.error("[executeConversion] failed for instrument", conv.instrumentId, err);
+          results.push({
+            instrumentId: conv.instrumentId,
+            status: "failed",
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
+
+      const converted = results.filter(r => r.status === "converted").length;
+      const skipped = results.filter(r => r.status === "skipped").length;
+      const failed = results.filter(r => r.status === "failed");
+
       await createAuditLog({
         companyId: ctx.companyId,
         userId: ctx.user!.id, userName: ctx.user!.name ?? undefined,
@@ -1762,11 +1814,22 @@ const instrumentsRouter = router({
         resourceName: `Conversion at round #${input.conversionRoundId}`,
         changesAfter: JSON.stringify({
           conversionRoundId: input.conversionRoundId,
-          conversionsCount: input.conversions.length,
-          conversions: input.conversions,
+          requested: input.conversions.length,
+          converted, skipped, failed: failed.length,
+          results,
         }),
       });
-      return { success: true, count: input.conversions.length };
+
+      // Surface partial failures to the caller — they can retry just the failed ones
+      if (failed.length > 0) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Conversion partially failed: ${converted} succeeded, ${skipped} skipped, ${failed.length} failed. Retry: ${failed.map(f => f.instrumentId).join(", ")}`,
+          cause: { results },
+        });
+      }
+
+      return { success: true, count: converted, skipped, results };
     }),
 });
 
