@@ -2602,13 +2602,13 @@ export async function broadcastNotification(data: {
   if (!db) return { count: 0 };
   const allCompanies = await db.select({ id: companies.id }).from(companies);
   if (allCompanies.length === 0) return { count: 0 };
-  const rows = allCompanies.map((c) => ({
+  const rows: InsertNotification[] = allCompanies.map((c) => ({
     companyId: c.id,
-    userId: null as unknown as number,
+    userId: null,                                  // null = company-wide (allowed by schema)
     type: "platform_broadcast" as const,
     title: data.title,
     message: data.message ?? null,
-    channel: (data.channel ?? "in_app") as "in_app" | "email" | "both",
+    channel: data.channel ?? "in_app",
     linkUrl: data.linkUrl ?? null,
     metadata: JSON.stringify({ broadcast: true, broadcastAt: new Date().toISOString() }),
   }));
@@ -2668,12 +2668,18 @@ export async function syncDeadlineNotifications(companyId: number, userId: numbe
       const key = `${item.id}|${item.severity}`;
       if (existingKeys.has(key)) continue; // already notified
 
+      // We store zh-TW as the default title/message because the majority of
+      // users are in Taiwan, but we also stash both locales in metadata so the
+      // client can override based on the user's current i18next locale.
+      // TODO(client): swap to metadata.titleEn / metadata.messageEn when locale=en.
+      const dueZh = item.daysLeft <= 0 ? "已到期" : `${item.daysLeft} 天後到期`;
+      const dueEn = item.daysLeft <= 0 ? "Past due" : `${item.daysLeft} day(s) left`;
       await db.insert(notifications).values({
         companyId,
         userId,
         type: "general",
-        title: item.titleZh,  // default to zh since user is in Taiwan
-        message: `${item.descZh} — ${item.daysLeft <= 0 ? "已到期" : `${item.daysLeft} 天後到期`}`,
+        title: item.titleZh,
+        message: `${item.descZh} — ${dueZh}`,
         channel: "in_app",
         linkUrl: item.path,
         metadata: JSON.stringify({
@@ -2685,6 +2691,8 @@ export async function syncDeadlineNotifications(companyId: number, userId: numbe
           daysLeft: item.daysLeft,
           titleEn: item.titleEn,
           descEn: item.descEn,
+          messageEn: `${item.descEn} — ${dueEn}`,
+          messageZh: `${item.descZh} — ${dueZh}`,
         }),
       });
       existingKeys.add(key);

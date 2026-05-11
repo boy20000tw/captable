@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.58.1",
+    date: "2026-05-11",
+    type: "patch",
+    title: "QA Round 9 PR-2a — High/Medium/Low 清理",
+    description: "H5: 截止日通知 metadata 補上 messageEn/messageZh 雙語欄位，client 之後可依 locale 切換顯示。H7: Investors 頁面 7 個 icon-only 按鈕全部補上 aria-label（Edit/Delete activity + 月份切換）。M9: fundingRounds.create/update 的字串型金額欄位加 regex+max(40) 防 10MB 灌包。M11: Investors 列表 + 月曆 view 補上 isError 錯誤狀態 UI。L13: 移除 server/routers.ts 兩處 (x as any) 殘留（grant.sharesSettled、user.adminRole）。L14: server/db.ts broadcastNotification 用 InsertNotification 型別取代 `null as unknown as number` 強制轉型。M8（as any 大清掃）延後到專屬 PR。",
+  },
+  {
     version: "2.58.0",
     date: "2026-05-11",
     type: "minor",

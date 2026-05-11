@@ -190,7 +190,7 @@ function InvestorActivityTimeline({
 }) {
   const { t } = useTranslation("fundraising");
   const utils = trpc.useUtils();
-  const { data: activities, isLoading } = trpc.investorActivities.byInvestor.useQuery({ investorId });
+  const { data: activities, isLoading, isError, error } = trpc.investorActivities.byInvestor.useQuery({ investorId });
 
   const [activityDialog, setActivityDialog] = useState(false);
   const [editActivityId, setEditActivityId] = useState<number | null>(null);
@@ -340,6 +340,11 @@ function InvestorActivityTimeline({
         <div className="py-6 text-center text-muted-foreground text-sm">
           {t("activities.loading") || "Loading activities..."}
         </div>
+      ) : isError ? (
+        <div className="py-6 text-center text-destructive text-sm space-y-2">
+          <p>{t("activities.loadError") || "Failed to load activities."}</p>
+          {error?.message && <p className="text-xs opacity-70">{error.message}</p>}
+        </div>
       ) : (activities ?? []).length === 0 ? (
         <div className="py-8 text-center text-muted-foreground text-sm space-y-2">
           <Clock className="h-8 w-8 mx-auto opacity-40" />
@@ -392,10 +397,10 @@ function InvestorActivityTimeline({
                     </div>
                     {canEdit && (
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditActivity(act)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={t("investors.editActivity")} onClick={() => openEditActivity(act)}>
                           <Edit2 className="h-3 w-3" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDeleteActivity(act.id)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={t("investors.deleteActivity")} onClick={() => handleDeleteActivity(act.id)}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
@@ -433,7 +438,7 @@ function InvestorActivityTimeline({
                       <p className="font-medium mt-0.5 line-through text-muted-foreground">{act.title}</p>
                     </div>
                     {canEdit && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => handleDeleteActivity(act.id)}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" aria-label={t("investors.deleteActivity")} onClick={() => handleDeleteActivity(act.id)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     )}
@@ -663,12 +668,12 @@ function BoardView({
                         </Button>
                       )}
                       {canEdit && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(inv)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={t("investors.edit")} onClick={() => onEdit(inv)}>
                           <Edit2 className="h-3 w-3" />
                         </Button>
                       )}
                       {canDelete && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onDelete(inv)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={t("investors.delete")} onClick={() => onDelete(inv)}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       )}
@@ -695,7 +700,7 @@ function CalendarView({ t }: { t: any }) {
   const fromDate = new Date(viewYear, viewMonth, -6).toISOString().slice(0, 10);
   const toDate = new Date(viewYear, viewMonth + 1, 7).toISOString().slice(0, 10);
 
-  const { data: activities, isLoading } = trpc.investorActivities.list.useQuery({
+  const { data: activities, isLoading, isError: activitiesError, error: activitiesErrorMsg } = trpc.investorActivities.list.useQuery({
     status: statusFilter === "all" ? undefined : statusFilter as any,
     fromDate,
     toDate,
@@ -747,11 +752,11 @@ function CalendarView({ t }: { t: any }) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={prevMonth}>
+                <Button variant="outline" size="icon" aria-label={t("investors.prevMonth")} onClick={prevMonth}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <h2 className="text-lg font-semibold min-w-[180px] text-center">{monthLabel}</h2>
-                <Button variant="outline" size="icon" onClick={nextMonth}>
+                <Button variant="outline" size="icon" aria-label={t("investors.nextMonth")} onClick={nextMonth}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="sm" onClick={goToday} className="ml-2">
@@ -774,6 +779,11 @@ function CalendarView({ t }: { t: any }) {
             {isLoading ? (
               <div className="py-20 text-center text-muted-foreground text-sm">
                 {t("activities.loading") || "Loading..."}
+              </div>
+            ) : activitiesError ? (
+              <div className="py-20 text-center text-destructive text-sm space-y-2">
+                <p>{t("activities.loadError") || "Failed to load activities."}</p>
+                {activitiesErrorMsg?.message && <p className="text-xs opacity-70">{activitiesErrorMsg.message}</p>}
               </div>
             ) : (
               <div>
