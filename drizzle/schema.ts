@@ -1087,6 +1087,11 @@ export const notifications = pgTable("notifications", {
     emailSent: boolean("email_sent").default(false).notNull(),
     emailSentAt: timestamp("email_sent_at"),
     linkUrl: varchar("link_url", { length: 500 }),   // in-app link to related page
+    /** Logical source tag, e.g. 'deadline' | 'grant' | 'broadcast'.
+     * Replaces the previous LIKE '%"source":"…"%' scan over metadata.
+     * Index on (companyId, source, createdAt) covers the deadline dedup query.
+     */
+    source: varchar("source", { length: 32 }),
     metadata: text("metadata"),                       // JSON: { grantId, roundId, etc. }
     createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

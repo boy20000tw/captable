@@ -50,6 +50,13 @@
       "when": 1778471398984,
       "tag": "0006_aberrant_triton",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778483990927,
+      "tag": "0007_milky_molly_hayes",
+      "breakpoints": true
     }
   ]
 }
