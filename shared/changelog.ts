@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.60.1",
+    date: "2026-05-13",
+    type: "patch",
+    title: "Admin 新增支援 Super Admin 角色 & 修復建帳錯誤",
+    description: "addAdmin API 與前端下拉選單支援 super_admin 角色。修復 adminCreateUser 因 lastSignedIn: null 違反 NOT NULL 約束導致建帳失敗的問題。",
+  },
+  {
     version: "2.60.0",
     date: "2026-05-13",
     type: "minor",

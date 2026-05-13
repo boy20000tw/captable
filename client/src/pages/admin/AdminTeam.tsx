@@ -253,6 +253,7 @@ function AdminTeamContent() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">{t("team.role_admin")}</SelectItem>
+                  <SelectItem value="super_admin">{t("team.role_super_admin")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -3475,7 +3475,7 @@ export const appRouter = router({
     addAdmin: superAdminProcedure
       .input(z.object({
         email: z.string().email(),
-        adminRole: z.enum(["admin"]),
+        adminRole: z.enum(["admin", "super_admin"]),
       }))
       .mutation(async ({ input, ctx }) => {
         const target = await getUserByEmail(input.email);

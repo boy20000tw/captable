@@ -21,6 +21,15 @@ export type AdminChangelogEntry = {
 
 export const ADMIN_CHANGELOG: AdminChangelogEntry[] = [
   {
+    version: "1.13.0",
+    date: "2026-05-13",
+    type: "minor",
+    title: "獨立 Admin 登入 + Super Admin 新增支援",
+    titleEn: "Independent Admin Login + Super Admin Role Support",
+    description: "新增 /admin/login 獨立登入頁，Admin 不需前台帳號即可登入。支援 email 預建帳號、首次 Clerk 登入自動綁定 openId。Add Admin 對話框與 API 新增 Super Admin 角色選項。修復 adminCreateUser 因 lastSignedIn null 導致建帳失敗的問題。",
+    descriptionEn: "Added standalone /admin/login page — admins no longer need a frontend account. Supports pre-provisioned admin accounts by email with automatic openId binding on first Clerk login. Add Admin dialog and API now support Super Admin role. Fixed adminCreateUser failure caused by lastSignedIn null violating NOT NULL constraint.",
+  },
+  {
     version: "1.12.0",
     date: "2026-05-07",
     type: "minor",

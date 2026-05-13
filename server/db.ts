@@ -2376,7 +2376,6 @@ export async function adminCreateUser(email: string, adminRole: string): Promise
     role: "admin" as any,
     adminRole: adminRole as any,
     loginMethod: "clerk",
-    lastSignedIn: null as any,
   }).returning({ id: users.id });
   return row.id;
 }
