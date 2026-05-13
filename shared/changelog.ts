@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.60.2",
+    date: "2026-05-13",
+    type: "patch",
+    title: "Admin Team — Super Admin 可管理其他 Super Admin",
+    description: "修正 Admin Team 頁面權限邏輯：Super Admin 現在可以 Edit/Remove 其他 Super Admin（原本被限制只能管理 Admin 角色）。Transfer 仍僅對非 Super Admin 顯示。",
+  },
+  {
     version: "2.60.1",
     date: "2026-05-13",
     type: "patch",

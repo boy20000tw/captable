@@ -200,7 +200,7 @@ function AdminTeamContent() {
                       {canManage && (
                         <TableCell>
                           <div className="flex gap-1">
-                            {!isSelf && m.adminRole !== "super_admin" && (
+                            {!isSelf && (
                               <>
                                 <Button variant="ghost" size="sm" className="h-7 text-xs"
                                   onClick={() => openEditRole(m.id, m.adminRole)}>

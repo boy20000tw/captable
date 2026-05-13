@@ -21,6 +21,15 @@ export type AdminChangelogEntry = {
 
 export const ADMIN_CHANGELOG: AdminChangelogEntry[] = [
   {
+    version: "1.13.1",
+    date: "2026-05-13",
+    type: "patch",
+    title: "Admin Team — Super Admin 可管理其他 Super Admin",
+    titleEn: "Admin Team — Super Admin Can Manage Other Super Admins",
+    description: "修正 Admin Team 頁面權限邏輯：Super Admin 現在可以 Edit/Remove 其他 Super Admin。Transfer 仍僅對非 Super Admin 顯示（已是 Super Admin 無需轉移）。",
+    descriptionEn: "Fixed Admin Team permission logic: Super Admin can now Edit/Remove other Super Admins. Transfer remains hidden for existing Super Admins since transfer is unnecessary.",
+  },
+  {
     version: "1.13.0",
     date: "2026-05-13",
     type: "minor",
