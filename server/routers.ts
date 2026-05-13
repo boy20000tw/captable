@@ -91,6 +91,7 @@ import { advanceAllocation, type AllocationStatus } from "../shared/allocationLi
 import { writeRegisterEntry, createManualSnapshot } from "./v1/registerWrite";
 import { deriveCapTable } from "./v1/capTable";
 import { planLimit, type PlanKey, type UsageLimitKey } from "../shared/plans";
+import { notifyNewCompanyCreated } from "./email";
 
 // Platform owner — auto-promoted to super_admin on login
 const PLATFORM_OWNER_EMAIL = process.env.PLATFORM_OWNER_EMAIL ?? "boy20000tw@gmail.com";
@@ -861,6 +862,15 @@ const companiesRouter = router({
       resourceName: company.name,
       changesAfter: JSON.stringify(input),
     });
+
+    // Fire-and-forget: notify platform admin of new company registration
+    notifyNewCompanyCreated({
+      companyName: company.name,
+      creatorName: ctx.user!.name ?? undefined,
+      creatorEmail: ctx.user!.email ?? undefined,
+      createdAt: new Date(),
+    }).catch(() => {});
+
     return company;
   }),
 

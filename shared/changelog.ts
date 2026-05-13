@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.61.0",
+    date: "2026-05-13",
+    type: "minor",
+    title: "新公司註冊 Email 通知",
+    description: "新增 Resend 信件通知功能：當有使用者透過 Onboarding Wizard 建立新公司時，系統自動發送 Email 通知平台管理員。Fire-and-forget 不阻塞主流程。",
+  },
+  {
     version: "2.60.2",
     date: "2026-05-13",
     type: "patch",

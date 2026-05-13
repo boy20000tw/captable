@@ -21,6 +21,15 @@ export type AdminChangelogEntry = {
 
 export const ADMIN_CHANGELOG: AdminChangelogEntry[] = [
   {
+    version: "1.14.0",
+    date: "2026-05-13",
+    type: "minor",
+    title: "新公司註冊 Email 通知",
+    titleEn: "Email Notification on New Company Registration",
+    description: "整合 Resend 信件服務，當新公司於 Onboarding Wizard 建立時，自動寄送通知至平台管理員信箱（wayne@cap-loom.com）。含公司名稱、建立者資訊與時間戳。",
+    descriptionEn: "Integrated Resend email service to automatically notify the platform admin (wayne@cap-loom.com) when a new company is created via the Onboarding Wizard. Includes company name, creator info, and timestamp.",
+  },
+  {
     version: "1.13.1",
     date: "2026-05-13",
     type: "patch",
