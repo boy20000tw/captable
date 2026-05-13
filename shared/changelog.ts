@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.60.0",
+    date: "2026-05-13",
+    type: "minor",
+    title: "獨立 Admin 登入系統",
+    description: "新增 /admin/login 獨立登入頁，Admin 不再需要前台帳號。支援 email 預建帳號、首次 Clerk 登入自動綁定 openId、admin-only 用戶自動導向後台。context.ts 新增 email 回填邏輯。",
+  },
+  {
     version: "2.59.0",
     date: "2026-05-13",
     type: "minor",

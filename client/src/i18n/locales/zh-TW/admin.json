@@ -308,5 +308,12 @@
   "notifications.empty": "尚未發送任何廣播。",
   "notifications.companies": "間公司",
 
-  "tickets.ticketUpdated": "工單已更新"
+  "tickets.ticketUpdated": "工單已更新",
+
+  "login.title": "管理後台",
+  "login.subtitle": "使用已授權的帳號登入",
+  "login.verifying": "正在驗證管理員權限…",
+  "login.denied": "存取被拒絕",
+  "login.deniedDescription": "帳號 {{email}} 未被授權存取管理後台。",
+  "login.tryAnother": "使用其他帳號"
 }

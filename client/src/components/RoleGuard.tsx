@@ -12,10 +12,10 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 // Paths that don't require auth or company context
-const PUBLIC_PATHS = ["/join", "/404", "/privacy", "/terms", "/help", "/pricing", "/compare-plans"];
+const PUBLIC_PATHS = ["/join", "/404", "/privacy", "/terms", "/help", "/pricing", "/compare-plans", "/admin/login"];
 
 export default function RoleGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, hasCompany, companyRole, canAccess, defaultPath, loading } = useAuth();
+  const { isAuthenticated, hasCompany, companyRole, canAccess, defaultPath, loading, user } = useAuth();
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
@@ -30,6 +30,12 @@ export default function RoleGuard({ children }: { children: React.ReactNode }) {
     // Home ("/") always allowed — onboarding wizard lives here
     if (location === "/") return;
 
+    // Admin-only user (no company) trying to access frontend → redirect to admin panel
+    if (user && (user as any).role === "admin" && !hasCompany) {
+      setLocation("/admin");
+      return;
+    }
+
     // No company → redirect to home (onboarding wizard)
     if (!hasCompany) {
       setLocation("/");
@@ -43,7 +49,7 @@ export default function RoleGuard({ children }: { children: React.ReactNode }) {
     if (!canAccess(location)) {
       setLocation(defaultPath);
     }
-  }, [isAuthenticated, hasCompany, companyRole, location, canAccess, defaultPath, setLocation, loading]);
+  }, [isAuthenticated, hasCompany, companyRole, location, canAccess, defaultPath, setLocation, loading, user]);
 
   return <>{children}</>;
 }

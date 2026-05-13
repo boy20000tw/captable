@@ -44,6 +44,7 @@ import AdminSecurityPage from "./pages/admin/AdminSecurity";
 import AdminPaymentPage from "./pages/admin/AdminPayment";
 import AdminTeamPage from "./pages/admin/AdminTeam";
 import AdminTemplatesPage from "./pages/admin/AdminTemplates";
+import AdminLoginPage from "./pages/admin/AdminLogin";
 import SubscriptionPage from "./pages/Subscription";
 import PricingPage from "./pages/Pricing";
 import ComparePlansPage from "./pages/ComparePlans";
@@ -94,6 +95,7 @@ function Router() {
       <Route path="/terms" component={TermsOfServicePage} />
 
       {/* Admin panel routes */}
+      <Route path="/admin/login" component={AdminLoginPage} />
       <Route path="/admin" component={AdminOverviewPage} />
       <Route path="/admin/companies" component={AdminCompaniesPage} />
       <Route path="/admin/templates" component={AdminTemplatesPage} />

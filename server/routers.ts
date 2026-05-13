@@ -59,7 +59,7 @@ import {
   adminGetCompanyAuditLogs, createAdminAuditLog, getAdminAuditLogs,
   adminGetPlatformStats, rotateCompanyKey, rotatePlatformKey, migrateEncryptionForCompany,
   adminListTeamMembers, adminUpdateAdminRole, adminPromoteUser,
-  adminDemoteUser, adminTransferSuperAdmin, getUserByEmail,
+  adminDemoteUser, adminTransferSuperAdmin, getUserByEmail, adminCreateUser,
   // Notifications
   getNotifications, getUnreadNotificationCount, createNotification,
   markNotificationRead, markAllNotificationsRead, deleteNotification,
@@ -3479,16 +3479,28 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const target = await getUserByEmail(input.email);
-        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "User not found with this email." });
-        if (target.role === "admin") throw new TRPCError({ code: "BAD_REQUEST", message: "User is already a platform admin." });
-        await adminPromoteUser(target.id, input.adminRole);
-        await createAdminAuditLog({
-          adminUserId: ctx.user!.id,
-          adminUserName: ctx.user!.name ?? undefined,
-          adminUserEmail: ctx.user!.email ?? undefined,
-          action: "add_admin",
-          details: JSON.stringify({ targetEmail: input.email, targetUserId: target.id, role: input.adminRole }),
-        });
+        if (target) {
+          // User exists — check if already admin
+          if (target.role === "admin") throw new TRPCError({ code: "BAD_REQUEST", message: "User is already a platform admin." });
+          await adminPromoteUser(target.id, input.adminRole);
+          await createAdminAuditLog({
+            adminUserId: ctx.user!.id,
+            adminUserName: ctx.user!.name ?? undefined,
+            adminUserEmail: ctx.user!.email ?? undefined,
+            action: "add_admin",
+            details: JSON.stringify({ targetEmail: input.email, targetUserId: target.id, role: input.adminRole }),
+          });
+        } else {
+          // User doesn't exist yet — create a pre-provisioned admin record
+          const newId = await adminCreateUser(input.email, input.adminRole);
+          await createAdminAuditLog({
+            adminUserId: ctx.user!.id,
+            adminUserName: ctx.user!.name ?? undefined,
+            adminUserEmail: ctx.user!.email ?? undefined,
+            action: "add_admin",
+            details: JSON.stringify({ targetEmail: input.email, targetUserId: newId, role: input.adminRole, preProvisioned: true }),
+          });
+        }
         return { success: true };
       }),
 

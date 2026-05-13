@@ -308,5 +308,12 @@
   "notifications.empty": "No broadcasts sent yet.",
   "notifications.companies": "companies",
 
-  "tickets.ticketUpdated": "Ticket updated"
+  "tickets.ticketUpdated": "Ticket updated",
+
+  "login.title": "Admin Portal",
+  "login.subtitle": "Sign in with your authorized account",
+  "login.verifying": "Verifying admin access…",
+  "login.denied": "Access Denied",
+  "login.deniedDescription": "The account {{email}} is not authorized to access the admin portal.",
+  "login.tryAnother": "Try another account"
 }

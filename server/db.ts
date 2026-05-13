@@ -2363,6 +2363,50 @@ export async function adminTransferSuperAdmin(currentSuperAdminId: number, newSu
   await db.update(users).set({ role: "admin" as any, adminRole: "super_admin" as any }).where(eq(users.id, newSuperAdminId));
 }
 
+/** Create a new admin user directly by email (no Clerk openId required).
+ *  Used when adding an admin who hasn't signed into the platform yet.
+ *  Returns the created user's ID. */
+export async function adminCreateUser(email: string, adminRole: string): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [row] = await db.insert(users).values({
+    openId: `pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    email,
+    name: email.split("@")[0],
+    role: "admin" as any,
+    adminRole: adminRole as any,
+    loginMethod: "clerk",
+    lastSignedIn: null as any,
+  }).returning({ id: users.id });
+  return row.id;
+}
+
+/**
+ * Bind a real Clerk openId to a pre-provisioned admin user (whose openId starts with "pending_").
+ * Called from context.ts on first Clerk login by a whitelisted admin.
+ */
+export async function bindPendingAdminOpenId(
+  userId: number,
+  realOpenId: string,
+  name: string | null,
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const updateSet: Record<string, unknown> = {
+    openId: realOpenId,
+    lastSignedIn: new Date(),
+  };
+  if (name) updateSet.name = name;
+
+  // Dual-write encrypted fields
+  try {
+    const dek = await resolvePlatformDek();
+    if (name) updateSet.nameEnc = encryptField(name, dek);
+  } catch { /* encryption not configured */ }
+
+  await db.update(users).set(updateSet).where(eq(users.id, userId));
+}
+
 /** Look up a user by email (for adding new admin by email). */
 export async function getUserByEmail(email: string) {
   const db = await getDb();

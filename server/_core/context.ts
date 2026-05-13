@@ -1,7 +1,7 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
 import { clerkClient } from "@clerk/express";
-import { getUserByOpenId, upsertUser, getUserCompanyMemberships, resolveCompanyMembership, getCompanyById } from "../db";
+import { getUserByOpenId, getUserByEmail, bindPendingAdminOpenId, upsertUser, getUserCompanyMemberships, resolveCompanyMembership, getCompanyById } from "../db";
 import { normalizePlan, type PlanKey } from "../../shared/plans";
 
 export type CompanyMemberRole = "owner" | "admin" | "cfo" | "lawyer" | "investor" | "viewer";
@@ -34,14 +34,31 @@ export async function createContext(
           if (!user) {
                     try {
                                 const clerkUser = await clerkClient.users.getUser(auth.userId);
-                                await upsertUser({
-                                              openId: auth.userId,
-                                              name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null,
-                                              email: clerkUser.emailAddresses[0]?.emailAddress ?? null,
-                                              loginMethod: "clerk",
-                                              lastSignedIn: new Date(),
-                                });
-                                user = await getUserByOpenId(auth.userId) ?? null;
+                                const clerkEmail = clerkUser.emailAddresses[0]?.emailAddress ?? null;
+                                const clerkName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null;
+
+                                // Check if this is a pre-provisioned admin logging in for the first time
+                                if (clerkEmail) {
+                                  const pendingUser = await getUserByEmail(clerkEmail);
+                                  if (pendingUser && typeof pendingUser.openId === "string" && pendingUser.openId.startsWith("pending_")) {
+                                    // Bind the real Clerk openId to the pre-provisioned record
+                                    await bindPendingAdminOpenId(pendingUser.id, auth.userId, clerkName);
+                                    user = await getUserByOpenId(auth.userId) ?? null;
+                                    console.log(`[Context] Bound pre-provisioned admin ${clerkEmail} → ${auth.userId}`);
+                                  }
+                                }
+
+                                // Standard new-user sync (if not a pre-provisioned admin)
+                                if (!user) {
+                                  await upsertUser({
+                                    openId: auth.userId,
+                                    name: clerkName,
+                                    email: clerkEmail,
+                                    loginMethod: "clerk",
+                                    lastSignedIn: new Date(),
+                                  });
+                                  user = await getUserByOpenId(auth.userId) ?? null;
+                                }
                     } catch (syncError) {
                                 console.error("[Context] Failed to sync Clerk user:", syncError);
                     }
