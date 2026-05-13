@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.59.0",
+    date: "2026-05-13",
+    type: "minor",
+    title: "升級按鈕改為聯繫管理員 mailto",
+    description: "Standard/Plus/Enterprise 的升級 CTA 從直接跳轉改為 mailto 連結，用戶需寄信申請手動升級。Landing page 同步更新，FAQ 說明調整。Pricing.tsx、FeatureGate.tsx 已含 mailto 邏輯。",
+  },
+  {
     version: "2.58.2",
     date: "2026-05-11",
     type: "patch",
