@@ -4,6 +4,8 @@ import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { planHasFeature, minimumPlanFor, normalizePlan, type Feature, type PlanKey } from "../../shared/plans";
 import { type AdminRole, getAdminCapabilities, normalizeAdminRole } from "../../shared/adminPermissions";
+import { apiLimiter, getIdentifier } from "./ratelimit";
+import { captureError } from "./sentry";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -11,6 +13,10 @@ const t = initTRPC.context<TrpcContext>().create({
     // Sanitise raw DB / internal errors so they don't leak to the client.
     // TRPCErrors with explicit messages (auth, validation, plan guard) pass through unchanged.
     if (error.code === "INTERNAL_SERVER_ERROR") {
+      captureError(error.cause ?? error, {
+        trpcPath: shape.data?.path,
+        trpcCode: shape.data?.code,
+      });
       console.error("[tRPC] Internal error:", error.cause ?? error.message);
       return {
         ...shape,
@@ -27,7 +33,24 @@ const t = initTRPC.context<TrpcContext>().create({
 });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+
+// ─── Rate Limiter Middleware ──────────────────────────────────────────────
+const rateLimitApi = t.middleware(async ({ ctx, next }) => {
+  if (!apiLimiter) return next();
+  const identifier = getIdentifier(ctx.req);
+  const { success, remaining, reset } = await apiLimiter.limit(identifier);
+  ctx.res.setHeader("X-RateLimit-Remaining", remaining.toString());
+  ctx.res.setHeader("X-RateLimit-Reset", reset.toString());
+  if (!success) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "Too many requests. Please try again later.",
+    });
+  }
+  return next();
+});
+
+export const publicProcedure = t.procedure.use(rateLimitApi);
 
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
@@ -37,7 +60,7 @@ const requireUser = t.middleware(async opts => {
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
-export const protectedProcedure = t.procedure.use(requireUser);
+export const protectedProcedure = t.procedure.use(rateLimitApi).use(requireUser);
 
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {

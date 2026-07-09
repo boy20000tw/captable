@@ -1,3 +1,8 @@
+import { initSentry } from "./lib/sentry";
+
+// Initialize Sentry BEFORE React renders
+initSentry();
+
 import { ClerkProvider } from "@clerk/clerk-react";
 import { trpc } from "@/lib/trpc";
 import { getActiveCompanyId, onActiveCompanyChange } from "@/lib/activeCompany";

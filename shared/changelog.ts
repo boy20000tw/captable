@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.62.0",
+    date: "2026-07-09",
+    type: "minor",
+    title: "P0 架構強化 — Code Splitting + Rate Limiter + Sentry + DB Indexes",
+    description: "效能：46 個頁面改為 React.lazy 動態載入，Vite manualChunks 拆分 8 個 vendor bundle（預期 FCP 12s→2-3s）。安全：Upstash Redis rate limiter（60 req/60s sliding window）。監控：Sentry 前後端錯誤追蹤 + Session Replay。資料庫：35+ 個 CONCURRENTLY 索引（SQL 腳本在 drizzle/add-indexes.sql）。",
+  },
+  {
     version: "2.61.0",
     date: "2026-05-13",
     type: "minor",
