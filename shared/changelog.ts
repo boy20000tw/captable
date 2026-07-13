@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.64.0",
+    date: "2026-07-14",
+    type: "minor",
+    title: "P2 架構強化 — tRPC staleTime + Encryption 讀取路徑全面修補",
+    description: "tRPC QueryClient 加入 staleTime 30s + refetchOnWindowFocus: false 減少冗餘 refetch。Encryption 收尾：修補 20 處讀取路徑缺口（db.ts / export.ts / capTable.ts / registerWrite.ts / routers.ts），所有 PII 與財務欄位現在優先從 _enc 欄位解密；投資人入口改用 blind index 查詢；docuseal disconnect 同步清除 _enc 欄位；匯出 decryptContactPii / decryptFinancialFields 供跨模組使用。",
+  },
+  {
     version: "2.63.0",
     date: "2026-07-13",
     type: "minor",

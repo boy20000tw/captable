@@ -17,7 +17,8 @@
 // the snapshots table.
 
 import { and, eq, sum } from "drizzle-orm";
-import { getDb } from "../db";
+import { getDb, resolveCompanyDek } from "../db";
+import { decryptField } from "../encryption";
 import {
   shareRegisterEntries,
   investors,
@@ -85,6 +86,13 @@ export async function deriveCapTable(companyId: number): Promise<CapTable> {
     : await db.select().from(investors)
         .where(eq(investors.companyId, companyId));
 
+  // Decrypt investor names from _enc columns
+  try {
+    const dek = await resolveCompanyDek(companyId);
+    for (const inv of investorRows) {
+      if (inv.nameEnc) (inv as any).name = decryptField(inv.nameEnc, dek);
+    }
+  } catch { /* encryption not configured */ }
   const investorMap = new Map(investorRows.map(i => [i.id, i]));
 
   // ── Roll up per-investor ────────────────────────────────────────────────

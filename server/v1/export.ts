@@ -6,7 +6,8 @@
  */
 
 import { deriveCapTable, type CapTable } from "./capTable";
-import { getDb } from "../db";
+import { getDb, resolveCompanyDek, decryptFinancialFields } from "../db";
+import { decryptField } from "../encryption";
 import { shareRegisterEntries, investors, fundingRounds, shareClasses, companies } from "../../drizzle/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
@@ -197,13 +198,26 @@ export async function generateRegisterExcel(companyId: number): Promise<Buffer> 
   const company = await getCompanyName(companyId);
   const classMap = await getShareClassNames(companyId);
 
-  const entries = await db.select().from(shareRegisterEntries)
+  const rawEntries = await db.select().from(shareRegisterEntries)
     .where(eq(shareRegisterEntries.companyId, companyId))
     .orderBy(asc(shareRegisterEntries.effectiveDate), asc(shareRegisterEntries.id));
+  const entries = await Promise.all(
+    rawEntries.map(e => decryptFinancialFields(e, companyId, ["shares", "pricePerShare", "fxToNtd", "totalAmount"]))
+  );
 
   const investorRows = await db.select().from(investors)
     .where(eq(investors.companyId, companyId));
-  const investorMap = new Map(investorRows.map(i => [i.id, i.name]));
+  // Decrypt investor names from _enc columns
+  const investorMap = new Map<number, string>();
+  try {
+    const dek = await resolveCompanyDek(companyId);
+    for (const i of investorRows) {
+      const name = i.nameEnc ? decryptField(i.nameEnc, dek) : i.name;
+      investorMap.set(i.id, name ?? `#${i.id}`);
+    }
+  } catch {
+    for (const i of investorRows) investorMap.set(i.id, i.name ?? `#${i.id}`);
+  }
 
   const roundRows = await db.select().from(fundingRounds)
     .where(eq(fundingRounds.companyId, companyId));
@@ -458,15 +472,30 @@ async function getCompanyFull(companyId: number) {
   const db = await getDb();
   if (!db) return { name: "Company", nameEn: null, address: null, representativeName: null, representativeTitle: null, logoUrl: null, signatureUrl: null };
   const rows = await db.select().from(companies).where(eq(companies.id, companyId));
-  return rows[0] ?? { name: "Company", nameEn: null, address: null, representativeName: null, representativeTitle: null, logoUrl: null, signatureUrl: null };
+  if (!rows[0]) return { name: "Company", nameEn: null, address: null, representativeName: null, representativeTitle: null, logoUrl: null, signatureUrl: null };
+  // Decrypt PII fields from _enc columns
+  const row = { ...rows[0] } as any;
+  try {
+    const dek = await resolveCompanyDek(companyId);
+    if (row.representativeNameEnc) row.representativeName = decryptField(row.representativeNameEnc, dek);
+    if (row.contactEmailEnc) row.contactEmail = decryptField(row.contactEmailEnc, dek);
+  } catch { /* encryption not configured */ }
+  return row;
 }
 
 async function getInvestorName(companyId: number, investorId: number): Promise<string> {
   const db = await getDb();
   if (!db) return `Investor #${investorId}`;
-  const rows = await db.select({ name: investors.name }).from(investors)
+  const rows = await db.select({ name: investors.name, nameEnc: investors.nameEnc }).from(investors)
     .where(eq(investors.id, investorId));
-  return rows[0]?.name ?? `Investor #${investorId}`;
+  if (!rows[0]) return `Investor #${investorId}`;
+  try {
+    if (rows[0].nameEnc) {
+      const dek = await resolveCompanyDek(companyId);
+      return decryptField(rows[0].nameEnc, dek);
+    }
+  } catch { /* encryption not configured */ }
+  return rows[0].name ?? `Investor #${investorId}`;
 }
 
 function formatCertDate(dateStr: string): string {

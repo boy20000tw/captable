@@ -179,10 +179,12 @@ export async function listCompanyMembers(companyId: number) {
   // appRole = company_members.role for the active company. The membership
   // bookkeeping fields (membershipId, joinedAt) are also exposed for power
   // users.
-  return db.select({
+  const rows = await db.select({
     id: users.id,
     name: users.name,
+    nameEnc: users.nameEnc,
     email: users.email,
+    emailEnc: users.emailEnc,
     appRole: companyMembers.role,
     createdAt: companyMembers.createdAt,   // join date for THIS company
     lastSignedIn: users.lastSignedIn,
@@ -194,6 +196,8 @@ export async function listCompanyMembers(companyId: number) {
     .leftJoin(users, eq(companyMembers.userId, users.id))
     .where(eq(companyMembers.companyId, companyId))
     .orderBy(asc(companyMembers.createdAt));
+  // Decrypt user PII (name/email) from _enc columns
+  return Promise.all(rows.map(r => decryptUserPii(r)));
 }
 
 export async function addCompanyMember(data: InsertCompanyMember): Promise<CompanyMember> {
@@ -277,7 +281,8 @@ export async function getUserByOpenId(openId: string) {
   if (!db) return undefined;
   try {
     const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-    return result.length > 0 ? result[0] : undefined;
+    if (!result[0]) return undefined;
+    return await decryptUserPii(result[0]);
   } catch (err: any) {
     // Fallback: if adminRole column doesn't exist yet (pre-migration),
     // query only the core columns to avoid crashing the entire auth flow.
@@ -1011,11 +1016,21 @@ export async function computeWaterfall(companyId: number, exitValueNtd: number) 
   // Aggregate register entries by (investorId, fundingRoundId)
   // - shares = SUM(shares) for that (investor, round)
   // - paidIn = SUM(totalAmount in NTD-equivalent) for that (investor, round)
-  const entries = await db.select().from(shareRegisterEntries)
+  const rawEntries = await db.select().from(shareRegisterEntries)
     .where(eq(shareRegisterEntries.companyId, companyId));
+  const entries = await Promise.all(
+    rawEntries.map(e => decryptFinancialFields(e, companyId, REGISTER_FIN_FIELDS))
+  );
 
   const investorRows = await db.select().from(investors)
     .where(eq(investors.companyId, companyId));
+  // Decrypt investor names
+  try {
+    const dek = await resolveCompanyDek(companyId);
+    for (const inv of investorRows) {
+      if (inv.nameEnc) (inv as any).name = decryptField(inv.nameEnc, dek);
+    }
+  } catch { /* encryption not configured */ }
 
   type Holding = {
     investorId: number;
@@ -1116,14 +1131,16 @@ export async function computeWaterfall(companyId: number, exitValueNtd: number) 
 export async function getAllUsers() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(users).orderBy(asc(users.createdAt));
+  const rows = await db.select().from(users).orderBy(asc(users.createdAt));
+  return Promise.all(rows.map(r => decryptUserPii(r)));
 }
 
 export async function getUserById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
   const rows = await db.select().from(users).where(eq(users.id, id));
-  return rows[0] ?? null;
+  if (!rows[0]) return null;
+  return decryptUserPii(rows[0]);
 }
 
 export async function updateUserAppRole(id: number, appRole: "owner" | "admin" | "cfo" | "lawyer" | "investor" | "viewer") {
@@ -1385,8 +1402,10 @@ export async function deleteCompsPeer(companyId: number, id: number) {
 export async function getAllInvestors(companyId: number) {
   const db = await getDb();
   if (!db) return [];
-  const rows = await db.select().from(investors).where(eq(investors.companyId, companyId)).orderBy(asc(investors.name));
-  return Promise.all(rows.map(row => decryptContactPii(row, companyId)));
+  const rows = await db.select().from(investors).where(eq(investors.companyId, companyId)).orderBy(asc(investors.createdAt));
+  const decrypted = await Promise.all(rows.map(row => decryptContactPii(row, companyId)));
+  // Sort by decrypted name in-memory (plaintext column will be removed)
+  return decrypted.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 }
 export async function getInvestorById(companyId: number, id: number) {
   const db = await getDb();
@@ -2178,11 +2197,22 @@ export async function adminListCompanies() {
       planNote: companies.planNote,
       isSuspended: companies.isSuspended,
       contactEmail: companies.contactEmail,
+      contactEmailEnc: companies.contactEmailEnc,
       createdAt: companies.createdAt,
       updatedAt: companies.updatedAt,
     })
     .from(companies)
     .orderBy(desc(companies.createdAt));
+
+  // Decrypt company contactEmail from _enc column
+  for (const row of rows) {
+    try {
+      if ((row as any).contactEmailEnc) {
+        const dek = await resolveCompanyDek(row.id);
+        (row as any).contactEmail = decryptField((row as any).contactEmailEnc, dek);
+      }
+    } catch { /* encryption not configured */ }
+  }
 
   // Get member counts
   const memberCounts = await db
@@ -2204,7 +2234,7 @@ export async function adminGetCompanyDetail(companyId: number) {
   const [company] = await db.select().from(companies).where(eq(companies.id, companyId));
   if (!company) return null;
 
-  const members = await db
+  const membersRaw = await db
     .select({
       id: companyMembers.id,
       userId: companyMembers.userId,
@@ -2212,10 +2242,22 @@ export async function adminGetCompanyDetail(companyId: number) {
       createdAt: companyMembers.createdAt,
       userName: users.name,
       userEmail: users.email,
+      userNameEnc: users.nameEnc,
+      userEmailEnc: users.emailEnc,
     })
     .from(companyMembers)
     .leftJoin(users, eq(companyMembers.userId, users.id))
     .where(eq(companyMembers.companyId, companyId));
+
+  // Decrypt user PII from _enc columns
+  const members = await Promise.all(membersRaw.map(async m => {
+    try {
+      const dek = await resolvePlatformDek();
+      if (m.userNameEnc) (m as any).userName = decryptField(m.userNameEnc, dek);
+      if (m.userEmailEnc) (m as any).userEmail = decryptField(m.userEmailEnc, dek);
+    } catch { /* encryption not configured */ }
+    return m;
+  }));
 
   return { company, members };
 }
@@ -2320,17 +2362,20 @@ export async function adminListTeamMembers() {
   const db = await getDb();
   if (!db) return [];
   try {
-    return await db.select({
+    const rows = await db.select({
       id: users.id,
       openId: users.openId,
       name: users.name,
       email: users.email,
+      nameEnc: users.nameEnc,
+      emailEnc: users.emailEnc,
       adminRole: users.adminRole,
       createdAt: users.createdAt,
       lastSignedIn: users.lastSignedIn,
     }).from(users)
       .where(eq(users.role, "admin"))
       .orderBy(asc(users.createdAt));
+    return Promise.all(rows.map(r => decryptUserPii(r)));
   } catch (err: any) {
     // Fallback if adminRole column doesn't exist yet
     if (err?.message?.includes("adminRole") || err?.message?.includes("column")) {
@@ -2439,7 +2484,8 @@ export async function getUserByEmail(email: string) {
 
     // Fallback: plaintext email lookup
     const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    return row ?? null;
+    if (!row) return null;
+    return decryptUserPii(row);
   } catch (err: any) {
     if (err?.message?.includes("adminRole") || err?.message?.includes("column")) {
       console.warn("[DB] adminRole column not found in getUserByEmail. Run `npm run db:push`.");
@@ -2500,7 +2546,7 @@ async function encryptContactPii(values: Record<string, any>, companyId: number)
  * Decrypt PII fields on a contact row (shareholder / investor).
  * Returns a shallow copy with plaintext fields restored from _enc columns.
  */
-async function decryptContactPii<T extends Record<string, any>>(row: T, companyId: number): Promise<T> {
+export async function decryptContactPii<T extends Record<string, any>>(row: T, companyId: number): Promise<T> {
   if (!row) return row;
   try {
     const dek = await resolveCompanyDek(companyId);
@@ -2544,7 +2590,7 @@ async function encryptFinancialFields(
  * @param fields — field names to decrypt (without _Enc suffix)
  * @returns row with decrypted fields
  */
-async function decryptFinancialFields<T extends Record<string, any>>(
+export async function decryptFinancialFields<T extends Record<string, any>>(
   row: T,
   companyId: number,
   fields: string[],
@@ -2796,12 +2842,20 @@ export async function getCompanyActivities(
   const rows = await db.select({
     activity: investorActivities,
     investorName: investors.name,
+    investorNameEnc: investors.nameEnc,
   })
     .from(investorActivities)
     .leftJoin(investors, eq(investorActivities.investorId, investors.id))
     .where(and(...conditions))
     .orderBy(asc(investorActivities.dueDate));
-  return rows.map(r => ({ ...r.activity, investorName: r.investorName }));
+  // Decrypt investor name from _enc column
+  return Promise.all(rows.map(async r => {
+    let name = r.investorName;
+    if (r.investorNameEnc) {
+      try { const dek = await resolveCompanyDek(companyId); name = decryptField(r.investorNameEnc, dek); } catch {}
+    }
+    return { ...r.activity, investorName: name };
+  }));
 }
 
 /** Get a single activity by id. */
@@ -2858,6 +2912,7 @@ export async function getUpcomingInvestorActivities(companyId: number, withinDay
   const rows = await db.select({
     activity: investorActivities,
     investorName: investors.name,
+    investorNameEnc: investors.nameEnc,
   })
     .from(investorActivities)
     .leftJoin(investors, eq(investorActivities.investorId, investors.id))
@@ -2868,7 +2923,14 @@ export async function getUpcomingInvestorActivities(companyId: number, withinDay
       sql`${investorActivities.dueDate} <= ${cutoff.toISOString()}::timestamp`,
     ))
     .orderBy(asc(investorActivities.dueDate));
-  return rows.map(r => ({ ...r.activity, investorName: r.investorName }));
+  // Decrypt investor name from _enc column
+  return Promise.all(rows.map(async r => {
+    let name = r.investorName;
+    if (r.investorNameEnc) {
+      try { const dek = await resolveCompanyDek(companyId); name = decryptField(r.investorNameEnc, dek); } catch {}
+    }
+    return { ...r.activity, investorName: name };
+  }));
 }
 
 // ─── Share Transfers (Secondary Trading) ───────────────────────────────────────

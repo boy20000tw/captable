@@ -16,7 +16,7 @@
 
 import { eq, and } from "drizzle-orm";
 import { getDb, resolveCompanyDek } from "../db";
-import { encryptField } from "../encryption";
+import { encryptField, decryptField } from "../encryption";
 import { deriveCapTable } from "./capTable";
 import {
   shareRegisterEntries,
@@ -162,11 +162,17 @@ async function buildSnapshotName(
 ): Promise<string> {
   const db = await getDb();
   if (!db) return `Register entry #${entryId}`;
-  const [inv] = await db.select({ name: investors.name })
+  const [inv] = await db.select({ name: investors.name, nameEnc: investors.nameEnc })
     .from(investors)
     .where(and(eq(investors.id, input.investorId), eq(investors.companyId, companyId)))
     .limit(1);
-  const who = inv?.name ?? `Investor #${input.investorId}`;
+  let who = inv?.name ?? `Investor #${input.investorId}`;
+  try {
+    if (inv?.nameEnc) {
+      const dek = await resolveCompanyDek(companyId);
+      who = decryptField(inv.nameEnc, dek);
+    }
+  } catch { /* encryption not configured */ }
   const verb: string = ({
     issuance:      "Issuance to",
     transfer_in:   "Transfer to",

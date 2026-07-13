@@ -2342,6 +2342,9 @@ const esignRouter = router({
     .mutation(async ({ ctx }) => {
       await updateCompany(ctx.companyId, {
         docusealTenantApiKey: null,
+        docusealTenantApiKeyEnc: null,
+        docusealWebhookSecret: null,
+        docusealWebhookSecretEnc: null,
       });
 
       await createAuditLog({
@@ -2369,13 +2372,23 @@ const esignRouter = router({
  */
 async function resolvePortalInvestor(companyId: number, userEmail: string | undefined | null) {
   if (!userEmail) return null;
-  const db = await import("./db").then(m => m.getDb());
+  const { getDb, resolveCompanyDek, decryptContactPii } = await import("./db");
+  const { blindIndex } = await import("./encryption");
+  const db = await getDb();
   if (!db) return null;
   const { investors: investorsTable } = await import("../drizzle/schema");
   const { eq, and } = await import("drizzle-orm");
-  const rows = await db.select().from(investorsTable)
-    .where(and(eq(investorsTable.companyId, companyId), eq(investorsTable.email, userEmail)));
-  return rows[0] ?? null;
+
+  // Prefer blind-index lookup; fall back to plaintext email
+  const bi = blindIndex(userEmail);
+  let rows = await db.select().from(investorsTable)
+    .where(and(eq(investorsTable.companyId, companyId), eq(investorsTable.emailBi, bi)));
+  if (rows.length === 0) {
+    rows = await db.select().from(investorsTable)
+      .where(and(eq(investorsTable.companyId, companyId), eq(investorsTable.email, userEmail)));
+  }
+  if (!rows[0]) return null;
+  return decryptContactPii(rows[0], companyId);
 }
 
 const investorPortalRouter = router({
@@ -2405,7 +2418,7 @@ const investorPortalRouter = router({
       .filter(h => h.shares > 0);
     const totalShares = holdings.reduce((s, h) => s + h.shares, 0);
 
-    return { investorId: inv.id, investorName: inv.name, holdings, totalShares };
+    return { investorId: inv.id, investorName: (inv as any).name, holdings, totalShares };
   }),
 
   /** ESOP grants for this investor */
@@ -2444,13 +2457,15 @@ const investorPortalRouter = router({
   myRegisterEntries: companyProcedure.query(async ({ ctx }) => {
     const inv = await resolvePortalInvestor(ctx.companyId, ctx.user!.email);
     if (!inv) return [];
-    const db = await import("./db").then(m => m.getDb());
+    const { getDb, decryptFinancialFields } = await import("./db");
+    const db = await getDb();
     if (!db) return [];
     const { shareRegisterEntries: sre } = await import("../drizzle/schema");
     const { eq, and, asc } = await import("drizzle-orm");
-    return db.select().from(sre)
+    const rows = await db.select().from(sre)
       .where(and(eq(sre.companyId, ctx.companyId), eq(sre.investorId, inv.id)))
       .orderBy(asc(sre.effectiveDate));
+    return Promise.all(rows.map(r => decryptFinancialFields(r, ctx.companyId, ["shares", "pricePerShare", "fxToNtd", "totalAmount"])));
   }),
 });
 
