@@ -1,3 +1,6 @@
+import { initSentryServer, sentryErrorHandler } from "./sentry";
+initSentryServer();
+
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
@@ -218,6 +221,9 @@ async function startServer() {
       createContext,
     })
   );
+
+  // Sentry error handler — must be after all API routes
+  app.use(sentryErrorHandler());
 
   // In development, serve Vite dev server
   if (process.env.NODE_ENV === "development") {
