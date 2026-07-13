@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.63.0",
+    date: "2026-07-13",
+    type: "minor",
+    title: "P1 架構強化 — DEK Cache 優化 + N+1 Query 修復 + Admin Security 強化",
+    description: "DEK Cache：新增 getCachedDekIfValid() 跳過 DB 查詢直接取快取，resolveCompanyDek() 先查 cache 再 fallback。N+1 Query：antiDilution.trigger 改用 batchUpdateAntiDilutionProvisions() 交易式批次更新；investorPortal 4 個 endpoint 抽出 resolvePortalInvestor() 共用 helper 消除重複查詢。Admin Security：normalizeAdminRole() 預設改 admin（最小權限）；adminProcedure / adminCompanyProcedure / superAdminProcedure 加入 rateLimitApi middleware + FORBIDDEN 稽核日誌。",
+  },
+  {
     version: "2.62.0",
     date: "2026-07-09",
     type: "minor",

@@ -48,8 +48,8 @@ import {
   investorActivities, InsertInvestorActivity,
 } from "../drizzle/schema";
 import {
-  generateCompanyDek, getCompanyDek as getCachedDek, invalidateDekCache,
-  encryptField, decryptField, blindIndex,
+  generateCompanyDek, getCompanyDek as getCachedDek, getCachedDekIfValid,
+  invalidateDekCache, encryptField, decryptField, blindIndex,
 } from "./encryption";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -742,6 +742,25 @@ export async function updateAntiDilutionProvision(companyId: number, id: number,
   if (!db) throw new Error("Database not available");
   return db.update(antiDilutionProvisions).set(data)
     .where(and(eq(antiDilutionProvisions.id, id), eq(antiDilutionProvisions.companyId, companyId)));
+}
+
+/**
+ * Batch-update multiple anti-dilution provisions in a single transaction.
+ * Replaces N sequential updates with N updates inside one transaction,
+ * reducing round-trip overhead.
+ */
+export async function batchUpdateAntiDilutionProvisions(
+  companyId: number,
+  updates: Array<{ id: number; data: Partial<InsertAntiDilutionProvision> }>
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.transaction(async (tx) => {
+    for (const { id, data } of updates) {
+      await tx.update(antiDilutionProvisions).set(data)
+        .where(and(eq(antiDilutionProvisions.id, id), eq(antiDilutionProvisions.companyId, companyId)));
+    }
+  });
 }
 
 export async function deleteAntiDilutionProvision(companyId: number, id: number) {
@@ -3194,8 +3213,15 @@ export async function ensureCompanyKey(companyId: number): Promise<string> {
 /**
  * Resolve a company's plaintext DEK (from cache or KMS/local decrypt).
  * This is the main entry point for encryption operations.
+ *
+ * Performance: checks the in-memory DEK cache first to avoid a DB
+ * round-trip to company_keys on every call. This turns N identical
+ * SELECT queries per request (one per encrypted row) into at most 1.
  */
 export async function resolveCompanyDek(companyId: number): Promise<Buffer> {
+  const cached = getCachedDekIfValid(companyId);
+  if (cached) return cached;
+
   const encryptedDek = await ensureCompanyKey(companyId);
   return getCachedDek(companyId, encryptedDek);
 }

@@ -62,13 +62,14 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(rateLimitApi).use(requireUser);
 
-export const adminProcedure = t.procedure.use(
+export const adminProcedure = t.procedure.use(rateLimitApi).use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
     if (!ctx.user || ctx.user.role !== 'admin') {
+      console.warn(`[Admin Auth] FORBIDDEN: user=${ctx.user?.id ?? "anon"} attempted admin access`);
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
-    const adminRole = normalizeAdminRole(ctx.user.adminRole ?? 'super_admin');
+    const adminRole = normalizeAdminRole(ctx.user.adminRole);
     return next({ ctx: { ...ctx, user: ctx.user, adminRole } });
   }),
 );
@@ -77,14 +78,16 @@ export const adminProcedure = t.procedure.use(
 // Use these for admin routes that require specific capabilities.
 
 /** Require admin with canManageCompanies capability */
-export const adminCompanyProcedure = t.procedure.use(
+export const adminCompanyProcedure = t.procedure.use(rateLimitApi).use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
     if (!ctx.user || ctx.user.role !== 'admin') {
+      console.warn(`[Admin Auth] FORBIDDEN: user=${ctx.user?.id ?? "anon"} attempted admin-company access`);
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
-    const adminRole = normalizeAdminRole(ctx.user.adminRole ?? 'super_admin');
+    const adminRole = normalizeAdminRole(ctx.user.adminRole);
     if (!getAdminCapabilities(adminRole).canManageCompanies) {
+      console.warn(`[Admin Auth] FORBIDDEN: user=${ctx.user.id} role=${adminRole} lacks canManageCompanies`);
       throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient admin privileges for company management." });
     }
     return next({ ctx: { ...ctx, user: ctx.user, adminRole } });
@@ -92,14 +95,16 @@ export const adminCompanyProcedure = t.procedure.use(
 );
 
 /** Require admin with canManageAdminTeam capability (super_admin only) */
-export const superAdminProcedure = t.procedure.use(
+export const superAdminProcedure = t.procedure.use(rateLimitApi).use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
     if (!ctx.user || ctx.user.role !== 'admin') {
+      console.warn(`[Admin Auth] FORBIDDEN: user=${ctx.user?.id ?? "anon"} attempted super-admin access`);
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
-    const adminRole = normalizeAdminRole(ctx.user.adminRole ?? 'super_admin');
+    const adminRole = normalizeAdminRole(ctx.user.adminRole);
     if (!getAdminCapabilities(adminRole).canManageAdminTeam) {
+      console.warn(`[Admin Auth] FORBIDDEN: user=${ctx.user.id} role=${adminRole} lacks canManageAdminTeam`);
       throw new TRPCError({ code: "FORBIDDEN", message: "Only super admins can manage the admin team." });
     }
     return next({ ctx: { ...ctx, user: ctx.user, adminRole } });
