@@ -66,12 +66,15 @@ export const ADMIN_ROLE_CAPABILITIES: Record<AdminRole, AdminCapabilities> = {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-/** Normalize any admin role string to a valid AdminRole. Null/unknown values default to "super_admin" (backwards compat for pre-migration admins). */
+/**
+ * Normalize any admin role string to a valid AdminRole.
+ * Null/unknown values default to "admin" (least-privilege principle).
+ * Only explicitly stored "super_admin" gets super_admin privileges.
+ */
 export function normalizeAdminRole(role: string | null | undefined): AdminRole {
   if (role === "super_admin") return "super_admin";
-  if (role === "admin") return "admin";
-  // Legacy values (support, viewer) or null → default to super_admin
-  return "super_admin";
+  // Legacy values (support, viewer), null, or unrecognized → default to admin (least privilege)
+  return "admin";
 }
 
 /** Check if an admin role can see a specific nav item */

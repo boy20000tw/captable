@@ -171,6 +171,19 @@ export async function getCompanyDek(
   return dek;
 }
 
+/**
+ * Check if a company's DEK is in cache and not expired.
+ * Returns the cached DEK if valid, or null.
+ * Useful for skipping the DB lookup when the DEK is already cached.
+ */
+export function getCachedDekIfValid(companyId: number): Buffer | null {
+  const cached = dekCache.get(companyId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.dek;
+  }
+  return null;
+}
+
 /** Invalidate cached DEK (e.g. after key rotation). */
 export function invalidateDekCache(companyId: number): void {
   dekCache.delete(companyId);

@@ -20,6 +20,40 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+  // ─── Security Headers ──────────────────────────────────────────────────────
+  app.use((_req, res, next) => {
+    // Prevent MIME-type sniffing
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    // Prevent clickjacking — allow same-origin framing only
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    // Control referrer information
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    // Opt out of FLoC / Topics API
+    res.setHeader("Permissions-Policy", "interest-cohort=()");
+    // Enforce HTTPS (Vercel terminates TLS but this helps downstream proxies)
+    res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+    // CSP — allow Clerk, Sentry, Vercel Analytics, and inline styles (shadcn/ui)
+    res.setHeader(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        "script-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+        "style-src 'self' 'unsafe-inline'",                       // shadcn/ui uses inline styles
+        "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com",
+        "font-src 'self' data:",
+        "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.ingest.sentry.io https://vitals.vercel-insights.com https://va.vercel-scripts.com",
+        "frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+        "worker-src 'self' blob:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'self'",
+        "upgrade-insecure-requests",
+      ].join("; ")
+    );
+    next();
+  });
+
   // Clerk auth middleware
   app.use(clerkMiddleware());
 

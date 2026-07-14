@@ -15,7 +15,14 @@ import "./index.css";
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,      // 30s — prevent redundant refetches on mount/focus
+      refetchOnWindowFocus: false, // cap table data doesn't change while user tabs away
+    },
+  },
+});
 
 // When the user picks a different company, invalidate all cached queries so
 // they refetch with the new `x-company-id` header.

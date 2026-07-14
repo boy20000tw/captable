@@ -20,6 +20,27 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.65.0",
+    date: "2026-07-14",
+    type: "minor",
+    title: "P3 架構強化 — CSP Security Headers + 加密聚合重構",
+    description: "安全 Headers：加入 CSP、X-Content-Type-Options、X-Frame-Options、HSTS、Referrer-Policy、Permissions-Policy。CSP 白名單涵蓋 Clerk/Sentry/Vercel Analytics。加密聚合重構：deriveCapTable 和 myHoldings 從 SQL SUM(plaintext) 改為 in-memory 聚合 decrypted 值，為後續移除明文欄位做準備。",
+  },
+  {
+    version: "2.64.0",
+    date: "2026-07-14",
+    type: "minor",
+    title: "P2 架構強化 — tRPC staleTime + Encryption 讀取路徑全面修補",
+    description: "tRPC QueryClient 加入 staleTime 30s + refetchOnWindowFocus: false 減少冗餘 refetch。Encryption 收尾：修補 20 處讀取路徑缺口（db.ts / export.ts / capTable.ts / registerWrite.ts / routers.ts），所有 PII 與財務欄位現在優先從 _enc 欄位解密；投資人入口改用 blind index 查詢；docuseal disconnect 同步清除 _enc 欄位；匯出 decryptContactPii / decryptFinancialFields 供跨模組使用。",
+  },
+  {
+    version: "2.63.0",
+    date: "2026-07-13",
+    type: "minor",
+    title: "P1 架構強化 — DEK Cache 優化 + N+1 Query 修復 + Admin Security 強化",
+    description: "DEK Cache：新增 getCachedDekIfValid() 跳過 DB 查詢直接取快取，resolveCompanyDek() 先查 cache 再 fallback。N+1 Query：antiDilution.trigger 改用 batchUpdateAntiDilutionProvisions() 交易式批次更新；investorPortal 4 個 endpoint 抽出 resolvePortalInvestor() 共用 helper 消除重複查詢。Admin Security：normalizeAdminRole() 預設改 admin（最小權限）；adminProcedure / adminCompanyProcedure / superAdminProcedure 加入 rateLimitApi middleware + FORBIDDEN 稽核日誌。",
+  },
+  {
     version: "2.62.0",
     date: "2026-07-09",
     type: "minor",

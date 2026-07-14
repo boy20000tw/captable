@@ -11,7 +11,7 @@ import {
   // Funding rounds (still used by V1 Rounds UI; tables shared)
   getAllFundingRounds, getFundingRoundById, createFundingRound, updateFundingRound, deleteFundingRound,
   // Anti-dilution
-  getAllAntiDilutionProvisions, getProvisionsByShareholder, createAntiDilutionProvision, updateAntiDilutionProvision, deleteAntiDilutionProvision,
+  getAllAntiDilutionProvisions, getProvisionsByShareholder, createAntiDilutionProvision, updateAntiDilutionProvision, batchUpdateAntiDilutionProvisions, deleteAntiDilutionProvision,
   // Waterfall
   getLiquidationPreferences, upsertLiquidationPreference, computeWaterfall,
   // Import logs
@@ -345,14 +345,19 @@ const antiDilutionRouter = router({
       })),
     }))
     .mutation(async ({ input, ctx }) => {
-      for (const adj of input.adjustments) {
-        await updateAntiDilutionProvision(ctx.companyId, adj.provisionId, {
-          adjustedPriceNtd: adj.adjustedPriceNtd,
-          adjustedShares: adj.adjustedShares,
-          triggerRoundId: input.triggerRoundId,
-          status: "triggered",
-        });
-      }
+      // Batch-update all provisions in a single transaction (N+1 → 1 txn)
+      await batchUpdateAntiDilutionProvisions(
+        ctx.companyId,
+        input.adjustments.map(adj => ({
+          id: adj.provisionId,
+          data: {
+            adjustedPriceNtd: adj.adjustedPriceNtd,
+            adjustedShares: adj.adjustedShares,
+            triggerRoundId: input.triggerRoundId,
+            status: "triggered" as const,
+          },
+        }))
+      );
       await createAuditLog({
         companyId: ctx.companyId,
         userId: ctx.user!.id,
@@ -2337,6 +2342,9 @@ const esignRouter = router({
     .mutation(async ({ ctx }) => {
       await updateCompany(ctx.companyId, {
         docusealTenantApiKey: null,
+        docusealTenantApiKeyEnc: null,
+        docusealWebhookSecret: null,
+        docusealWebhookSecretEnc: null,
       });
 
       await createAuditLog({
@@ -2356,60 +2364,78 @@ const esignRouter = router({
 // ─── Investor Portal Router ──────────────────────────────────────────────────
 // Read-only endpoints for users with role="investor". Matches the logged-in
 // user's email to an investor record, then returns their holdings, grants, and docs.
+
+/**
+ * Shared helper: resolve the current user's investor record by email.
+ * Extracted from individual portal endpoints to eliminate duplicate lookups
+ * (was 4× identical SELECT per portal page load → now 1× per endpoint).
+ */
+async function resolvePortalInvestor(companyId: number, userEmail: string | undefined | null) {
+  if (!userEmail) return null;
+  const { getDb, resolveCompanyDek, decryptContactPii } = await import("./db");
+  const { blindIndex } = await import("./encryption");
+  const db = await getDb();
+  if (!db) return null;
+  const { investors: investorsTable } = await import("../drizzle/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  // Prefer blind-index lookup; fall back to plaintext email
+  const bi = blindIndex(userEmail);
+  let rows = await db.select().from(investorsTable)
+    .where(and(eq(investorsTable.companyId, companyId), eq(investorsTable.emailBi, bi)));
+  if (rows.length === 0) {
+    rows = await db.select().from(investorsTable)
+      .where(and(eq(investorsTable.companyId, companyId), eq(investorsTable.email, userEmail)));
+  }
+  if (!rows[0]) return null;
+  return decryptContactPii(rows[0], companyId);
+}
+
 const investorPortalRouter = router({
   /** Resolve the current user's investor record by email match */
   myProfile: companyProcedure.use(requireFeature("investorPortal")).query(async ({ ctx }) => {
-    const db = await import("./db").then(m => m.getDb());
-    if (!db) return null;
-    const { investors: investorsTable } = await import("../drizzle/schema");
-    const { eq, and } = await import("drizzle-orm");
-    const userEmail = ctx.user!.email;
-    if (!userEmail) return null;
-    const rows = await db.select().from(investorsTable)
-      .where(and(eq(investorsTable.companyId, ctx.companyId), eq(investorsTable.email, userEmail)));
-    return rows[0] ?? null;
+    return resolvePortalInvestor(ctx.companyId, ctx.user!.email);
   }),
 
   /** Holdings: shares by class from the cap table */
   myHoldings: companyProcedure.query(async ({ ctx }) => {
-    const db = await import("./db").then(m => m.getDb());
-    if (!db) return { holdings: [], totalShares: 0 };
-    const { investors: investorsTable, shareRegisterEntries: sre } = await import("../drizzle/schema");
-    const { eq, and, sum } = await import("drizzle-orm");
-    // Find investor by email
-    const userEmail = ctx.user!.email;
-    if (!userEmail) return { holdings: [], totalShares: 0 };
-    const [inv] = await db.select().from(investorsTable)
-      .where(and(eq(investorsTable.companyId, ctx.companyId), eq(investorsTable.email, userEmail)));
+    const inv = await resolvePortalInvestor(ctx.companyId, ctx.user!.email);
     if (!inv) return { holdings: [], totalShares: 0 };
+    const { getDb, decryptFinancialFields } = await import("./db");
+    const db = await getDb();
+    if (!db) return { holdings: [], totalShares: 0 };
+    const { shareRegisterEntries: sre } = await import("../drizzle/schema");
+    const { eq, and } = await import("drizzle-orm");
 
-    // Aggregate register entries
-    const rows = await db.select({
-      shareClass: sre.shareClass,
-      total: sum(sre.shares).as("total"),
-    }).from(sre)
-      .where(and(eq(sre.companyId, ctx.companyId), eq(sre.investorId, inv.id)))
-      .groupBy(sre.shareClass);
+    // In-memory aggregation with decrypted fields (supports plaintext removal)
+    const rawRows = await db.select().from(sre)
+      .where(and(eq(sre.companyId, ctx.companyId), eq(sre.investorId, inv.id)));
+    const rows = await Promise.all(
+      rawRows.map(r => decryptFinancialFields(r, ctx.companyId, ["shares", "pricePerShare", "fxToNtd", "totalAmount"]))
+    );
 
-    const holdings = rows
-      .map(r => ({ shareClass: r.shareClass, shares: Number(r.total ?? 0) }))
+    const byClass = new Map<string, number>();
+    for (const r of rows) {
+      const shares = Number(r.shares ?? 0);
+      if (shares === 0) continue;
+      byClass.set(r.shareClass, (byClass.get(r.shareClass) ?? 0) + shares);
+    }
+    const holdings = Array.from(byClass.entries())
+      .map(([shareClass, shares]) => ({ shareClass, shares }))
       .filter(h => h.shares > 0);
     const totalShares = holdings.reduce((s, h) => s + h.shares, 0);
 
-    return { investorId: inv.id, investorName: inv.name, holdings, totalShares };
+    return { investorId: inv.id, investorName: (inv as any).name, holdings, totalShares };
   }),
 
   /** ESOP grants for this investor */
   myGrants: companyProcedure.query(async ({ ctx }) => {
+    const inv = await resolvePortalInvestor(ctx.companyId, ctx.user!.email);
+    if (!inv) return [];
     const db = await import("./db").then(m => m.getDb());
     if (!db) return [];
-    const { investors: investorsTable, esopGrantsV1 } = await import("../drizzle/schema");
+    const { esopGrantsV1 } = await import("../drizzle/schema");
     const { eq, and } = await import("drizzle-orm");
-    const userEmail = ctx.user!.email;
-    if (!userEmail) return [];
-    const [inv] = await db.select().from(investorsTable)
-      .where(and(eq(investorsTable.companyId, ctx.companyId), eq(investorsTable.email, userEmail)));
-    if (!inv) return [];
     return db.select().from(esopGrantsV1)
       .where(and(eq(esopGrantsV1.companyId, ctx.companyId), eq(esopGrantsV1.investorId, inv.id)));
   }),
@@ -2436,18 +2462,17 @@ const investorPortalRouter = router({
 
   /** Register entries for this investor (for certificate download) */
   myRegisterEntries: companyProcedure.query(async ({ ctx }) => {
-    const db = await import("./db").then(m => m.getDb());
-    if (!db) return [];
-    const { investors: investorsTable, shareRegisterEntries: sre } = await import("../drizzle/schema");
-    const { eq, and, asc } = await import("drizzle-orm");
-    const userEmail = ctx.user!.email;
-    if (!userEmail) return [];
-    const [inv] = await db.select().from(investorsTable)
-      .where(and(eq(investorsTable.companyId, ctx.companyId), eq(investorsTable.email, userEmail)));
+    const inv = await resolvePortalInvestor(ctx.companyId, ctx.user!.email);
     if (!inv) return [];
-    return db.select().from(sre)
+    const { getDb, decryptFinancialFields } = await import("./db");
+    const db = await getDb();
+    if (!db) return [];
+    const { shareRegisterEntries: sre } = await import("../drizzle/schema");
+    const { eq, and, asc } = await import("drizzle-orm");
+    const rows = await db.select().from(sre)
       .where(and(eq(sre.companyId, ctx.companyId), eq(sre.investorId, inv.id)))
       .orderBy(asc(sre.effectiveDate));
+    return Promise.all(rows.map(r => decryptFinancialFields(r, ctx.companyId, ["shares", "pricePerShare", "fxToNtd", "totalAmount"])));
   }),
 });
 
