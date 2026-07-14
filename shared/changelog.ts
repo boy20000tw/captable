@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.65.0",
+    date: "2026-07-14",
+    type: "minor",
+    title: "P3 架構強化 — CSP Security Headers + 加密聚合重構",
+    description: "安全 Headers：加入 CSP、X-Content-Type-Options、X-Frame-Options、HSTS、Referrer-Policy、Permissions-Policy。CSP 白名單涵蓋 Clerk/Sentry/Vercel Analytics。加密聚合重構：deriveCapTable 和 myHoldings 從 SQL SUM(plaintext) 改為 in-memory 聚合 decrypted 值，為後續移除明文欄位做準備。",
+  },
+  {
     version: "2.64.0",
     date: "2026-07-14",
     type: "minor",

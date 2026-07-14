@@ -2401,20 +2401,27 @@ const investorPortalRouter = router({
   myHoldings: companyProcedure.query(async ({ ctx }) => {
     const inv = await resolvePortalInvestor(ctx.companyId, ctx.user!.email);
     if (!inv) return { holdings: [], totalShares: 0 };
-    const db = await import("./db").then(m => m.getDb());
+    const { getDb, decryptFinancialFields } = await import("./db");
+    const db = await getDb();
     if (!db) return { holdings: [], totalShares: 0 };
     const { shareRegisterEntries: sre } = await import("../drizzle/schema");
-    const { eq, and, sum } = await import("drizzle-orm");
+    const { eq, and } = await import("drizzle-orm");
 
-    const rows = await db.select({
-      shareClass: sre.shareClass,
-      total: sum(sre.shares).as("total"),
-    }).from(sre)
-      .where(and(eq(sre.companyId, ctx.companyId), eq(sre.investorId, inv.id)))
-      .groupBy(sre.shareClass);
+    // In-memory aggregation with decrypted fields (supports plaintext removal)
+    const rawRows = await db.select().from(sre)
+      .where(and(eq(sre.companyId, ctx.companyId), eq(sre.investorId, inv.id)));
+    const rows = await Promise.all(
+      rawRows.map(r => decryptFinancialFields(r, ctx.companyId, ["shares", "pricePerShare", "fxToNtd", "totalAmount"]))
+    );
 
-    const holdings = rows
-      .map(r => ({ shareClass: r.shareClass, shares: Number(r.total ?? 0) }))
+    const byClass = new Map<string, number>();
+    for (const r of rows) {
+      const shares = Number(r.shares ?? 0);
+      if (shares === 0) continue;
+      byClass.set(r.shareClass, (byClass.get(r.shareClass) ?? 0) + shares);
+    }
+    const holdings = Array.from(byClass.entries())
+      .map(([shareClass, shares]) => ({ shareClass, shares }))
       .filter(h => h.shares > 0);
     const totalShares = holdings.reduce((s, h) => s + h.shares, 0);
 

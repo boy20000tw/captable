@@ -16,8 +16,8 @@
 // Returns a plain JSON-serializable object so it can be stored as jsonb in
 // the snapshots table.
 
-import { and, eq, sum } from "drizzle-orm";
-import { getDb, resolveCompanyDek } from "../db";
+import { and, eq } from "drizzle-orm";
+import { getDb, resolveCompanyDek, decryptFinancialFields } from "../db";
 import { decryptField } from "../encryption";
 import {
   shareRegisterEntries,
@@ -68,20 +68,17 @@ export async function deriveCapTable(companyId: number): Promise<CapTable> {
     };
   }
 
-  // ── Aggregate by (investorId, shareClass) via SQL SUM ────────────────────
-  const rows = await db
-    .select({
-      investorId: shareRegisterEntries.investorId,
-      shareClass: shareRegisterEntries.shareClass,
-      total: sum(shareRegisterEntries.shares).as("total"),
-    })
-    .from(shareRegisterEntries)
-    .where(eq(shareRegisterEntries.companyId, companyId))
-    .groupBy(shareRegisterEntries.investorId, shareRegisterEntries.shareClass);
+  // ── Fetch all register entries and decrypt financial fields ──────────────
+  // In-memory aggregation instead of SQL SUM — supports encrypted columns
+  // and allows plaintext columns to be removed in the future.
+  const rawEntries = await db.select().from(shareRegisterEntries)
+    .where(eq(shareRegisterEntries.companyId, companyId));
+  const entries = await Promise.all(
+    rawEntries.map(e => decryptFinancialFields(e, companyId, ["shares", "pricePerShare", "fxToNtd", "totalAmount"]))
+  );
 
-  // ── Gather investor metadata for the ids we saw ─────────────────────────
-  const investorIds = Array.from(new Set(rows.map(r => r.investorId)));
-  const investorRows = investorIds.length === 0
+  // ── Gather investor metadata ───────────────────────────────────────────
+  const investorRows = rawEntries.length === 0
     ? []
     : await db.select().from(investors)
         .where(eq(investors.companyId, companyId));
@@ -95,16 +92,15 @@ export async function deriveCapTable(companyId: number): Promise<CapTable> {
   } catch { /* encryption not configured */ }
   const investorMap = new Map(investorRows.map(i => [i.id, i]));
 
-  // ── Roll up per-investor ────────────────────────────────────────────────
+  // ── Roll up per-investor by (investorId, shareClass) ───────────────────
   const perInvestor = new Map<number, CapTableHolding>();
-  for (const r of rows) {
-    // drizzle's sum() returns string | null for numeric/bigint. Coerce.
-    const shares = Number(r.total ?? 0);
-    if (shares <= 0) continue;    // skip fully-drained or negative rows
-    const inv = investorMap.get(r.investorId);
-    const entry = perInvestor.get(r.investorId) ?? {
-      investorId: r.investorId,
-      investorName: inv?.name ?? `Investor #${r.investorId}`,
+  for (const e of entries) {
+    const shares = Number(e.shares ?? 0);
+    if (shares === 0) continue;
+    const inv = investorMap.get(e.investorId);
+    const entry = perInvestor.get(e.investorId) ?? {
+      investorId: e.investorId,
+      investorName: inv?.name ?? `Investor #${e.investorId}`,
       investorStatus: inv?.status ?? "unknown",
       entityKind: (inv?.entityKind ?? "individual") as "individual" | "entity",
       totalShares: 0,
@@ -112,8 +108,8 @@ export async function deriveCapTable(companyId: number): Promise<CapTable> {
       ownershipPct: "0",
     };
     entry.totalShares += shares;
-    entry.byShareClass[r.shareClass] = (entry.byShareClass[r.shareClass] ?? 0) + shares;
-    perInvestor.set(r.investorId, entry);
+    entry.byShareClass[e.shareClass] = (entry.byShareClass[e.shareClass] ?? 0) + shares;
+    perInvestor.set(e.investorId, entry);
   }
 
   // ── ESOP pool (V1 tables: pools + grants) ───────────────────────────────
