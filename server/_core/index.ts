@@ -257,7 +257,7 @@ async function startServer() {
   );
 
   // Sentry error handler — must be after all API routes
-  app.use(sentryErrorHandler());
+  app.use(sentryErrorHandler() as unknown as express.ErrorRequestHandler);
 
   // In development, serve Vite dev server
   if (process.env.NODE_ENV === "development") {

@@ -21,10 +21,18 @@ export function useAuth() {
 
   // Get our app's user data (with appRole etc.) from the DB
   const meQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
+    // One quick retry covers a Neon cold start; anything more just makes the
+    // user stare at a skeleton longer before they see the error screen.
+    retry: 1,
+    retryDelay: 1500,
     refetchOnWindowFocus: false,
     enabled: isSignedIn === true,
   });
+
+  // Clerk says we're signed in but our backend couldn't answer → the platform
+  // is down/degraded, NOT "user isn't logged in". Callers must not render the
+  // sign-in form in this state.
+  const serviceUnavailable = Boolean(isSignedIn && meQuery.isError);
 
   const logout = useCallback(async () => {
     await signOut();
@@ -53,6 +61,8 @@ export function useAuth() {
     user: meQuery.data ?? null,
     loading: !isLoaded || (isSignedIn && meQuery.isLoading),
     error: meQuery.error ?? null,
+    serviceUnavailable,
+    isFetchingMe: meQuery.isFetching,
     isAuthenticated: Boolean(isSignedIn && meQuery.data),
     hasCompany,
     clerkUser,
@@ -66,7 +76,7 @@ export function useAuth() {
     // RBAC — admin level
     adminRole,
     adminCapabilities,
-  }), [isLoaded, isSignedIn, meQuery.data, meQuery.error, meQuery.isLoading, clerkUser, hasCompany, companyRole, capabilities, adminRole, adminCapabilities]);
+  }), [isLoaded, isSignedIn, meQuery.data, meQuery.error, meQuery.isLoading, meQuery.isFetching, serviceUnavailable, clerkUser, hasCompany, companyRole, capabilities, adminRole, adminCapabilities]);
 
   return {
     ...state,

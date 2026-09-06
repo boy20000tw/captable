@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.66.0",
+    date: "2026-09-06",
+    type: "minor",
+    title: "穩定性強化 — 全站 500 事故修復：Rate limiter fail-open、DB timeout、/api/health、Sentry 修復",
+    description: "事故根因防護：Upstash rate limiter 改為 1.5s timeout + fail-open（Redis 掛掉不再導致所有 API 500，關閉 analytics 以免耗盡免費額度）；Neon HTTP driver 加入 8s 查詢逾時；新增 /api/health（檢查 DB / Redis / env，供 Better Stack 監控）；Vercel function 正式初始化後端 Sentry 並於回應後 flush；前端 Sentry DSN 自動驗證與修復；前端 API 20s timeout；登入後若後端無回應改顯示「服務暫時無法連線」＋重試畫面，不再無限 skeleton 或誤顯登入頁；vercel.json 固定 iad1 region、maxDuration 15s、正式環境安全 headers。",
+  },
+  {
     version: "2.65.0",
     date: "2026-07-14",
     type: "minor",

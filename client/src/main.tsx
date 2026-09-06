@@ -14,6 +14,7 @@ import App from "./App";
 import "./index.css";
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const API_TIMEOUT_MS = 20_000;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,9 +39,17 @@ const trpcClient = trpc.createClient({
         return id ? { "x-company-id": String(id) } : {};
       },
       fetch(input, init) {
+        // Hard client-side timeout: if the API hangs (cold DB, upstream outage)
+        // fail fast so the UI can show a real error instead of an endless skeleton.
+        const timeout = AbortSignal.timeout(API_TIMEOUT_MS);
+        const signal =
+          init?.signal && typeof AbortSignal.any === "function"
+            ? AbortSignal.any([init.signal, timeout])
+            : (init?.signal ?? timeout);
         return globalThis.fetch(input, {
           ...(init ?? {}),
           credentials: "include",
+          signal,
         });
       },
     }),
