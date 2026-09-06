@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.66.1",
+    date: "2026-09-06",
+    type: "patch",
+    title: "投資人入口 — 公司端改為存取管理視圖、移除寫死的聯絡信箱",
+    description: "Owner/Admin/CFO 等公司端角色進入投資人入口時，不再顯示「您的 Email 未連結投資人記錄」，改為存取管理視圖：列出每位投資人是否已填 Email、已註冊、已受邀，並提供邀請入口。投資人端的「聯繫管理員」按鈕改為寄給該公司負責人（後端 investorPortal.companyContact），移除前端寫死的平台管理員個人信箱。新增 investorPortal.accessOverview API。",
+  },
+  {
     version: "2.66.0",
     date: "2026-09-06",
     type: "minor",

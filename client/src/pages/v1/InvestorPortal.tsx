@@ -5,8 +5,10 @@
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { PieChart, FileText, Award, Briefcase, Download, CheckCircle2, Clock, Eye, Mail } from "lucide-react";
+import { PieChart, FileText, Award, Briefcase, Download, CheckCircle2, Clock, Eye, Mail, Users, XCircle, UserPlus } from "lucide-react";
+import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { FeatureGate } from "@/components/FeatureGate";
 import { trpc } from "@/lib/trpc";
 import { getActiveCompanyId } from "@/lib/activeCompany";
@@ -19,12 +21,107 @@ import {
 } from "@/components/ui/card";
 
 export default function InvestorPortalPage() {
+  const { companyRole } = useAuth();
+  // Company-side roles get the MANAGEMENT view (who can access the portal);
+  // only the `investor` role gets the investor-facing holdings view.
+  // Before this split, an owner opening this page was told "your email is not
+  // linked to an investor record" — technically true, practically confusing.
+  const isInvestor = companyRole === "investor";
   return (
     <DashboardLayout>
       <FeatureGate feature="investorPortal">
-        <InvestorPortalContent />
+        {isInvestor ? <InvestorPortalContent /> : <InvestorPortalAdminView />}
       </FeatureGate>
     </DashboardLayout>
+  );
+}
+
+/** Management view for owner / admin / cfo / lawyer / viewer. */
+function InvestorPortalAdminView() {
+  const { t } = useTranslation("pages");
+  const [, setLocation] = useLocation();
+  const overview = trpc.investorPortal.accessOverview.useQuery();
+
+  if (overview.isLoading) {
+    return (
+      <div className="p-8 max-w-5xl mx-auto space-y-4">
+        {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+  if (overview.isError || !overview.data) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-destructive">{t("investorPortal.loadError", { defaultValue: "Failed to load data. Please try again." })}</p>
+      </div>
+    );
+  }
+
+  const { investors, summary } = overview.data;
+
+  return (
+    <div className="p-8 max-w-5xl mx-auto space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Users className="h-6 w-6 text-primary" />
+            {t("investorPortal.admin.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            {t("investorPortal.admin.desc")}
+          </p>
+        </div>
+        <Button size="sm" className="gap-1.5" onClick={() => setLocation("/team")}>
+          <UserPlus className="h-3.5 w-3.5" />
+          {t("investorPortal.admin.invite")}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card><CardHeader className="pb-2"><CardDescription>{t("investorPortal.admin.statTotal")}</CardDescription><CardTitle className="text-2xl">{summary.total}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>{t("investorPortal.admin.statWithEmail")}</CardDescription><CardTitle className="text-2xl">{summary.withEmail}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>{t("investorPortal.admin.statLinked")}</CardDescription><CardTitle className="text-2xl">{summary.linked}</CardTitle></CardHeader></Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("investorPortal.admin.tableTitle")}</CardTitle>
+          <CardDescription>{t("investorPortal.admin.tableDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {investors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("investorPortal.admin.empty")}</p>
+          ) : (
+            <div className="divide-y">
+              {investors.map(inv => {
+                const state = inv.canAccessPortal ? "linked" : !inv.hasEmail ? "noEmail" : !inv.hasAccount ? "noAccount" : "noMembership";
+                return (
+                  <div key={inv.id} className="flex items-center justify-between gap-4 py-3">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{inv.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{inv.email ?? t("investorPortal.admin.noEmailValue")}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {state === "linked" ? (
+                        <Badge variant="secondary" className="gap-1 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-300">
+                          <CheckCircle2 className="h-3 w-3" /> {t("investorPortal.admin.stateLinked")}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1 text-muted-foreground">
+                          <XCircle className="h-3 w-3" /> {t(`investorPortal.admin.state_${state}`)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <p className="text-xs text-muted-foreground">{t("investorPortal.admin.howItWorks")}</p>
+    </div>
   );
 }
 
@@ -35,6 +132,7 @@ function InvestorPortalContent() {
   const { data: grants, isLoading: grantsLoading } = trpc.investorPortal.myGrants.useQuery();
   const { data: documents, isLoading: docsLoading } = trpc.investorPortal.myDocuments.useQuery();
   const { data: registerEntries } = trpc.investorPortal.myRegisterEntries.useQuery();
+  const { data: contact } = trpc.investorPortal.companyContact.useQuery();
 
   const isLoading = profileLoading || holdingsLoading;
 
@@ -73,9 +171,8 @@ function InvestorPortalContent() {
     );
   }
 
-  const ADMIN_EMAIL = "boy20000tw@gmail.com";
-
   if (!profile) {
+    const contactEmail = contact?.email ?? null;
     return (
       <div className="p-8 max-w-5xl mx-auto">
         <div className="text-center py-20">
@@ -84,15 +181,17 @@ function InvestorPortalContent() {
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
             {t("investorPortal.noAccessDesc")}
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => window.location.href = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent(t("investorPortal.contactSubject"))}`}
-          >
-            <Mail className="h-3.5 w-3.5" />
-            {t("investorPortal.contactAdmin")}
-          </Button>
+          {contactEmail ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => window.location.href = `mailto:${contactEmail}?subject=${encodeURIComponent(t("investorPortal.contactSubject"))}`}
+            >
+              <Mail className="h-3.5 w-3.5" />
+              {t("investorPortal.contactCompany", { name: contact?.companyName ?? "" })}
+            </Button>
+          ) : null}
         </div>
       </div>
     );

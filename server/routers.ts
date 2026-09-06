@@ -2397,6 +2397,83 @@ const investorPortalRouter = router({
     return resolvePortalInvestor(ctx.companyId, ctx.user!.email);
   }),
 
+  /**
+   * Who an investor should contact when their email isn't linked.
+   * Returns the company OWNER (fallback: first admin) — NOT the platform admin.
+   * Previously the frontend hard-coded a personal email address here.
+   */
+  companyContact: companyProcedure.query(async ({ ctx }) => {
+    const { listCompanyMembers, getCompanyById } = await import("./db");
+    const [members, company] = await Promise.all([
+      listCompanyMembers(ctx.companyId),
+      getCompanyById(ctx.companyId),
+    ]);
+    const contact =
+      members.find(m => m.appRole === "owner") ??
+      members.find(m => m.appRole === "admin") ??
+      null;
+    return {
+      companyName: company?.name ?? null,
+      name: contact?.name ?? null,
+      email: contact?.email ?? null,
+    };
+  }),
+
+  /**
+   * Management view for company-side roles (owner/admin/cfo/lawyer):
+   * every investor record with an email, and whether that email currently
+   * maps to a signed-up user + a membership in this company —
+   * i.e. whether that person can actually open the portal today.
+   */
+  accessOverview: companyProcedure.query(async ({ ctx }) => {
+    if (ctx.companyRole === "investor") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Investors cannot view the portal access overview." });
+    }
+    const { getAllInvestors, listCompanyMembers, getUserByEmail } = await import("./db");
+    const [investorsList, members] = await Promise.all([
+      getAllInvestors(ctx.companyId),
+      listCompanyMembers(ctx.companyId),
+    ]);
+    const memberByUserId = new Map(members.map(m => [m.id, m]));
+
+    const rows = await Promise.all(investorsList.map(async (inv) => {
+      const email = (inv as any).email as string | null | undefined;
+      let hasAccount = false;
+      let hasMembership = false;
+      let membershipRole: string | null = null;
+      if (email) {
+        try {
+          const user = await getUserByEmail(email);
+          if (user) {
+            hasAccount = true;
+            const m = memberByUserId.get(user.id);
+            if (m) { hasMembership = true; membershipRole = (m.appRole as string | null) ?? null; }
+          }
+        } catch { /* lookup failure = treat as not linked */ }
+      }
+      return {
+        id: inv.id,
+        name: (inv as any).name as string,
+        email: email ?? null,
+        status: inv.status,
+        hasEmail: Boolean(email),
+        hasAccount,
+        hasMembership,
+        membershipRole,
+        canAccessPortal: Boolean(email) && hasAccount && hasMembership,
+      };
+    }));
+
+    return {
+      investors: rows,
+      summary: {
+        total: rows.length,
+        withEmail: rows.filter(r => r.hasEmail).length,
+        linked: rows.filter(r => r.canAccessPortal).length,
+      },
+    };
+  }),
+
   /** Holdings: shares by class from the cap table */
   myHoldings: companyProcedure.query(async ({ ctx }) => {
     const inv = await resolvePortalInvestor(ctx.companyId, ctx.user!.email);
