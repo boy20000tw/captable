@@ -4,8 +4,10 @@
  */
 import * as Sentry from "@sentry/node";
 
+let _initialised = false;
 export function initSentryServer() {
-  if (!process.env.SENTRY_DSN) return;
+  if (!process.env.SENTRY_DSN || _initialised) return;
+  _initialised = true;
 
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
@@ -22,6 +24,19 @@ export function initSentryServer() {
       return event;
     },
   });
+}
+
+/**
+ * Flush pending events. Call at the end of a serverless invocation —
+ * otherwise the lambda is frozen before the HTTP request to Sentry completes.
+ */
+export async function flushSentry(timeoutMs = 2000): Promise<void> {
+  if (!process.env.SENTRY_DSN) return;
+  try {
+    await Sentry.flush(timeoutMs);
+  } catch {
+    /* never let monitoring break the response path */
+  }
 }
 
 /** Express error handler — add as the LAST middleware. */

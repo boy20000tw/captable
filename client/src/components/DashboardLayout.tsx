@@ -231,7 +231,7 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user } = useAuth();
+  const { loading, user, serviceUnavailable, isFetchingMe, refresh } = useAuth();
   const { t: tNav } = useTranslation("nav");
   const { t: tLegalOuter } = useTranslation("legal");
 
@@ -241,6 +241,38 @@ export default function DashboardLayout({
 
   if (loading) {
     return <DashboardLayoutSkeleton />;
+  }
+
+  if (serviceUnavailable) {
+    return (
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ background: "var(--background)" }}
+      >
+        <div className="flex flex-col items-center gap-6 p-12 max-w-md w-full text-center">
+          <img src="/caploom-logo.png" alt="Caploom" className="h-10 w-auto object-contain" />
+          <h1 className="text-xl font-semibold text-foreground">{tNav("serviceUnavailable.title")}</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">{tNav("serviceUnavailable.body")}</p>
+          <button
+            type="button"
+            onClick={() => refresh()}
+            disabled={isFetchingMe}
+            className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            style={{ background: "var(--primary)" }}
+          >
+            {isFetchingMe ? tNav("serviceUnavailable.retrying") : tNav("serviceUnavailable.retry")}
+          </button>
+          <a
+            href="https://status.cap-loom.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            {tNav("serviceUnavailable.status")}
+          </a>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {

@@ -44,6 +44,11 @@
   "settings.subscription": "訂閱方案",
   "settings.help": "說明與支援",
 
+  "serviceUnavailable.title": "服務暫時無法連線",
+  "serviceUnavailable.body": "您已登入，但伺服器目前沒有回應。這通常是暫時性的問題，請稍後再試；若持續發生，請查看系統狀態頁或聯絡我們。",
+  "serviceUnavailable.retry": "重新連線",
+  "serviceUnavailable.retrying": "連線中…",
+  "serviceUnavailable.status": "查看系統狀態 status.cap-loom.com",
   "signIn.tagline": "精準的股權管理工具。登入以存取您的股權結構表。",
   "adminPanel": "管理後台",
 

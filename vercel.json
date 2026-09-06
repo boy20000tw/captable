@@ -1,8 +1,55 @@
 {
-              "buildCommand": "npm run build && npx esbuild 'api/trpc/[trpc].ts' --bundle --platform=node --format=esm --packages=external --outfile='api/trpc/_bundled.js' && mv 'api/trpc/_bundled.js' 'api/trpc/[trpc].ts'",
-              "outputDirectory": "dist/public",
-              "framework": null,
-              "rewrites": [
-                              { "source": "/((?!api/).*)", "destination": "/index.html" }
-              ]
+  "buildCommand": "npm run build && npx esbuild 'api/trpc/[trpc].ts' --bundle --platform=node --format=esm --packages=external --outfile='api/trpc/_bundled.js' && mv 'api/trpc/_bundled.js' 'api/trpc/[trpc].ts'",
+  "outputDirectory": "dist/public",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "regions": [
+    "iad1"
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 15
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "interest-cohort=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        }
+      ]
+    },
+    {
+      "source": "/api/health",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ]
 }

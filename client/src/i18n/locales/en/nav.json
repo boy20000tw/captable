@@ -44,6 +44,11 @@
   "settings.subscription": "Subscription",
   "settings.help": "Help & Support",
 
+  "serviceUnavailable.title": "Service temporarily unavailable",
+  "serviceUnavailable.body": "You're signed in, but our servers aren't responding right now. This is usually temporary — please try again in a moment. If it keeps happening, check the status page or contact us.",
+  "serviceUnavailable.retry": "Retry",
+  "serviceUnavailable.retrying": "Connecting…",
+  "serviceUnavailable.status": "View system status at status.cap-loom.com",
   "signIn.tagline": "A precision instrument for equity management. Sign in to access your cap table.",
   "adminPanel": "Admin Panel",
 

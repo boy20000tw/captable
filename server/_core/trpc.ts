@@ -4,7 +4,7 @@ import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { planHasFeature, minimumPlanFor, normalizePlan, type Feature, type PlanKey } from "../../shared/plans";
 import { type AdminRole, getAdminCapabilities, normalizeAdminRole } from "../../shared/adminPermissions";
-import { apiLimiter, getIdentifier } from "./ratelimit";
+import { apiLimiter, getIdentifier, safeLimit } from "./ratelimit";
 import { captureError } from "./sentry";
 
 const t = initTRPC.context<TrpcContext>().create({
@@ -38,9 +38,15 @@ export const router = t.router;
 const rateLimitApi = t.middleware(async ({ ctx, next }) => {
   if (!apiLimiter) return next();
   const identifier = getIdentifier(ctx.req);
-  const { success, remaining, reset } = await apiLimiter.limit(identifier);
-  ctx.res.setHeader("X-RateLimit-Remaining", remaining.toString());
-  ctx.res.setHeader("X-RateLimit-Reset", reset.toString());
+  // safeLimit never throws: on Redis timeout/outage it FAILS OPEN so a
+  // rate-limiter problem can never become a platform-wide 500.
+  const { success, remaining, reset, degraded } = await safeLimit(apiLimiter, identifier);
+  if (!degraded) {
+    ctx.res.setHeader("X-RateLimit-Remaining", remaining.toString());
+    ctx.res.setHeader("X-RateLimit-Reset", reset.toString());
+  } else {
+    ctx.res.setHeader("X-RateLimit-Degraded", "1");
+  }
   if (!success) {
     throw new TRPCError({
       code: "TOO_MANY_REQUESTS",

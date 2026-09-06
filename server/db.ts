@@ -1,5 +1,5 @@
 import { eq, desc, asc, and, isNotNull, sql } from "drizzle-orm";
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import {
   InsertUser, users,
@@ -53,6 +53,20 @@ import {
 } from "./encryption";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+
+/**
+ * Per-query hard timeout for the Neon HTTP driver (v2.66).
+ * Without this a stalled Neon compute (cold start / suspend / network) makes
+ * every request hang until the Vercel function itself is killed, and the
+ * client sees an opaque 500 after ~5-10s. Failing fast with a clear error is
+ * strictly better — and lets /api/health report "db: down" instead of "unknown".
+ */
+const DB_QUERY_TIMEOUT_MS = Number(process.env.DB_QUERY_TIMEOUT_MS ?? 8000);
+const _baseFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+neonConfig.fetchFunction = (input: any, init?: any) => {
+  if (init?.signal) return _baseFetch(input, init);
+  return _baseFetch(input, { ...(init ?? {}), signal: AbortSignal.timeout(DB_QUERY_TIMEOUT_MS) });
+};
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
