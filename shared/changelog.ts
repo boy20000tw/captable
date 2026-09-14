@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.67.1",
+    date: "2026-09-14",
+    type: "patch",
+    title: "修復 Vercel 上非 tRPC API 端點 500（文件上傳 / Excel 匯入 / DocuSeal webhook / demo cron）",
+    description: "package.json 為 ESM，Vercel 編譯 TS 時相對匯入沒有副檔名，Node 執行期找不到 ../../server/* 模組（ERR_MODULE_NOT_FOUND → FUNCTION_INVOCATION_FAILED）。過去只有 tRPC 入口有 esbuild 打包，/api/upload/document、/api/import/excel、/api/webhooks/docuseal 在正式環境其實一直是 500。新增 scripts/bundle-api.mjs 在 build 結束時統一打包所有 api/ 入口，並同時修好新的 /api/cron/refresh-demo。",
+  },
+  {
     version: "2.67.0",
     date: "2026-09-14",
     type: "minor",
