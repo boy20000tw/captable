@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { formatShares, formatDate, ROUND_CHART_COLORS } from "@/lib/utils";
+import { formatShares, formatDate, ROUND_CHART_COLORS, isDueDateOverdue } from "@/lib/utils";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
 import {
@@ -955,7 +955,7 @@ function UpcomingActivitiesCard({
 
   if (items.length === 0) return null;
 
-  const overdueCount = items.filter(i => i.dueDate && new Date(i.dueDate) < new Date()).length;
+  const overdueCount = items.filter(i => isDueDateOverdue(i.dueDate)).length;
   const highCount = items.filter(i => i.priority === "high").length;
 
   return (
@@ -987,7 +987,7 @@ function UpcomingActivitiesCard({
       <div className="divide-y divide-border">
         {items.slice(0, 8).map(act => {
           const Icon = ACT_ICON_MAP[act.type] ?? MoreHorizontal;
-          const isOverdue = act.dueDate && new Date(act.dueDate) < new Date();
+          const isOverdue = isDueDateOverdue(act.dueDate);
           const dotColor = ACT_PRIORITY_DOT[act.priority] ?? "bg-gray-400";
 
           return (

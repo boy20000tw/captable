@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.67.0",
+    date: "2026-09-14",
+    type: "minor",
+    title: "Demo Room 自動保鮮 — 投資人跟進日期每日自動推進、到期判定修正、靜態資源快取",
+    description: "新增每日 Vercel Cron（/api/cron/refresh-demo）：自動把 demo 公司的投資人跟進、開放輪次認購進度與聯絡時間平移到今天，讓儀表板永遠呈現「進行中 + 未來排程」而不是一整排過期項目（歷史已完成輪次日期不動；projected 輪次自動維持在 75 天以上的未來）。修正「今天到期」的跟進項目被誤判為已逾期（現在以當日結束為準）。/assets/* 加上一年期 immutable 快取、預先連線 Clerk 網域，回訪載入更快；分頁標題改為 Caploom。",
+  },
+  {
     version: "2.66.1",
     date: "2026-09-06",
     type: "patch",

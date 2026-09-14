@@ -11,7 +11,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { FeatureGate } from "@/components/FeatureGate";
 import ErrorState from "@/components/ErrorState";
 import { trpc } from "@/lib/trpc";
-import { formatDate } from "@/lib/utils";
+import { formatDate, isDueDateOverdue } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
@@ -169,12 +169,11 @@ function isDueSoon(dueDate: string | Date | null) {
   const d = new Date(dueDate);
   const now = new Date();
   const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-  return diff <= 7 && diff >= 0;
+  return diff <= 7 && !isDueDateOverdue(dueDate);
 }
 
 function isOverdue(dueDate: string | Date | null) {
-  if (!dueDate) return false;
-  return new Date(dueDate) < new Date();
+  return isDueDateOverdue(dueDate);
 }
 
 /* ─────────────────────────────── Activity Timeline ─────────────────────────────── */
@@ -900,7 +899,7 @@ function CalendarView({ t }: { t: any }) {
               <div className="space-y-3">
                 {(upcoming ?? []).slice(0, 15).map((act: any) => {
                   const Icon = ACTIVITY_ICONS[act.type as ActivityType] ?? MoreHorizontal;
-                  const overdue = act.dueDate && new Date(act.dueDate) < new Date();
+                  const overdue = isDueDateOverdue(act.dueDate);
                   return (
                     <div key={act.id} className="space-y-0.5">
                       <div className="flex items-center gap-1.5">

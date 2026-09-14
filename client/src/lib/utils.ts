@@ -118,3 +118,16 @@ export function getRoundLabel(type: string): string {
 export function getRoundColor(type: string): string {
   return ROUND_COLORS[type] || ROUND_COLORS.other;
 }
+
+/**
+ * A follow-up is overdue only once its due DAY has fully passed (local time).
+ * Due dates are stored at 00:00, so a naive `new Date(due) < new Date()`
+ * flags everything due *today* as overdue the moment the day starts. (v2.67)
+ */
+export function isDueDateOverdue(dueDate: string | Date | null | undefined): boolean {
+  if (!dueDate) return false;
+  const d = new Date(dueDate);
+  if (Number.isNaN(d.getTime())) return false;
+  const endOfDueDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+  return endOfDueDay.getTime() < Date.now();
+}
