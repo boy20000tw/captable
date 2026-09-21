@@ -10,7 +10,7 @@
  * Without CRON_SECRET configured the endpoint refuses to run (503) — never
  * expose a write endpoint unauthenticated by accident.
  *
- * Like /api/health this imports only the thin neon client, so it can't be
+ * Like /api/health this imports only a thin postgres-js client, so it can't be
  * broken by (and can't break) the main tRPC bundle.
  */
 import type { IncomingMessage, ServerResponse } from "http";

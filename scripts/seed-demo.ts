@@ -8,7 +8,7 @@
  *   2. Create 3 employee investors + ESOP grants (CTO, Engineer, Designer)
  *   3. Create 1 SAFE instrument
  */
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -16,7 +16,7 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-const sql = neon(DATABASE_URL);
+const sql = postgres(DATABASE_URL, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
 
 // ─── Investor contact info mapping (name → contact) ─────────────────────────
 // Names come from the existing 10 investors observed on the live site.

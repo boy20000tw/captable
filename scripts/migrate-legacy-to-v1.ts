@@ -15,8 +15,8 @@
 //   - Safe to re-run: detects prior migration via audit markers on
 //     investors.notes ("[migrated from shareholders.id=N]").
 
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, and } from "drizzle-orm";
 import {
   shareholders,
@@ -36,7 +36,7 @@ type InvestorMap = Map<number, number>;           // legacy shareholderId -> new
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is required");
-  const sql = neon(url);
+  const sql = postgres(url, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
   const db = drizzle({ client: sql });
 
   console.log(`${DRY_RUN ? "🔍 DRY RUN" : "🚀 REAL RUN"} — migrating legacy → V1`);

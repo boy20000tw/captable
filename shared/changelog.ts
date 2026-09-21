@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.68.0",
+    date: "2026-09-21",
+    type: "minor",
+    title: "資料庫與 Redis 搬到 Zeabur 東京自有主機，API 改在東京（hnd1）執行",
+    description: "PostgreSQL 由 Neon（美東）搬到 Zeabur 東京伺服器（PostgreSQL 18、TLS、每日自動備份），限流 Redis 由 Upstash 改為同機自架 Redis；Vercel Function 區域由 iad1 改為 hnd1，台灣連線延遲大幅下降，也不再受免費方案閒置刪除與運算額度用完的影響。DB 驅動改為 postgres-js（drizzle-orm/postgres-js），限流改為 ioredis + rate-limiter-flexible，維持 1.5 秒 timeout 與 fail-open；/api/health 同步改用新 client。",
+  },
+  {
     version: "2.67.1",
     date: "2026-09-14",
     type: "patch",
