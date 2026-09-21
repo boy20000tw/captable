@@ -7,8 +7,8 @@
 //   DATABASE_URL=... tsx scripts/smoke-phase1.ts
 
 import { eq, and } from "drizzle-orm";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import {
   companies,
   investors,
@@ -25,7 +25,7 @@ import {
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL required");
-  const sql = neon(url);
+  const sql = postgres(url, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
   const db = drizzle({ client: sql });
 
   const TEST_COMPANY_NAME = "SMOKE-TEST-PHASE1";
@@ -154,7 +154,7 @@ async function main() {
 
   // ── 9. Test Cap Table derivation via raw SQL (simulates deriveCapTable) ──
   console.log("▸ 8. Deriving cap table via SQL aggregation…");
-  const agg = await sql(
+  const agg = await sql.unsafe(
     `SELECT "investorId", "shareClass", SUM(shares)::bigint AS total
      FROM share_register_entries
      WHERE "companyId" = $1

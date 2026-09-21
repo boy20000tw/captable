@@ -8,14 +8,14 @@
  * 2. Adds realistic activities reflecting each investor's journey based
  *    on their allocation notes / timeline.
  */
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.error("❌ DATABASE_URL required");
   process.exit(1);
 }
-const sql = neon(DATABASE_URL);
+const sql = postgres(DATABASE_URL, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
 
 // Allocation status → target investor status
 const ALLOC_TO_INVESTOR: Record<string, string> = {

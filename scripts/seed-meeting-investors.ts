@@ -6,14 +6,14 @@
  * Creates 5 Individual investors (status = meeting) with diverse activities
  * to showcase the Board (Kanban) and Calendar views.
  */
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   console.error("❌ DATABASE_URL required");
   process.exit(1);
 }
-const sql = neon(DATABASE_URL);
+const sql = postgres(DATABASE_URL, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
 
 // ─── 5 Individual Investors ─────────────────────────────────────────────────
 const meetingInvestors = [

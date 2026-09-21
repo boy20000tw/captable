@@ -11,7 +11,7 @@
  *   5. Anti-Dilution Provisions (BBWA + Full Ratchet)
  *   6. Angel Tax Deductions (產創條例 §23-2, 13 records)
  */
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -19,7 +19,7 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-const sql = neon(DATABASE_URL);
+const sql = postgres(DATABASE_URL, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
 
 // ─── Projection Assumptions ─────────────────────────────────────────────────
 // Biotech SaaS — Year1 NT$30M, 72% GM, growth ramp 150%→40%

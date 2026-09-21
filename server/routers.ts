@@ -1140,7 +1140,7 @@ const v1AllocationsRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: "Allocation has already been issued." });
       }
       // Save previous status for compensating rollback if writeRegisterEntry fails.
-      // neon-http driver doesn't support real DB transactions, so we must
+      // (historical) neon-http driver didn't support real DB transactions, so we
       // manually revert the allocation if the dependent register write fails,
       // otherwise we're left with status=issued but no register entry.
       const previousStatus = existing.status;
@@ -1766,7 +1766,7 @@ const instrumentsRouter = router({
     }),
 
   // ─── Execute conversion (writes status + fires audit) ─────────────────
-  // Per-instrument status tracking + idempotency. Since neon-http driver
+  // Per-instrument status tracking + idempotency. Since the (former) neon-http driver
   // doesn't support real DB transactions, we use compensating semantics:
   //   - Already-converted instruments are skipped (idempotent retry)
   //   - Each instrument update is tracked; partial-success is reported so

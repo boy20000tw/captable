@@ -16,12 +16,13 @@
  *   - projected funding_rounds.roundDate is pushed out by whole quarters so it
  *     always stays ≥ MIN_ROUND_LEAD_DAYS ahead.
  *
- * Deliberately uses the thin neon client and plain SQL (like api/health.ts) so
- * the cron function stays tiny and independent of the app's Drizzle layer.
+ * Deliberately uses a thin postgres-js client and plain SQL (like api/health.ts)
+ * so the cron function stays tiny and independent of the app's Drizzle layer.
+ * (v2.68: was the Neon HTTP client; the tagged-template API is the same.)
  *
  * Idempotent: running it twice on the same day is a no-op.
  */
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 export const DEMO_TZ = "Asia/Taipei";
 /** Projected rounds are kept at least this many days in the future. */
@@ -46,8 +47,28 @@ export function getDemoCompanyIds(): number[] {
   return raw.split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n) && n > 0);
 }
 
-export async function refreshDemoCompany(databaseUrl: string, companyId: number): Promise<DemoRefreshResult> {
-  const sql = neon(databaseUrl);
+function openSql(databaseUrl: string) {
+  return postgres(databaseUrl, {
+    max: 1,
+    prepare: false,
+    connect_timeout: 8,
+    ssl: /sslmode=disable/.test(databaseUrl) ? false : { rejectUnauthorized: false },
+    onnotice: () => {},
+  });
+}
+
+type Sql = ReturnType<typeof openSql>;
+
+export async function refreshDemoCompany(databaseUrl: string, companyId: number, client?: Sql): Promise<DemoRefreshResult> {
+  const sql = client ?? openSql(databaseUrl);
+  try {
+    return await refreshWith(sql, companyId);
+  } finally {
+    if (!client) await sql.end({ timeout: 5 });
+  }
+}
+
+async function refreshWith(sql: Sql, companyId: number): Promise<DemoRefreshResult> {
 
   const [{ today }] = await sql`SELECT (NOW() AT TIME ZONE ${DEMO_TZ})::date::text AS today` as { today: string }[];
 
@@ -140,6 +161,11 @@ export async function refreshDemoCompany(databaseUrl: string, companyId: number)
 
 export async function refreshAllDemoCompanies(databaseUrl: string): Promise<DemoRefreshResult[]> {
   const out: DemoRefreshResult[] = [];
-  for (const id of getDemoCompanyIds()) out.push(await refreshDemoCompany(databaseUrl, id));
+  const sql = openSql(databaseUrl);
+  try {
+    for (const id of getDemoCompanyIds()) out.push(await refreshDemoCompany(databaseUrl, id, sql));
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
   return out;
 }

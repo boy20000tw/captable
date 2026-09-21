@@ -8,8 +8,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { eq } from "drizzle-orm";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import {
   companies,
   investors,
@@ -31,7 +31,7 @@ import { deriveCapTable } from "../server/v1/capTable";
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is required");
-  const sql = neon(url);
+  const sql = postgres(url, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
   const db = drizzle({ client: sql });
 
   const TEST_COMPANY_NAME = "SMOKE-TEST-IMPORT-V1";

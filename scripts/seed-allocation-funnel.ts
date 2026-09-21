@@ -6,14 +6,14 @@
  * Run with:
  *   export $(grep -v '^#' .env | xargs) && npx tsx scripts/seed-allocation-funnel.ts
  */
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 const dbUrl = process.env.DATABASE_URL;
 if (!dbUrl) {
   console.error("❌ DATABASE_URL is required");
   process.exit(1);
 }
-const sql = neon(dbUrl);
+const sql = postgres(dbUrl, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
 
 const COMPANY_ID = 1;
 const A_ROUND_ID = 36;

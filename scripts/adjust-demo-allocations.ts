@@ -19,7 +19,7 @@
  *   陳醫師 (個人天使)        — NT$4,000,000   (was 3M)
  *   Pacific Innovation Fund — NT$2,000,000   (unchanged)
  */
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -28,7 +28,7 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-const sql = neon(DATABASE_URL);
+const sql = postgres(DATABASE_URL, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
 
 // investor name → new amount (NTD)
 // Total: 15 + 10 + 10 + 8 + 6 + 5 + 4 + 2 = NT$60M

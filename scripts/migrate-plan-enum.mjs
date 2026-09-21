@@ -7,10 +7,10 @@
  *
  * Run: node scripts/migrate-plan-enum.mjs
  */
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 import "dotenv/config";
 
-const sql = neon(process.env.DATABASE_URL);
+const sql = postgres(process.env.DATABASE_URL, { max: 1, prepare: false, ssl: { rejectUnauthorized: false } });
 
 async function migrate() {
   console.log("=== Plan Enum Migration ===\n");
@@ -28,7 +28,7 @@ async function migrate() {
   for (const val of needed) {
     if (!existing.includes(val)) {
       // Must use raw SQL — ADD VALUE doesn't support parameterized queries
-      await sql(`ALTER TYPE company_plan ADD VALUE IF NOT EXISTS '${val}'`);
+      await sql.unsafe(`ALTER TYPE company_plan ADD VALUE IF NOT EXISTS '${val}'`);
       console.log(`  Added: '${val}'`);
     } else {
       console.log(`  Already exists: '${val}'`);

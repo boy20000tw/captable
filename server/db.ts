@@ -1,6 +1,6 @@
 import { eq, desc, asc, and, isNotNull, sql } from "drizzle-orm";
-import { neon, neonConfig } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import {
   InsertUser, users,
   companies, InsertCompany, Company,
@@ -55,24 +55,41 @@ import {
 let _db: ReturnType<typeof drizzle> | null = null;
 
 /**
- * Per-query hard timeout for the Neon HTTP driver (v2.66).
- * Without this a stalled Neon compute (cold start / suspend / network) makes
- * every request hang until the Vercel function itself is killed, and the
- * client sees an opaque 500 after ~5-10s. Failing fast with a clear error is
- * strictly better — and lets /api/health report "db: down" instead of "unknown".
+ * Postgres connection (v2.68 — moved from Neon HTTP to self-hosted Postgres on
+ * Zeabur Tokyo, driven by postgres-js over TCP).
+ *
+ * Tuned for Vercel serverless:
+ *   - max: 1            one socket per warm lambda instance; many concurrent
+ *                       lambdas × a big pool would exhaust max_connections.
+ *   - prepare: false    no named prepared statements (safe if a pooler is ever
+ *                       put in front, and avoids stale-statement errors).
+ *   - connect_timeout   fail fast (seconds) instead of hanging until the
+ *                       function is killed — same intent as the old Neon 8s fetch timeout.
+ *   - idle_timeout      release the socket while the instance sits idle.
+ *   - ssl               the server has TLS enabled (self-signed cert), so encrypt
+ *                       in transit without CA verification. Override with ?sslmode=disable.
  */
-const DB_QUERY_TIMEOUT_MS = Number(process.env.DB_QUERY_TIMEOUT_MS ?? 8000);
-const _baseFetch: typeof fetch = globalThis.fetch.bind(globalThis);
-neonConfig.fetchFunction = (input: any, init?: any) => {
-  if (init?.signal) return _baseFetch(input, init);
-  return _baseFetch(input, { ...(init ?? {}), signal: AbortSignal.timeout(DB_QUERY_TIMEOUT_MS) });
-};
+const DB_CONNECT_TIMEOUT_S = Number(process.env.DB_CONNECT_TIMEOUT_S ?? 8);
+
+export function createSqlClient(url: string, opts: { idleTimeoutS?: number } = {}) {
+  const wantsNoSsl = /sslmode=disable/.test(url);
+  return postgres(url, {
+    max: 1,
+    prepare: false,
+    connect_timeout: DB_CONNECT_TIMEOUT_S,
+    idle_timeout: opts.idleTimeoutS ?? 20,
+    ssl: wantsNoSsl ? false : { rejectUnauthorized: false },
+    onnotice: () => {},
+  });
+}
+
+let _sqlClient: ReturnType<typeof postgres> | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      const sqlClient = neon(process.env.DATABASE_URL);
-      _db = drizzle({ client: sqlClient });
+      _sqlClient = createSqlClient(process.env.DATABASE_URL);
+      _db = drizzle({ client: _sqlClient });
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -1658,7 +1675,7 @@ export async function findOrphanedIssuedAllocations(companyId: number) {
         WHERE sre."allocationId" = a.id
       )
   `);
-  return rows.rows ?? rows;
+  return [...rows] as any[]; // postgres-js returns the row array directly
 }
 
 // ─── V1: Register + Snapshots ──────────────────────────────────────────────
