@@ -3,7 +3,6 @@ import { initSentry } from "./lib/sentry";
 // Initialize Sentry BEFORE React renders
 initSentry();
 
-import { ClerkProvider } from "@clerk/clerk-react";
 import { trpc } from "@/lib/trpc";
 import { getActiveCompanyId, onActiveCompanyChange } from "@/lib/activeCompany";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,7 +12,6 @@ import superjson from "superjson";
 import App from "./App";
 import "./index.css";
 
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const API_TIMEOUT_MS = 20_000;
 
 const queryClient = new QueryClient({
@@ -57,11 +55,9 @@ const trpcClient = trpc.createClient({
 });
 
 createRoot(document.getElementById("root")!).render(
-  <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </trpc.Provider>
-  </ClerkProvider>
+  <trpc.Provider client={trpcClient} queryClient={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
+  </trpc.Provider>
 );

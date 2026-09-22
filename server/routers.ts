@@ -92,6 +92,7 @@ import { writeRegisterEntry, createManualSnapshot } from "./v1/registerWrite";
 import { deriveCapTable } from "./v1/capTable";
 import { planLimit, type PlanKey, type UsageLimitKey } from "../shared/plans";
 import { notifyNewCompanyCreated } from "./email";
+import { deleteAuthUser } from "./_core/auth";
 
 // Platform owner — auto-promoted to super_admin on login
 const PLATFORM_OWNER_EMAIL = process.env.PLATFORM_OWNER_EMAIL ?? "boy20000tw@gmail.com";
@@ -3286,6 +3287,17 @@ export const appRouter = router({
 
         // Delete the account and all related data
         await deleteAccountCascade(user.id);
+
+        // v2.69: also remove the Better Auth identity (sessions + linked
+        // Google/email accounts cascade), so the email can't sign back into
+        // a ghost identity.
+        try {
+          if (user.openId && !String(user.openId).startsWith("pending_")) {
+            await deleteAuthUser(String(user.openId));
+          }
+        } catch (err) {
+          console.error("[deleteMyAccount] failed to delete auth identity", err);
+        }
 
         return { success: true };
       }),

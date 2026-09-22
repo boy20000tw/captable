@@ -1,6 +1,6 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
-import { clerkClient } from "@clerk/express";
+import { getRequestSession } from "./auth";
 import { getUserByOpenId, getUserByEmail, bindPendingAdminOpenId, upsertUser, getUserCompanyMemberships, resolveCompanyMembership, getCompanyById } from "../db";
 import { normalizePlan, type PlanKey } from "../../shared/plans";
 
@@ -26,55 +26,54 @@ export async function createContext(
     let companyPlan: PlanKey | null = null;
 
   try {
-        // Clerk adds auth info to the request via middleware
-      const auth = (opts.req as any).auth;
-        if (auth?.userId) {
-                user = await getUserByOpenId(auth.userId) ?? null;
-                // Auto-sync user from Clerk if not in our DB
-          if (!user) {
-                    try {
-                                const clerkUser = await clerkClient.users.getUser(auth.userId);
-                                const clerkEmail = clerkUser.emailAddresses[0]?.emailAddress ?? null;
-                                const clerkName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null;
+    // v2.69: Better Auth session (first-party cookie) replaces Clerk's req.auth
+    const session = await getRequestSession(opts.req.headers);
+    if (session) {
+      // Keep `req.auth.userId` for the rate-limiter identifier (was set by Clerk)
+      (opts.req as any).auth = { userId: session.userId };
+      user = (await getUserByOpenId(session.userId)) ?? null;
 
-                                // Check if this is a pre-provisioned admin logging in for the first time
-                                if (clerkEmail) {
-                                  const pendingUser = await getUserByEmail(clerkEmail);
-                                  if (pendingUser && typeof pendingUser.openId === "string" && pendingUser.openId.startsWith("pending_")) {
-                                    // Bind the real Clerk openId to the pre-provisioned record
-                                    await bindPendingAdminOpenId(pendingUser.id, auth.userId, clerkName);
-                                    user = await getUserByOpenId(auth.userId) ?? null;
-                                    console.log(`[Context] Bound pre-provisioned admin ${clerkEmail} → ${auth.userId}`);
-                                  }
-                                }
-
-                                // Standard new-user sync (if not a pre-provisioned admin)
-                                if (!user) {
-                                  await upsertUser({
-                                    openId: auth.userId,
-                                    name: clerkName,
-                                    email: clerkEmail,
-                                    loginMethod: "clerk",
-                                    lastSignedIn: new Date(),
-                                  });
-                                  user = await getUserByOpenId(auth.userId) ?? null;
-                                }
-                    } catch (syncError) {
-                                console.error("[Context] Failed to sync Clerk user:", syncError);
-                    }
-          } else {
-                    // Update lastSignedIn for existing users
-                  try {
-                              await upsertUser({
-                                            openId: auth.userId,
-                                            lastSignedIn: new Date(),
-                              });
-                  } catch (_) { /* non-critical */ }
+      if (!user) {
+        try {
+          // First Better Auth login for someone we already know (Clerk-era account,
+          // or an admin pre-provisioned by email as `pending_*`): re-bind the
+          // existing row to the new identity. Only on a VERIFIED email — Google
+          // accounts and email-OTP sign-ins both prove ownership of the address.
+          if (session.emailVerified && session.email) {
+            const existing = await getUserByEmail(session.email);
+            if (existing) {
+              await bindPendingAdminOpenId(existing.id, session.userId, existing.name ? null : session.name);
+              user = (await getUserByOpenId(session.userId)) ?? null;
+              console.log(`[Context] Re-bound user #${existing.id} to Better Auth identity`);
+            }
           }
+
+          if (!user) {
+            await upsertUser({
+              openId: session.userId,
+              name: session.name,
+              email: session.email,
+              loginMethod: "better-auth",
+              lastSignedIn: new Date(),
+            });
+            user = (await getUserByOpenId(session.userId)) ?? null;
+          }
+        } catch (syncError) {
+          console.error("[Context] Failed to sync auth user:", syncError);
         }
+      } else {
+        // Update lastSignedIn at most hourly (was: a DB write on every request)
+        const last = user.lastSignedIn ? new Date(user.lastSignedIn).getTime() : 0;
+        if (Date.now() - last > 60 * 60 * 1000) {
+          try {
+            await upsertUser({ openId: session.userId, lastSignedIn: new Date() });
+          } catch (_) { /* non-critical */ }
+        }
+      }
+    }
   } catch (error) {
-        console.error("[Context] Auth error:", error);
-        user = null;
+    console.error("[Context] Auth error:", error);
+    user = null;
   }
 
   // Resolve active company: x-company-id header (validated) OR user's first membership

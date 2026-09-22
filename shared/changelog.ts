@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.69.0",
+    date: "2026-09-22",
+    type: "minor",
+    title: "登入系統改用 Better Auth（取代 Clerk）— 自製登入畫面，支援 Google 與 Email 驗證碼",
+    description: "移除 Clerk，改用開源 Better Auth，身分資料存在自有 Zeabur Postgres（ba_* 資料表）、session 為同網域 httpOnly cookie。登入畫面改為自製元件：Google 登入 + 免密碼 6 位數 Email 驗證碼（Resend 寄送，中英雙語），登入頁不再需要等第三方腳本排隊載入；品牌字樣改為 Caploom。舊帳號以已驗證的 Email 首次登入時自動綁定原有資料。刪除帳號會一併刪除登入身分；lastSignedIn 改為每小時最多寫入一次；隱私權政策第三方服務同步更新（Google、Resend、Zeabur）。Vite 分包改為函式式，修正 vendor-i18n / vendor-data 循環相依。",
+  },
+  {
     version: "2.68.0",
     date: "2026-09-21",
     type: "minor",

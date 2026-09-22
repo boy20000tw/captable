@@ -77,7 +77,7 @@ async function checkRedis(): Promise<CheckResult> {
 }
 
 function checkEnv(): CheckResult {
-  const required = ["DATABASE_URL", "CLERK_SECRET_KEY"];
+  const required = ["DATABASE_URL", "BETTER_AUTH_SECRET"];
   const missing = required.filter((k) => !process.env[k]);
   return missing.length ? { status: "down", error: `missing: ${missing.join(", ")}` } : { status: "ok" };
 }

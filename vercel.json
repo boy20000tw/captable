@@ -4,6 +4,10 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/api/auth/:path*",
+      "destination": "/api/auth?__ba=:path*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
@@ -62,6 +66,15 @@
     },
     {
       "source": "/api/cron/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/api/auth/(.*)",
       "headers": [
         {
           "key": "Cache-Control",

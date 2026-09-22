@@ -251,7 +251,7 @@
   "join.email": "Email:",
   "join.note": "Note:",
   "join.youveBeenInvited": "You've Been Invited",
-  "join.invitedAs": "You've been invited to join Cap Table Manager as <strong>{{role}}</strong>.",
+  "join.invitedAs": "You've been invited to join Caploom as <strong>{{role}}</strong>.",
   "join.signInToAccept": "Sign in to accept this invitation.",
   "join.signInBtn": "Sign In to Accept",
   "join.roleAdmin": "Admin",

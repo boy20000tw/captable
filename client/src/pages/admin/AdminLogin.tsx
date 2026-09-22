@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { SignIn, useUser, useClerk } from "@clerk/clerk-react";
+import SignInCard from "@/components/SignInCard";
+import { authClient, useSession } from "@/lib/authClient";
 import { Shield, AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 /**
  * Standalone Admin Login page — /admin/login
  *
- * Uses Clerk for Google OAuth authentication, then checks if the
+ * Uses Better Auth (Google / email code) to sign in, then checks if the
  * authenticated user is a platform admin (role='admin' in users table).
  * If not admin → shows error and signs out.
  * If admin → redirects to /admin.
@@ -20,11 +21,11 @@ export default function AdminLogin() {
   const { t } = useTranslation("admin");
   const { t: tLegal } = useTranslation("legal");
   const [, setLocation] = useLocation();
-  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
-  const { signOut } = useClerk();
+  const { data: session } = useSession();
+  const isSignedIn = Boolean(session?.user);
   const [denied, setDenied] = useState(false);
 
-  // Once Clerk is signed in, call auth.me to check admin status
+  // Once signed in, call auth.me to check admin status
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
@@ -45,10 +46,10 @@ export default function AdminLogin() {
 
   const handleSignOut = async () => {
     setDenied(false);
-    await signOut();
+    await authClient.signOut();
   };
 
-  // State: checking admin status after Clerk auth
+  // State: checking admin status after sign-in
   if (isSignedIn && !denied && !meQuery.data) {
     return (
       <div className="flex items-center justify-center min-h-screen" style={{ background: "var(--background)" }}>
@@ -71,7 +72,7 @@ export default function AdminLogin() {
           <div>
             <h2 className="text-xl font-semibold mb-2">{t("login.denied")}</h2>
             <p className="text-sm text-muted-foreground">
-              {t("login.deniedDescription", { email: clerkUser?.primaryEmailAddress?.emailAddress ?? "" })}
+              {t("login.deniedDescription", { email: session?.user?.email ?? "" })}
             </p>
           </div>
           <Button variant="outline" onClick={handleSignOut}>
@@ -82,7 +83,7 @@ export default function AdminLogin() {
     );
   }
 
-  // State: show Clerk sign-in
+  // State: show sign-in
   return (
     <div className="flex items-center justify-center min-h-screen" style={{ background: "var(--background)" }}>
       <div className="flex flex-col items-center gap-10 p-12 max-w-md w-full">
@@ -100,7 +101,7 @@ export default function AdminLogin() {
           </div>
         </div>
 
-        <SignIn routing="hash" />
+        <SignInCard callbackURL="/admin/login" onSignedIn={() => window.location.reload()} />
 
         {/* Legal footer */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -16,7 +16,6 @@
   "btn.reset": "重設",
   "btn.markAllRead": "全部標為已讀",
   "btn.update": "更新",
-
   "status.pending": "待處理",
   "status.completed": "已完成",
   "status.active": "啟用中",
@@ -29,7 +28,6 @@
   "status.signed": "已簽約 (Signed)",
   "status.funded": "已入資 (Funded)",
   "status.issued": "已發行 (Issued)",
-
   "label.name": "名稱",
   "label.date": "日期",
   "label.amount": "金額",
@@ -42,14 +40,11 @@
   "label.role": "角色：",
   "label.email": "Email：",
   "label.note": "備註：",
-
   "date.format": "YYYY/MM/DD",
   "currency.twd": "新台幣",
   "currency.usd": "美元",
-
   "lang.toggle": "English",
   "lang.current": "繁中",
-
   "notification.title": "通知",
   "notification.noNotifications": "尚無通知",
   "notification.typeFunding": "募資",
@@ -59,7 +54,6 @@
   "notification.type83b": "83(b)",
   "notification.typeTransfer": "轉讓",
   "notification.typeGeneral": "一般",
-
   "changelog.title": "更新日誌 (Changelog)",
   "changelog.currentVersion": "目前版本：",
   "changelog.whatsNew": "最新消息",
@@ -67,7 +61,6 @@
   "changelog.typeMajor": "重大更新 (major)",
   "changelog.typeFeature": "新功能 (feature)",
   "changelog.typeFix": "修復 (fix)",
-
   "company.newCompany": "新增公司",
   "company.noCompanies": "尚無公司",
   "company.noCompanySelected": "未選擇公司",
@@ -75,7 +68,6 @@
   "company.companyName": "公司名稱",
   "company.creating": "建立中…",
   "company.created": "公司「{{name}}」已建立",
-
   "allocation.editTitle": "編輯分配",
   "allocation.editTitleWithName": "編輯分配 — {{name}}",
   "allocation.addTitle": "新增分配 (Add Allocation)",
@@ -101,7 +93,6 @@
   "allocation.created": "分配已建立",
   "allocation.updated": "分配已更新",
   "allocation.selectInvestorError": "請選擇投資人",
-
   "vesting.noSchedule": "此授予尚未設定 Vesting 時程。",
   "vesting.progress": "Vesting 進度",
   "vesting.vestedPct": "{{pct}}% 已歸屬",
@@ -115,5 +106,24 @@
   "vesting.noExpiry": "無到期日",
   "vesting.cliff": "Cliff",
   "vesting.today": "今天",
-  "signOut": "登出"
+  "signOut": "登出",
+  "auth.title": "登入 Caploom",
+  "auth.subtitle": "第一次使用？登入即自動建立帳號。",
+  "auth.google": "使用 Google 帳號繼續",
+  "auth.or": "或",
+  "auth.emailLabel": "電子郵件",
+  "auth.sendCode": "寄送登入驗證碼",
+  "auth.back": "改用其他 Email",
+  "auth.codeTitle": "請查看您的信箱",
+  "auth.codeSent": "我們已寄送 6 位數驗證碼至 {{email}}",
+  "auth.verifying": "登入中…",
+  "auth.resend": "重新寄送驗證碼",
+  "auth.resendIn": "{{s}} 秒後可重新寄送",
+  "auth.errorEmail": "請輸入有效的電子郵件地址。",
+  "auth.errorCode": "驗證碼錯誤或已過期，請再試一次。",
+  "auth.errorTooMany": "嘗試次數過多，請稍候一分鐘再試。",
+  "auth.errorGeneric": "發生錯誤，請再試一次。",
+  "auth.agree": "繼續即表示您同意我們的",
+  "auth.terms": "服務條款",
+  "auth.privacy": "隱私權政策"
 }

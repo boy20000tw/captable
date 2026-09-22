@@ -5,7 +5,8 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { clerkMiddleware } from "@clerk/express";
+import { handleAuthRequest } from "./authHandler";
+import { getRequestSession } from "./auth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import multer from "multer";
@@ -16,6 +17,9 @@ import { getUserByOpenId, getUserCompanyMemberships, resolveCompanyMembership, g
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  // Better Auth — must be mounted before body parsers (reads the raw stream)
+  app.all("/api/auth/*", (req, res, next) => { handleAuthRequest(req, res).catch(next); });
 
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -32,17 +36,17 @@ async function startServer() {
     res.setHeader("Permissions-Policy", "interest-cohort=()");
     // Enforce HTTPS (Vercel terminates TLS but this helps downstream proxies)
     res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
-    // CSP — allow Clerk, Sentry, Vercel Analytics, and inline styles (shadcn/ui)
+    // CSP — allow Sentry, Vercel Analytics, and inline styles (shadcn/ui)
     res.setHeader(
       "Content-Security-Policy",
       [
         "default-src 'self'",
-        "script-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+        "script-src 'self'",
         "style-src 'self' 'unsafe-inline'",                       // shadcn/ui uses inline styles
-        "img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com",
+        "img-src 'self' data: blob: https://lh3.googleusercontent.com",
         "font-src 'self' data:",
-        "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://*.ingest.sentry.io https://vitals.vercel-insights.com https://va.vercel-scripts.com",
-        "frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+        "connect-src 'self' https://*.ingest.sentry.io https://vitals.vercel-insights.com https://va.vercel-scripts.com",
+        "frame-src 'self'",
         "worker-src 'self' blob:",
         "object-src 'none'",
         "base-uri 'self'",
@@ -54,8 +58,14 @@ async function startServer() {
     next();
   });
 
-  // Clerk auth middleware
-  app.use(clerkMiddleware());
+  // Populate req.auth from the Better Auth session (replaces clerkMiddleware)
+  app.use(async (req, _res, next) => {
+    try {
+      const session = await getRequestSession(req.headers);
+      if (session) (req as any).auth = { userId: session.userId };
+    } catch { /* unauthenticated */ }
+    next();
+  });
 
   // Excel file upload endpoint
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });

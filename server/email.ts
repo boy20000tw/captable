@@ -66,3 +66,41 @@ export async function notifyNewCompanyCreated(payload: NewCompanyPayload) {
     console.error("[email] Failed to send new company notification:", err);
   }
 }
+
+// ── Login: email one-time code (Better Auth email OTP, v2.69) ─────────────────
+
+type LoginOtpPayload = {
+  email: string;
+  otp: string;
+  type: "sign-in" | "email-verification" | "forget-password" | "change-email" | string;
+};
+
+export async function sendLoginOtpEmail({ email, otp }: LoginOtpPayload) {
+  if (!resend) {
+    // Local dev without Resend: print the code so sign-in still works.
+    console.warn(`[email] RESEND_API_KEY not set — login code for ${email}: ${otp}`);
+    return;
+  }
+  const code = String(otp).replace(/[^0-9A-Za-z]/g, "");
+  try {
+    await resend.emails.send({
+      from: "Caploom <noreply@cap-loom.com>",
+      to: email,
+      subject: `Caploom 登入驗證碼 / Sign-in code: ${code}`,
+      text:
+        `您的 Caploom 登入驗證碼：${code}\n驗證碼 10 分鐘內有效。若非您本人操作，請忽略此信。\n\n` +
+        `Your Caploom sign-in code: ${code}\nIt expires in 10 minutes. If you didn't request it, you can ignore this email.`,
+      html: `
+        <div style="font-family: -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif; max-width: 480px; margin: 0 auto; color: #1a2332;">
+          <p style="font-size: 20px; font-weight: 700; margin: 0 0 24px;">Caploom</p>
+          <p style="margin: 0 0 8px;">您的登入驗證碼 · Your sign-in code</p>
+          <p style="font-size: 32px; letter-spacing: 8px; font-weight: 700; margin: 8px 0 24px; font-family: 'SF Mono', Menlo, monospace;">${code}</p>
+          <p style="font-size: 13px; color: #667085; margin: 0 0 4px;">驗證碼 10 分鐘內有效。若非您本人操作，請忽略此信。</p>
+          <p style="font-size: 13px; color: #667085; margin: 0;">This code expires in 10 minutes. If you didn't request it, you can safely ignore this email.</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("[email] Failed to send login code:", err);
+  }
+}

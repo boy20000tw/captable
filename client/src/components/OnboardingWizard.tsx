@@ -17,7 +17,7 @@ interface OnboardingWizardProps {
 
 export default function OnboardingWizard({ onSkip }: OnboardingWizardProps) {
   const { t } = useTranslation("pages");
-  const { user, refresh, clerkUser } = useAuth();
+  const { user, refresh, authUser } = useAuth();
 
   const [step, setStep] = useState<Step>("welcome");
   const [name, setName] = useState("");
@@ -68,7 +68,7 @@ export default function OnboardingWizard({ onSkip }: OnboardingWizardProps) {
     });
   }, [name, nameEn, taxId, createMutation, t]);
 
-  const displayName = clerkUser?.firstName || user?.name || "";
+  const displayName = authUser?.firstName || user?.name || "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">

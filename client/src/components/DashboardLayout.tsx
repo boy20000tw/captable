@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { SignIn } from "@clerk/clerk-react";
+import SignInCard from "./SignInCard";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { VersionBadge } from "./ChangelogDrawer";
 import { SubscriptionBadge } from "./SubscriptionBadge";
@@ -291,7 +291,7 @@ export default function DashboardLayout({
             />
             <div className="flex flex-col items-center gap-1">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Cap Table Manager
+                Cap Table
               </h1>
               <div className="w-8 h-0.5 rounded-full" style={{ background: "var(--primary)" }} />
             </div>
@@ -299,7 +299,7 @@ export default function DashboardLayout({
           <p className="text-sm text-muted-foreground text-center leading-relaxed max-w-xs">
             {tNav("signIn.tagline")}
           </p>
-          <SignIn routing="hash" />
+          <SignInCard />
           {/* Legal footer */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <a href="/privacy" className="hover:text-foreground transition-colors">{tLegalOuter("footer.privacy")}</a>

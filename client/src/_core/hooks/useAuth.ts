@@ -1,4 +1,4 @@
-import { useUser, useClerk } from "@clerk/clerk-react";
+import { authClient, useSession } from "@/lib/authClient";
 import { trpc } from "@/lib/trpc";
 import { useCallback, useMemo } from "react";
 import {
@@ -16,8 +16,12 @@ import {
 export type { CompanyRole, AdminRole };
 
 export function useAuth() {
-  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
-  const { signOut, openSignIn } = useClerk();
+  const { data: session, isPending, error: sessionError } = useSession();
+  const isLoaded = !isPending;
+  const isSignedIn = Boolean(session?.user);
+  const authUser = session?.user
+    ? { firstName: session.user.name?.split(" ")[0] ?? null, fullName: session.user.name ?? null, email: session.user.email, imageUrl: session.user.image ?? null }
+    : null;
 
   // Get our app's user data (with appRole etc.) from the DB
   const meQuery = trpc.auth.me.useQuery(undefined, {
@@ -29,14 +33,16 @@ export function useAuth() {
     enabled: isSignedIn === true,
   });
 
-  // Clerk says we're signed in but our backend couldn't answer → the platform
+  // Auth says we're signed in but our backend couldn't answer → the platform
   // is down/degraded, NOT "user isn't logged in". Callers must not render the
   // sign-in form in this state.
-  const serviceUnavailable = Boolean(isSignedIn && meQuery.isError);
+  // Also: the session endpoint itself failed (not "logged out" — that returns null).
+  const serviceUnavailable = Boolean((isSignedIn && meQuery.isError) || (isLoaded && sessionError && (sessionError as any).status >= 500));
 
   const logout = useCallback(async () => {
-    await signOut();
-  }, [signOut]);
+    await authClient.signOut();
+    window.location.assign("/");
+  }, []);
 
   // Derive companyRole from the server response
   const companyRole = (meQuery.data?.companyRole ?? null) as CompanyRole | null;
@@ -65,7 +71,7 @@ export function useAuth() {
     isFetchingMe: meQuery.isFetching,
     isAuthenticated: Boolean(isSignedIn && meQuery.data),
     hasCompany,
-    clerkUser,
+    authUser,
     // RBAC — company level
     companyRole,
     canEdit: capabilities?.canEdit ?? false,
@@ -76,7 +82,7 @@ export function useAuth() {
     // RBAC — admin level
     adminRole,
     adminCapabilities,
-  }), [isLoaded, isSignedIn, meQuery.data, meQuery.error, meQuery.isLoading, meQuery.isFetching, serviceUnavailable, clerkUser, hasCompany, companyRole, capabilities, adminRole, adminCapabilities]);
+  }), [isLoaded, isSignedIn, meQuery.data, meQuery.error, meQuery.isLoading, meQuery.isFetching, serviceUnavailable, authUser?.email, authUser?.fullName, hasCompany, companyRole, capabilities, adminRole, adminCapabilities]);
 
   return {
     ...state,
@@ -86,6 +92,9 @@ export function useAuth() {
     defaultPath: companyRole ? getDefaultPath(companyRole) : "/",
     refresh: () => meQuery.refetch(),
     logout,
-    signIn: openSignIn,
+    /** Send the user to the sign-in screen (the app root renders it when signed out). */
+    signIn: (opts?: { redirectUrl?: string }) => {
+      window.location.assign(opts?.redirectUrl ?? "/");
+    },
   };
 }
