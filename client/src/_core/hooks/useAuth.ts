@@ -1,6 +1,6 @@
 import { authClient, useSession } from "@/lib/authClient";
 import { trpc } from "@/lib/trpc";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
   type CompanyRole,
   getCapabilities,
@@ -17,7 +17,13 @@ export type { CompanyRole, AdminRole };
 
 export function useAuth() {
   const { data: session, isPending, error: sessionError } = useSession();
-  const isLoaded = !isPending;
+  // Better Auth flips isPending back to true on every background refetch while
+  // signed out (window focus, tab switch). Treating that as "loading" unmounted
+  // the sign-in card mid-flow — e.g. coming back from Gmail with the code.
+  // Only the very first load counts as loading.
+  const loadedOnce = useRef(false);
+  if (!isPending) loadedOnce.current = true;
+  const isLoaded = loadedOnce.current;
   const isSignedIn = Boolean(session?.user);
   const authUser = session?.user
     ? { firstName: session.user.name?.split(" ")[0] ?? null, fullName: session.user.name ?? null, email: session.user.email, imageUrl: session.user.image ?? null }

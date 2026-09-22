@@ -30,11 +30,30 @@ function GoogleIcon() {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DRAFT_KEY = "caploom-signin-draft";
+
+// Remember "code sent to X" for 10 minutes so a reload / tab switch doesn't
+// throw the user back to step 1 while they fetch the code from their inbox.
+function readDraft(): { email: string; at: number } | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return d && typeof d.email === "string" && Date.now() - d.at < 10 * 60 * 1000 ? d : null;
+  } catch { return null; }
+}
+function writeDraft(email: string | null) {
+  try {
+    if (email) sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ email, at: Date.now() }));
+    else sessionStorage.removeItem(DRAFT_KEY);
+  } catch { /* storage unavailable */ }
+}
 
 export default function SignInCard({ callbackURL, onSignedIn }: Props) {
   const { t } = useTranslation("common");
-  const [step, setStep] = useState<"start" | "code">("start");
-  const [email, setEmail] = useState("");
+  const [draft] = useState(readDraft);
+  const [step, setStep] = useState<"start" | "code">(draft ? "code" : "start");
+  const [email, setEmail] = useState(draft?.email ?? "");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState<null | "google" | "send" | "verify">(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +94,7 @@ export default function SignInCard({ callbackURL, onSignedIn }: Props) {
     setEmail(addr);
     setCode("");
     setStep("code");
+    writeDraft(addr);
     startCountdown();
   };
 
@@ -89,6 +109,7 @@ export default function SignInCard({ callbackURL, onSignedIn }: Props) {
       setError(err.status === 429 ? t("auth.errorTooMany") : t("auth.errorCode"));
       return;
     }
+    writeDraft(null);
     if (onSignedIn) { setBusy(null); onSignedIn(); }
     else window.location.assign(target);
   };
@@ -135,7 +156,7 @@ export default function SignInCard({ callbackURL, onSignedIn }: Props) {
         <>
           <button
             type="button"
-            onClick={() => { setStep("start"); setError(null); }}
+            onClick={() => { setStep("start"); setError(null); writeDraft(null); }}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" /> {t("auth.back")}
