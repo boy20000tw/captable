@@ -20,6 +20,13 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.69.1",
+    date: "2026-09-22",
+    type: "patch",
+    title: "首頁載入瘦身 — PDF、圖表、Session Replay 改為用到才下載",
+    description: "登入頁原本一打開就會下載 PDF 匯出（jspdf）與圖表（recharts）整包，原因是 Vite 的動態載入輔助函式與 clsx 等小工具被 Rollup 放進了這兩個大包裡，主程式為了拿幾 KB 的函式只好整包預載。新增 vendor-shared 分包收納這些共用小工具；首頁 Dashboard 內容（含圓餅圖）改為登入後才載入，並在使用者輸入 Email / 按 Google 時於背景預先下載；Sentry Session Replay 改為頁面載入完成後才從 CDN 載入。首次載入 JS（gzip）約由 650KB 降至 360KB。",
+  },
+  {
     version: "2.69.0",
     date: "2026-09-22",
     type: "minor",

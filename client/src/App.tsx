@@ -10,8 +10,8 @@ import { CurrencyProvider } from "./contexts/CurrencyContext";
 import PageLoader from "./components/PageLoader";
 import RoleGuard from "./components/RoleGuard";
 
-// --- Home (keep static — first paint) ---
-import Home from "./pages/Home";
+// --- Home: shell is static (first paint / sign-in), dashboard body is lazy ---
+import Home from "./pages/HomeRoute";
 
 // --- Lazy-loaded pages ---
 // Core cap table

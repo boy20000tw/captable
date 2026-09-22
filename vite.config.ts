@@ -5,6 +5,10 @@ import { defineConfig } from "vite";
 
 const VENDOR_CHUNKS: Record<string, string[]> = {
   "vendor-react": ["react", "react-dom", "scheduler", "use-sync-external-store"],
+  // Tiny helpers shared by app code AND heavy libs. Without an explicit home,
+  // Rollup parks them inside vendor-charts / vendor-pdf, and the entry then has
+  // to preload those whole chunks just to get clsx or a babel helper (v2.69.1).
+  "vendor-shared": ["clsx", "@babel/runtime", "tslib", "prop-types", "react-is", "tiny-invariant", "eventemitter3"],
   "vendor-data": ["@tanstack/react-query", "@tanstack/query-core", "@trpc/client", "@trpc/react-query", "@trpc/server", "superjson", "wouter"],
   "vendor-charts": ["recharts"],
   "vendor-excel": ["xlsx", "exceljs"],
@@ -33,6 +37,10 @@ export default defineConfig({
         // (subpaths/CJS shims included), so React always lands in
         // vendor-react and chunks can't form import cycles.
         manualChunks(id: string) {
+          // Vite's own dynamic-import preload helper: jspdf's internal dynamic
+          // imports made Rollup put it inside vendor-pdf, so every page
+          // preloaded the whole PDF library just to get this ~1KB function.
+          if (id.includes("vite/preload-helper") || id.includes("modulepreload-polyfill")) return "vendor-shared";
           const i = id.lastIndexOf("node_modules/");
           if (i === -1) return undefined;
           const parts = id.slice(i + "node_modules/".length).split("/");
