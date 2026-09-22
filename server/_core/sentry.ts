@@ -19,7 +19,6 @@ export function initSentryServer() {
       if (event.request?.headers) {
         delete event.request.headers["authorization"];
         delete event.request.headers["cookie"];
-        delete event.request.headers["x-clerk-auth-token"];
       }
       return event;
     },

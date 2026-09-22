@@ -5,7 +5,7 @@
 
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useTranslation } from "react-i18next";
-import { SignIn } from "@clerk/clerk-react";
+import SignInCard from "./SignInCard";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,7 +87,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <ShieldCheck className="h-12 w-12 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Admin Panel</h1>
           </div>
-          <SignIn routing="hash" />
+          <SignInCard />
         </div>
       </div>
     );

@@ -21,6 +21,15 @@ export type AdminChangelogEntry = {
 
 export const ADMIN_CHANGELOG: AdminChangelogEntry[] = [
   {
+    version: "1.15.0",
+    date: "2026-09-22",
+    type: "minor",
+    title: "Admin 登入改用 Better Auth（Google / Email 驗證碼）",
+    titleEn: "Admin sign-in moved to Better Auth (Google / email code)",
+    description: "/admin/login 改用自製登入元件，支援 Google 與 Email 驗證碼。預建（pending_）Admin 帳號與 Clerk 時期的帳號，首次以已驗證 Email 登入時自動綁定原有紀錄。",
+    descriptionEn: "/admin/login now uses Caploom's own sign-in card with Google and email-code sign-in. Pre-provisioned (pending_) admins and Clerk-era accounts are re-bound automatically on first sign-in with a verified email.",
+  },
+  {
     version: "1.14.0",
     date: "2026-05-13",
     type: "minor",

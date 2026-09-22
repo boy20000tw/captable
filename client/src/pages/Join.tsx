@@ -2,13 +2,12 @@ import { useEffect, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useClerk } from "@clerk/clerk-react";
-import { Shield, Check, X, Clock, LogIn, Loader2 } from "lucide-react";
+import SignInCard from "@/components/SignInCard";
+import { Shield, Check, X, Clock, Loader2 } from "lucide-react";
 
 export default function Join() {
   const { t } = useTranslation("pages");
   const { user, loading: authLoading } = useAuth();
-  const { openSignIn } = useClerk();
 
   const ROLE_LABELS: Record<string, string> = {
     admin: t("join.roleAdmin"),
@@ -214,12 +213,9 @@ export default function Join() {
         <p className="text-sm text-muted-foreground text-center">
           {t("join.signInToAccept")}
         </p>
-        <button
-          onClick={() => openSignIn({ afterSignInUrl: `/join?token=${token}`, afterSignUpUrl: `/join?token=${token}` })}
-          className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
-        >
-          <LogIn className="h-4 w-4" /> {t("join.signInBtn")}
-        </button>
+        <div className="flex justify-center">
+          <SignInCard callbackURL={`/join?token=${encodeURIComponent(token)}`} />
+        </div>
       </div>
     </div>
   );

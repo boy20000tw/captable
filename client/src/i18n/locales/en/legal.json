@@ -6,7 +6,7 @@
     "sections": {
       "dataCollection": {
         "title": "1. Data We Collect",
-        "account": "Account Information — name, email address, company role, and authentication credentials (managed via Clerk).",
+        "account": "Account Information — name, email address, company role, and sign-in identifiers (Google account ID or email address). We use passwordless sign-in and do not store passwords.",
         "company": "Company Data — company name, incorporation details, shareholder records, share classes, funding rounds, ESOP grants, and other equity-related data you enter.",
         "usage": "Usage Data — pages visited, features used, timestamps, IP address, browser type, and device information.",
         "cookies": "Cookies — we use essential cookies for authentication and session management. No third-party advertising cookies are used."
@@ -22,8 +22,8 @@
       "thirdParty": {
         "title": "3. Third-Party Services",
         "description": "We use the following third-party services to operate the platform:",
-        "clerk": "Clerk — authentication and user management.",
-        "neon": "Neon — PostgreSQL database hosting (data storage).",
+        "clerk": "Google — optional \"Sign in with Google\" (OAuth). Resend — delivery of sign-in codes and notification emails.",
+        "neon": "Zeabur — PostgreSQL database hosting in Tokyo, Japan (data storage).",
         "docuseal": "DocuSeal — electronic signature processing (if enabled).",
         "vercel": "Vercel — application hosting and delivery.",
         "note": "We do not sell your personal data to any third party."

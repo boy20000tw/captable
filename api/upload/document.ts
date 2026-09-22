@@ -1,18 +1,17 @@
 import express from "express";
-import { clerkMiddleware } from "@clerk/express";
 import multer from "multer";
 import { getUserByOpenId } from "../../server/db";
 import { storagePut } from "../../server/storage";
+import { getRequestSession } from "../../server/_core/auth";
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
-app.use(clerkMiddleware());
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 app.post("/api/upload/document", upload.single("file"), async (req, res) => {
   try {
-    const auth = (req as any).auth;
+    const auth = await getRequestSession(req.headers).catch(() => null);
     if (!auth?.userId) { res.status(401).json({ error: "Unauthorized" }); return; }
     const user = await getUserByOpenId(auth.userId);
     if (!user) { res.status(401).json({ error: "User not found" }); return; }
