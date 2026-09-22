@@ -40,7 +40,7 @@ export default function Home() {
   );
 }
 
-function DashboardContent() {
+export function DashboardContent() {
   const { t } = useTranslation("pages");
   const [, setLocation] = useLocation();
   const { formatAmount, formatPrice } = useCurrency();

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Mail, ArrowLeft } from "lucide-react";
 import { authClient } from "@/lib/authClient";
+import { prefetchDashboard } from "@/lib/prefetch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -52,6 +53,8 @@ function writeDraft(email: string | null) {
 export default function SignInCard({ callbackURL, onSignedIn }: Props) {
   const { t } = useTranslation("common");
   const [draft] = useState(readDraft);
+  // Returning to the code step (reload / tab switch): the user is about to sign in.
+  if (draft) prefetchDashboard();
   const [step, setStep] = useState<"start" | "code">(draft ? "code" : "start");
   const [email, setEmail] = useState(draft?.email ?? "");
   const [code, setCode] = useState("");
@@ -72,6 +75,7 @@ export default function SignInCard({ callbackURL, onSignedIn }: Props) {
   };
 
   const signInWithGoogle = async () => {
+    prefetchDashboard();
     setError(null);
     setBusy("google");
     const { error: err } = await authClient.signIn.social({ provider: "google", callbackURL: target });
@@ -144,6 +148,7 @@ export default function SignInCard({ callbackURL, onSignedIn }: Props) {
               placeholder="you@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={prefetchDashboard}
               disabled={busy !== null}
             />
             <Button type="submit" className="w-full gap-2" disabled={busy !== null || !email}>

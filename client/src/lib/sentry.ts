@@ -36,13 +36,9 @@ export function initSentry() {
     tracesSampleRate: import.meta.env.PROD ? 0.2 : 1.0,
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
-    ],
+    // Session Replay (~70KB gz) is no longer in the main bundle (v2.69.1):
+    // it's fetched from Sentry's CDN after the page has finished loading.
+    integrations: [Sentry.browserTracingIntegration()],
     beforeSend(event) {
       const frames = event.exception?.values?.[0]?.stacktrace?.frames;
       if (frames?.some((f) => f.filename?.includes("extension://"))) {
@@ -51,6 +47,26 @@ export function initSentry() {
       return event;
     },
   });
+
+  loadReplayLater();
+}
+
+/** Load Session Replay lazily so it never competes with first paint. */
+function loadReplayLater() {
+  const start = async () => {
+    try {
+      const replayIntegration = await Sentry.lazyLoadIntegration("replayIntegration");
+      Sentry.addIntegration(replayIntegration({ maskAllText: true, blockAllMedia: true }));
+    } catch {
+      /* CDN blocked (ad-blocker etc.) — errors are still reported, just without replay */
+    }
+  };
+  const idle = () =>
+    "requestIdleCallback" in window
+      ? (window as any).requestIdleCallback(start, { timeout: 5000 })
+      : setTimeout(start, 2000);
+  if (document.readyState === "complete") idle();
+  else window.addEventListener("load", idle, { once: true });
 }
 
 /** Set user context after authentication. */
